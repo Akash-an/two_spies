@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "two-spies/lobby-event",
+  "title": "LobbyEvent",
+  "description": "Messages exchanged during lobby and matchmaking phase.",
+  "type": "object",
+  "required": ["type", "playerId"],
+  "properties": {
+    "type":      { "type": "string", "enum": ["LOBBY_JOIN", "LOBBY_LEAVE", "LOBBY_READY"] },
+    "playerId":  { "type": "string", "minLength": 1 },
+    "sessionId": { "type": ["string", "null"] },
+    "displayName": { "type": "string", "maxLength": 32 }
+  }
+}

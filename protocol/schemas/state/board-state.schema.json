@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "two-spies/board-state-update",
+  "title": "BoardStateUpdate",
+  "description": "Full board state snapshot broadcast to all clients in a session.",
+  "type": "object",
+  "required": ["type", "sessionId", "turnNumber", "currentTurn", "board"],
+  "properties": {
+    "type":        { "type": "string", "enum": ["BOARD_STATE_UPDATE", "TURN_CHANGE", "GAME_OVER"] },
+    "sessionId":   { "type": "string" },
+    "turnNumber":  { "type": "integer", "minimum": 0 },
+    "currentTurn": { "type": "string", "enum": ["RED", "BLUE"] },
+    "gameOver":    { "type": "boolean" },
+    "winner":      { "type": "string", "enum": ["RED", "BLUE", null] },
+    "board": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "passable":  { "type": "boolean" },
+            "pieceType": { "type": ["string", "null"] },
+            "team":      { "type": ["string", "null"], "enum": ["RED", "BLUE", null] }
+          }
+        }
+      }
+    }
+  }
+}

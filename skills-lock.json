@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "6412eb4eb3b91595ebab937f0c69501240e7ba761b3d82510b5cf506ec5c7adc"
+    },
+    "phaser-gamedev": {
+      "source": "chongdashu/phaserjs-tinyswords",
+      "sourceType": "github",
+      "computedHash": "784c91cd1cd227a46500435d24a5e7dd157c2cc61ff37e4683ebdc0a6ed21b1a"
+    },
+    "screenshot-to-code": {
+      "source": "onewave-ai/claude-skills",
+      "sourceType": "github",
+      "computedHash": "8a6746ad696de21a98f7f312e2ccb9ab702efb65b45726a9434e028c7acc8253"
+    }
+  }
+}
