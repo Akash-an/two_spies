@@ -8,13 +8,14 @@
 namespace two_spies::game {
 
 /// Action types the client can send.
-enum class ActionKind { MOVE, STRIKE, ABILITY };
+enum class ActionKind { MOVE, STRIKE, ABILITY, WAIT };
 
 inline const char* to_string(ActionKind a) {
     switch (a) {
         case ActionKind::MOVE:    return "MOVE";
         case ActionKind::STRIKE:  return "STRIKE";
         case ActionKind::ABILITY: return "ABILITY";
+        case ActionKind::WAIT:    return "WAIT";
     }
     return "UNKNOWN";
 }
@@ -53,6 +54,9 @@ public:
     /// Attempt to use an ABILITY.
     ActionResult use_ability(PlayerSide side, AbilityId ability,
                              const std::string& target_city = "");
+
+    /// Wait action - consumes an action point without doing anything.
+    ActionResult wait(PlayerSide side);
 
     /// End the current player's turn.
     ActionResult end_turn(PlayerSide side);

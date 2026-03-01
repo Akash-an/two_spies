@@ -66,9 +66,13 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
     p.actions_remaining -= 1;
     p.has_cover = true;  // moving grants cover
 
-    // Check same-city collision
-    auto collision = check_same_city();
-    if (collision.game_over) return collision;
+    // Clear opponent's knowledge of this player's location (Locate effect wears off)
+    auto& opponent = player_mut(opposite(side));
+    opponent.known_opponent_city = "";  // player took action, clear their known location
+
+    // No automatic collision detection - players must strike to win
+    // auto collision = check_same_city();
+    // if (collision.game_over) return collision;
 
     result.ok = true;
     return result;
@@ -100,6 +104,10 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
 
     attacker.actions_remaining -= 1;
 
+    // Clear opponent's knowledge of attacker's location (Locate effect wears off)
+    auto& opponent = player_mut(opposite(side));
+    opponent.known_opponent_city = "";  // attacker took action, clear their known location
+
     const auto& defender = player(opposite(side));
 
     if (defender.current_city == target_city) {
@@ -115,7 +123,6 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
     }
 
     // MISS — striker's position is revealed to the opponent
-    auto& opponent = player_mut(opposite(side));
     opponent.known_opponent_city = attacker.current_city;
     attacker.has_cover = false;
 
@@ -155,6 +162,10 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     // implemented per-ability in Phase 4.
     p.actions_remaining -= 1;
 
+    // Clear opponent's knowledge of this player's location (Locate effect wears off)
+    auto& opponent = player_mut(opposite(side));
+    opponent.known_opponent_city = "";  // player took action, clear their known location
+
     // TODO: per-ability effects (deep cover, locate, etc.)
     switch (ability) {
         case AbilityId::DEEP_COVER:
@@ -174,6 +185,37 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
             // Other abilities: stub for now
             break;
     }
+
+    result.ok = true;
+    return result;
+}
+
+// ── WAIT ─────────────────────────────────────────────────────────────
+
+ActionResult GameState::wait(PlayerSide side) {
+    ActionResult result;
+
+    if (game_over_) {
+        result.error = "Game is already over.";
+        return result;
+    }
+    if (side != current_turn_) {
+        result.error = "Not your turn.";
+        return result;
+    }
+
+    auto& p = player_mut(side);
+    if (p.actions_remaining <= 0) {
+        result.error = "No actions remaining — end your turn.";
+        return result;
+    }
+
+    // Wait action: consume an action point without doing anything
+    p.actions_remaining -= 1;
+
+    // Clear opponent's knowledge of this player's location (Locate effect wears off)
+    auto& opponent = player_mut(opposite(side));
+    opponent.known_opponent_city = "";  // player took action, clear their known location
 
     result.ok = true;
     return result;

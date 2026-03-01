@@ -34,7 +34,8 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 ### Actions per Turn
 
 * Each turn consists of **two actions**.
-* Actions can be spent on movement, abilities, or a strike.
+* Actions can be spent on movement, abilities, strike, or wait.
+* **Auto-end:** Turns automatically end after 2 actions are consumed.
 
 ### Movement
 
@@ -43,9 +44,15 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 
 ### Strike Action
 
-* A player may use an action to attempt a **strike** on a specific city.
-* If the opponent is there — the round ends, striker wins.
+* A player may use an action to attempt a **strike at their current location**.
+* If the opponent is in the same city — the round ends, striker wins.
 * If the opponent is not there — the attacking spy's **location is revealed** to the opponent.
+* **Implementation note:** Strike no longer requires city selection; it always targets current location.
+
+### Wait Action
+
+* A player may use an action to **wait** — consuming an action point without doing anything.
+* Useful for ending turn early while preserving position or resources.
 
 ---
 
@@ -67,7 +74,7 @@ All abilities cost Intel and modify information visibility or mobility.
 | -------------- | ---------------------------------------------------------------------- |
 | Deep Cover     | Reduces visibility to opponent tracking temporarily.                   |
 | Encryption     | Masks what Intel was spent on, limiting opponent deduction.            |
-| Locate         | Reveals clues about the opponent's possible current city.              |
+| Locate         | Reveals the opponent's current location with a prominent pulsing yellow marker. The marker disappears after the opponent takes any action. |
 | Strike Report  | Provides enhanced information after a strike attempt.                  |
 | Rapid Recon    | Grants additional movement options or reveals potential move paths.    |
 | Prep Mission   | Grants an extra action or sets up a future positional advantage.       |

@@ -361,3 +361,50 @@ Rebuild scripts live in `scripts/` at the project root. Always use these when co
 Logs: `backend/server.log`, `frontend/vite.log`
 
 See **`.agents/skills/rebuild-and-restart/SKILL.md`** for full instructions including common troubleshooting.
+
+---
+
+# 16. Debugging Guidelines
+
+**Always check logs first when debugging or troubleshooting issues.**
+
+Log locations:
+- Backend: `backend/server.log`
+- Frontend: `frontend/vite.log`
+
+When a user reports an error or unexpected behavior:
+1. Read the relevant log file immediately
+2. Identify error messages, stack traces, or warnings
+3. Determine root cause before proposing solutions
+4. After implementing fixes, verify errors no longer appear in logs
+
+See **`.agents/skills/debug-and-logs/SKILL.md`** for comprehensive debugging workflows and common scenarios.
+
+---
+
+# 17. Documentation Updates
+
+When changes are significant (behavioral changes, public APIs, message formats, or other user-visible behavior), **update the relevant project documentation** and mention these updates in your commit message so reviewers notice the change.
+
+## Available Project Documentation
+
+| Document | Purpose | Update When |
+| --- | --- | --- |
+| [README.md](README.md) | Project overview, quick start, tech stack, deployment instructions | Public APIs, setup changes, new features visible to users |
+| [docs/game_design/game_design_doc.md](docs/game_design/game_design_doc.md) | Canonical game rules, mechanics, turn structure, abilities, victory conditions, fog of war | Game rule changes, new abilities, strike/movement logic changes, Intel system changes, cover system changes |
+| [docs/architecture.md](docs/architecture.md) | High-level system architecture, component interactions, data flow | Major architectural refactors, new subsystems, component responsibility changes |
+| [docs/user_journey.md](docs/user_journey.md) | Player experience flow, UI/UX decisions, game flow narrative | UI changes, player flow changes, onboarding/tutorial modifications |
+| [protocol/schemas/](protocol/schemas/) | JSON schema definitions for protocol messages, board state, actions, lobby events | Message format changes, new action types, state structure modifications |
+| [AGENTS.md](AGENTS.md) (this file) | AI agent instructions, design principles, development phases | Changes to core principles, new phase requirements, updated skill references |
+| [Requirements.md](Requirements.md) | Feature requirements and acceptance criteria | New features, requirement clarifications, scope changes |
+
+## When to Update Documentation
+
+- **Message Format Changes**: Update `protocol/schemas/` and relevant `.ts/.hpp` message definitions
+- **Game Rule Changes**: Update `docs/game_design/game_design_doc.md`
+- **Architecture Changes**: Update `docs/architecture.md`
+- **Public API Changes**: Update `README.md` and relevant doc files
+- **UI/UX Changes**: Update `docs/user_journey.md`
+- **Setup or Deployment Changes**: Update `README.md`
+- **New Features or Abilities**: Update `docs/game_design/game_design_doc.md` and `README.md`
+

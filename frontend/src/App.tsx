@@ -102,6 +102,17 @@ export default function App() {
       setPhase('playing');
     };
 
+    // Store MATCH_STATE in registry so GameScene can access it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const onMatchState = (data: any) => {
+      if (gameRef.current) {
+        console.log('[App] MATCH_STATE received, storing in registry');
+        gameRef.current.registry.set('latestMatchState', data.payload);
+        // Notify GameScene if it's already active
+        gameRef.current.events.emit('match-state-updated', data.payload);
+      }
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onError = (data: any) => {
       const msg: string = data?.payload?.message ?? 'Unknown error';
@@ -148,6 +159,7 @@ export default function App() {
       // Attach event listeners
       finalClient.on(ServerMessageType.MATCH_CREATED, onMatchCreated);
       finalClient.on(ServerMessageType.MATCH_START, onMatchStart);
+      finalClient.on(ServerMessageType.MATCH_STATE, onMatchState);
       finalClient.on(ServerMessageType.ERROR, onError);
 
       // Create Phaser game with the final client

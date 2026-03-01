@@ -12,8 +12,8 @@ import { CityDef, EdgeDef, MapDef, MatchState } from '../../types/Messages';
 const PAD = 80;
 
 /** Colours */
-const COL_EDGE = 0x334466;
-const COL_EDGE_ADJACENT = 0x88ccff;
+const COL_EDGE = 0x5577aa;  // Brighter blue for better visibility
+const COL_EDGE_ADJACENT = 0x66ddff;  // Brighter cyan for adjacent edges
 const COL_CITY_LABEL = '#cccce0';
 const COL_CITY_LABEL_CURRENT = '#e0c872';
 
@@ -31,6 +31,9 @@ export class BoardRenderer {
   private edgeGraphics!: Phaser.GameObjects.Graphics;
   private citySprites: Map<string, CitySprite> = new Map();
   private spyMarker!: Phaser.GameObjects.Image;
+  private opponentMarker: Phaser.GameObjects.Graphics | null = null;
+  private tooltipText: Phaser.GameObjects.Text | null = null;
+  private cityData: Map<string, CityDef> = new Map();
 
   private mapW = 0;
   private mapH = 0;
@@ -91,6 +94,45 @@ export class BoardRenderer {
     this.highlightAdjacent(state.player.currentCity, state.map);
   }
 
+  /** Show or hide opponent location marker (yellow blip). */
+  updateOpponentLocation(knownOpponentCity: string | null | undefined): void {
+    // Remove existing marker
+    if (this.opponentMarker) {
+      this.opponentMarker.destroy();
+      this.opponentMarker = null;
+    }
+
+    // If opponent location is known, show prominent yellow marker
+    if (knownOpponentCity) {
+      const citySprite = this.citySprites.get(knownOpponentCity);
+      if (citySprite) {
+        this.opponentMarker = this.scene.add.graphics().setDepth(15);
+        
+        // Draw outer pulsing ring (larger, bright yellow)
+        this.opponentMarker.lineStyle(4, 0xffee44, 0.9);
+        this.opponentMarker.strokeCircle(citySprite.screenX, citySprite.screenY, 24);
+        
+        // Draw middle ring
+        this.opponentMarker.lineStyle(3, 0xffdd44, 0.8);
+        this.opponentMarker.strokeCircle(citySprite.screenX, citySprite.screenY, 18);
+        
+        // Draw inner filled circle (bright yellow)
+        this.opponentMarker.fillStyle(0xffdd44, 0.7);
+        this.opponentMarker.fillCircle(citySprite.screenX, citySprite.screenY, 14);
+        
+        // Add alpha pulsing animation (stays within city bounds)
+        this.scene.tweens.add({
+          targets: this.opponentMarker,
+          alpha: { from: 1, to: 0.4 },
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+    }
+  }
+
   /** Returns the city ID that was clicked, or null. */
   getCityAtPointer(pointer: Phaser.Input.Pointer): string | null {
     for (const [id, cs] of this.citySprites) {
@@ -114,7 +156,7 @@ export class BoardRenderer {
     const lookup = new Map<string, CityDef>();
     for (const c of cities) lookup.set(c.id, c);
 
-    this.edgeGraphics.lineStyle(2, COL_EDGE, 0.5);
+    this.edgeGraphics.lineStyle(3, COL_EDGE, 0.7);  // Increased thickness and opacity
     for (const e of edges) {
       const a = lookup.get(e.from);
       const b = lookup.get(e.to);
@@ -130,6 +172,9 @@ export class BoardRenderer {
 
   private drawCity(city: CityDef, _state: MatchState): void {
     const pos = this.toScreen(city.x, city.y);
+
+    // Store city data for tooltip
+    this.cityData.set(city.id, city);
 
     let textureKey = 'city';
     if (city.isBonus) textureKey = 'city_bonus';
@@ -157,6 +202,47 @@ export class BoardRenderer {
       screenX: pos.x,
       screenY: pos.y,
     });
+  }
+
+  /** Enable hover tooltips on cities. Call after drawBoard(). */
+  enableTooltips(tooltipText: Phaser.GameObjects.Text | null): void {
+    if (!tooltipText) {
+      console.warn('[BoardRenderer] enableTooltips called with null tooltipText');
+      return;
+    }
+    this.tooltipText = tooltipText;
+
+    for (const [cityId, cs] of this.citySprites) {
+      const city = this.cityData.get(cityId);
+      if (!city) continue;
+
+      // Show tooltip on hover
+      cs.sprite.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+        if (!this.tooltipText) return;
+        
+        let typeText = 'Normal City';
+        if (city.isBonus) typeText = 'Bonus City (+Intel per turn)';
+        else if (city.isPickup) typeText = 'Pickup City (+Action or Intel)';
+        
+        this.tooltipText.setText(`${city.name}\n${typeText}`);
+        this.tooltipText.setPosition(pointer.x + 12, pointer.y - 8);
+        this.tooltipText.setVisible(true);
+      });
+
+      // Hide tooltip when pointer leaves
+      cs.sprite.on('pointerout', () => {
+        if (this.tooltipText) {
+          this.tooltipText.setVisible(false);
+        }
+      });
+
+      // Update tooltip position while hovering
+      cs.sprite.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+        if (this.tooltipText && this.tooltipText.visible) {
+          this.tooltipText.setPosition(pointer.x + 12, pointer.y - 8);
+        }
+      });
+    }
   }
 
   private highlightAdjacent(currentCity: string, map: MapDef): void {
@@ -188,7 +274,8 @@ export class BoardRenderer {
       const pa = this.toScreen(a.x, a.y);
       const pb = this.toScreen(b.x, b.y);
 
-      this.edgeGraphics.lineStyle(isAdj ? 2 : 1, isAdj ? COL_EDGE_ADJACENT : COL_EDGE, isAdj ? 0.8 : 0.3);
+      // Adjacent edges are brighter and thicker; non-adjacent are still clearly visible
+      this.edgeGraphics.lineStyle(isAdj ? 4 : 3, isAdj ? COL_EDGE_ADJACENT : COL_EDGE, isAdj ? 0.9 : 0.6);
       this.edgeGraphics.beginPath();
       this.edgeGraphics.moveTo(pa.x, pa.y);
       this.edgeGraphics.lineTo(pb.x, pb.y);

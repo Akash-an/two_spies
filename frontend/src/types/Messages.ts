@@ -33,6 +33,7 @@ export enum ActionKind {
   MOVE = 'MOVE',
   STRIKE = 'STRIKE',
   ABILITY = 'ABILITY',
+  WAIT = 'WAIT',
 }
 
 /** Available abilities. */

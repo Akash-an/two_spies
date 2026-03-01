@@ -122,20 +122,23 @@ A full-screen overlay displaying:
 - `LobbyScene` receives the `MATCH_START` event and transitions to `GameScene`.
 
 **GameScene UI:**
-- **Board:** A city-graph rendered via `BoardRenderer` — cities as circles, edges as lines, player marker on their current city.
+- **Board:** A city-graph rendered via `BoardRenderer` — cities as circles, edges as lines, player marker on their current city. When opponent's location is revealed (via Locate ability), a prominent **pulsing yellow marker** appears at their city. The marker **disappears automatically** after the opponent takes any action (move, strike, wait, or ability).
 - **HUD (top-left):** Turn number, current turn indicator, Intel count, actions remaining, current city, cover status.
 - **HUD (top-right):** Player codename and "vs {OpponentName}".
-- **Action bar (bottom-center):** Three buttons:
-  - **Move** — enter move mode; click a city to move there.
-  - **Strike** — enter strike mode; click a city to strike.
-  - **End Turn** — ends the current turn.
-- **Status text (bottom):** Contextual messages (errors, mode indicators).
+- **Action bar (bottom-center):** Five buttons:
+  - **Move** — enter move mode; click an adjacent city to move there (toggleable).
+  - **Strike** — immediately strike at your current location (no target selection).
+  - **Locate** — use Locate ability to reveal opponent's position.
+  - **Wait** — consume an action point without doing anything.
+  - **End Turn** — manually end the current turn (auto-ends after 2 actions).
+- **Status text (bottom):** Prominent contextual messages (errors, mode indicators).
+- **Button states:** Buttons are disabled (grey) when it's not your turn.
 
 **Gameplay loop:**
 1. Server sends `MATCH_STATE` containing the player-filtered view (own position, intel, actions, map, etc.; opponent position hidden unless revealed).
-2. Player selects an action (Move/Strike) and clicks a target city. The client sends `PLAYER_ACTION` to the server.
+2. Player selects an action (Move/Strike/Locate/Wait). Move requires clicking a target city; others execute immediately.
 3. Server validates the action, updates state, and broadcasts new `MATCH_STATE` to both players.
-4. After using 2 actions (or choosing to), the player clicks "End Turn" → `END_TURN` sent → server swaps the active turn.
+4. After using 2 actions, the turn automatically ends. Players can also manually click "End Turn".
 5. Repeat until a successful strike on the opponent's city triggers `GAME_OVER`.
 
 ---

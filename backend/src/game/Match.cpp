@@ -87,6 +87,8 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
         result = state_->move(side, target_city);
     } else if (action == "STRIKE") {
         result = state_->strike(side, target_city);
+    } else if (action == "WAIT") {
+        result = state_->wait(side);
     } else if (action == "ABILITY") {
         // Parse ability_id
         AbilityId aid = AbilityId::DEEP_COVER; // default
