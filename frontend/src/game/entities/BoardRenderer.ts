@@ -35,6 +35,11 @@ export class BoardRenderer {
   private tooltipText: Phaser.GameObjects.Text | null = null;
   private cityData: Map<string, CityDef> = new Map();
 
+  // Starting city markers — cleared when the respective player first moves
+  // Each entry is [ring: Graphics, label: Text] so both are destroyed together.
+  private playerStartMarker: [Phaser.GameObjects.Graphics, Phaser.GameObjects.Text] | null = null;
+  private opponentStartMarker: [Phaser.GameObjects.Graphics, Phaser.GameObjects.Text] | null = null;
+
   private mapW = 0;
   private mapH = 0;
   private originX = 0;
@@ -67,6 +72,9 @@ export class BoardRenderer {
       .image(playerCity?.screenX ?? 0, playerCity?.screenY ?? 0, 'spy_marker')
       .setDepth(10);
 
+    // Starting city markers (shown until each player first moves)
+    this.drawStartingMarkers(state);
+
     // Highlight reachable cities
     this.highlightAdjacent(state.player.currentCity, map);
   }
@@ -89,6 +97,20 @@ export class BoardRenderer {
       cs.label.setColor(
         id === state.player.currentCity ? COL_CITY_LABEL_CURRENT : COL_CITY_LABEL,
       );
+    }
+
+    // Clear the player's own start marker once they've moved away
+    if (this.playerStartMarker && state.player.currentCity !== state.player.startingCity) {
+      this.playerStartMarker[0].destroy();
+      this.playerStartMarker[1].destroy();
+      this.playerStartMarker = null;
+    }
+
+    // Clear the opponent's start marker once they've moved away from their start
+    if (this.opponentStartMarker && state.opponentMovedFromStart) {
+      this.opponentStartMarker[0].destroy();
+      this.opponentStartMarker[1].destroy();
+      this.opponentStartMarker = null;
     }
 
     this.highlightAdjacent(state.player.currentCity, state.map);
@@ -131,6 +153,61 @@ export class BoardRenderer {
         });
       }
     }
+  }
+
+  /**
+   * Draw start-position rings for both players.
+   *
+   * - Own start: blue dashed ring — clears when the player first moves.
+   * - Opponent start: red dashed ring — clears when the opponent first moves.
+   *
+   * Both cities are known at match start (shared information per GDD §2).
+   */
+  private drawStartingMarkers(state: MatchState): void {
+    // Returns [ring, label] so both can be destroyed together when the marker is cleared.
+    const drawRing = (
+      cityId: string,
+      color: number,
+      label: string,
+    ): [Phaser.GameObjects.Graphics, Phaser.GameObjects.Text] | null => {
+      const cs = this.citySprites.get(cityId);
+      if (!cs) return null;
+
+      const gfx = this.scene.add.graphics().setDepth(7);
+
+      // Outer ring
+      gfx.lineStyle(3, color, 0.9);
+      gfx.strokeCircle(cs.screenX, cs.screenY, 26);
+
+      // Inner thin ring
+      gfx.lineStyle(1, color, 0.5);
+      gfx.strokeCircle(cs.screenX, cs.screenY, 20);
+
+      // Label stored alongside the ring so it can be destroyed with it
+      const txt = this.scene.add
+        .text(cs.screenX, cs.screenY - 34, label, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: Phaser.Display.Color.IntegerToColor(color).rgba,
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(7);
+
+      // Gentle pulse on the ring (not the text — avoids jitter)
+      this.scene.tweens.add({
+        targets: gfx,
+        alpha: { from: 1, to: 0.5 },
+        duration: 1200,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+
+      return [gfx, txt];
+    };
+
+    this.playerStartMarker  = drawRing(state.player.startingCity,         0x44aaff, 'YOUR START');
+    this.opponentStartMarker = drawRing(state.player.opponentStartingCity, 0xff5555, 'OPP START');
   }
 
   /** Returns the city ID that was clicked, or null. */

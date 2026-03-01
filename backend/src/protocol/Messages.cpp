@@ -110,6 +110,14 @@ json serialize_match_state(const std::string& session_id,
     } else {
         player_state["knownOpponentCity"] = nullptr;
     }
+    
+    // Include opponent action notifications
+    player_state["opponentUsedStrike"] = p.opponent_used_strike;
+    player_state["opponentUsedLocate"] = p.opponent_used_locate;
+    
+    // Include starting cities for both players - these are now shared information
+    player_state["startingCity"] = p.starting_city;
+    player_state["opponentStartingCity"] = opp.starting_city;
 
     json result;
     result["sessionId"] = session_id;
@@ -119,6 +127,7 @@ json serialize_match_state(const std::string& session_id,
     result["opponentName"] = opp.name;  // safe: just a display name, no strategic info
     result["map"] = serialize_map(state.graph().map_def());
     result["gameOver"] = state.is_game_over();
+    result["opponentMovedFromStart"] = opp.has_moved_from_start;
 
     if (state.is_game_over()) {
         result["winner"] = game::to_string(state.winner());

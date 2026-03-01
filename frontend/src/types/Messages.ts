@@ -78,6 +78,14 @@ export interface PlayerState {
   hasCover: boolean;
   knownOpponentCity?: string | null;  // only if revealed
   abilities: AbilityId[];
+  
+  // Opponent action notifications
+  opponentUsedStrike: boolean;   // opponent attempted strike this turn
+  opponentUsedLocate: boolean;   // opponent used locate ability this turn
+  
+  // Starting positions (now shared information)
+  startingCity: string;          // this player's starting city
+  opponentStartingCity: string;  // opponent's starting city
 }
 
 export interface MatchState {
@@ -85,10 +93,11 @@ export interface MatchState {
   turnNumber: number;
   currentTurn: PlayerSide;
   player: PlayerState;
-  opponentName: string;       // opponent's display name
+  opponentName: string;          // opponent's display name
   map: MapDef;
   gameOver: boolean;
   winner: PlayerSide | null;
+  opponentMovedFromStart: boolean;  // true once opponent leaves their starting city
 }
 
 // ─── Messages ────────────────────────────────────────────────────────

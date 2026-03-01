@@ -138,6 +138,12 @@ export class MockNetworkClient extends EventEmitter {
       hasCover: false,
       knownOpponentCity: null,
       abilities: [AbilityId.LOCATE, AbilityId.DEEP_COVER],
+      
+      // New fields for opponent notifications and starting cities
+      opponentUsedStrike: false,
+      opponentUsedLocate: false,
+      startingCity: startCity,
+      opponentStartingCity: cities[(startIdx + 3) % cities.length].id, // Different city for opponent
     };
 
     this.state = {
@@ -149,6 +155,7 @@ export class MockNetworkClient extends EventEmitter {
       map: DEFAULT_MAP,
       gameOver: false,
       winner: null,
+      opponentMovedFromStart: false,
     };
   }
 
@@ -169,9 +176,7 @@ export class MockNetworkClient extends EventEmitter {
         this.handleStrike(targetCity);
         break;
       case ActionKind.ABILITY:
-        // Stub: just consume one action
-        this.state.player.actionsRemaining -= 1;
-        this.emitState();
+        this.handleAbility(payload);
         break;
       default:
         this.emitError(`Unknown action: ${action}`);
@@ -206,10 +211,35 @@ export class MockNetworkClient extends EventEmitter {
 
     this.state.player.actionsRemaining -= 1;
 
-    // Mock: strike always fails (opponent is never at guessed city)
-    // Reveal our position to "opponent" (we just log it for now)
-    console.info(`[MockNet] Strike on ${targetCity} — MISS. Your position revealed.`);
+    // Mock: strike always fails (opponent is never at guessed city).
+    // Per new rules: a miss does NOT reveal the striker's location.
+    // The opponent would receive an opponentUsedStrike notification (handled server-side).
+    console.info(`[MockNet] Strike on ${targetCity} — MISS. Position NOT revealed.`);
     this.state.player.hasCover = false;
+    this.emitState();
+  }
+
+  private handleAbility(payload: Record<string, unknown>): void {
+    const abilityId = payload.abilityId as string | undefined;
+    this.state.player.actionsRemaining -= 1;
+
+    switch (abilityId) {
+      case AbilityId.LOCATE: {
+        // Reveal the mock opponent's last known city (use their starting city as a stand-in)
+        const opponentCity = this.state.player.opponentStartingCity;
+        this.state.player.knownOpponentCity = opponentCity;
+        console.info(`[MockNet] LOCATE used — opponent spotted at ${opponentCity}`);
+        break;
+      }
+      case AbilityId.DEEP_COVER:
+        this.state.player.hasCover = true;
+        console.info('[MockNet] DEEP_COVER activated — cover granted');
+        break;
+      default:
+        console.info(`[MockNet] Ability ${abilityId ?? 'unknown'} used (stub)`);
+        break;
+    }
+
     this.emitState();
   }
 
@@ -224,11 +254,17 @@ export class MockNetworkClient extends EventEmitter {
     // If it's now "opponent's turn", simulate a short delay then swap back
     if (this.state.currentTurn !== this.playerSide) {
       setTimeout(() => {
-        // Simulate opponent turn (they do nothing meaningful)
+        // Simulate opponent turn: they move (so their start marker clears) and
+        // occasionally use actions that trigger notifications.
+        this.state.opponentMovedFromStart = true;  // opponent moved this turn
+        this.state.player.opponentUsedStrike = false;  // reset any prior flags
+        this.state.player.opponentUsedLocate = false;
         this.state.turnNumber += 1;
         this.state.currentTurn = this.playerSide;
         this.state.player.actionsRemaining = 2;
         this.state.player.intel += 1;
+        // Clear locate reveal — opponent acted, so our knowledge is stale
+        this.state.player.knownOpponentCity = null;
         this.emitState();
       }, 800);
     }

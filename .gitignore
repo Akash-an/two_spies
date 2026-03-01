@@ -3,6 +3,7 @@
 # -----------------------------------------------
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
@@ -49,7 +50,7 @@ yarn-error.log*
 # -----------------------------------------------
 .DS_Store
 Thumbs.db
-.vscode/settings.json
+.vscode/
 .idea/
 *.swp
 *.swo

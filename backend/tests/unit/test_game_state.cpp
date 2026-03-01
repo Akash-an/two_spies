@@ -87,10 +87,41 @@ static void test_strike_miss() {
     auto r = gs.strike(PlayerSide::RED, "berlin");
     assert(r.ok);
     assert(!r.game_over);
-    // Striker's position revealed to opponent
-    assert(gs.player(PlayerSide::BLUE).known_opponent_city == "london");
-    // Striker loses cover
+    // Striker LOSES cover on a failed strike
     assert(!gs.player(PlayerSide::RED).has_cover);
+    // Opponent is notified a strike was attempted
+    assert(gs.player(PlayerSide::BLUE).opponent_used_strike);
+    std::cout << "OK\n";
+}
+
+// A failed strike must NOT reveal the striker's current city to the opponent.
+static void test_strike_miss_no_location_reveal() {
+    std::cout << "  test_strike_miss_no_location_reveal... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED is in london, strikes an empty city
+    gs.strike(PlayerSide::RED, "berlin");  // MISS
+
+    // BLUE must NOT have learned where RED is
+    assert(gs.player(PlayerSide::BLUE).known_opponent_city.empty());
+    std::cout << "OK\n";
+}
+
+// A successful strike (hit) must end the game and must NOT set opponent_used_strike.
+static void test_strike_hit_no_spurious_notification() {
+    std::cout << "  test_strike_hit_no_spurious_notification... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED strikes moscow where BLUE actually is — HIT
+    auto r = gs.strike(PlayerSide::RED, "moscow");
+    assert(r.ok);
+    assert(r.game_over);
+    assert(r.winner == PlayerSide::RED);
+    // A hit ends the game immediately; the notification flag is irrelevant but
+    // must not be set (the opponent has already lost — no banner needed).
+    assert(!gs.player(PlayerSide::BLUE).opponent_used_strike);
     std::cout << "OK\n";
 }
 
@@ -144,6 +175,107 @@ static void test_city_graph_adjacency() {
     std::cout << "OK\n";
 }
 
+// Verifies the full turn-alternation contract:
+//  - Only the current-turn player may act.
+//  - After end_turn the OTHER player becomes active and the previous player is locked out.
+//  - Actions from the wrong side are always rejected with a clear error.
+static void test_turn_alternation() {
+    std::cout << "  test_turn_alternation... ";
+    GameState gs(test_map());
+    // london–paris are adjacent; london–moscow are NOT adjacent
+    gs.set_starting_cities("london", "moscow");
+
+    // ── Turn 1: RED's turn ───────────────────────────────────────
+    assert(gs.current_turn() == PlayerSide::RED);
+
+    // BLUE must NOT be able to act while it is RED's turn
+    {
+        auto r = gs.move(PlayerSide::BLUE, "warsaw");
+        assert(!r.ok);
+        assert(r.error == "Not your turn.");
+    }
+    {
+        auto r = gs.strike(PlayerSide::BLUE, "london");
+        assert(!r.ok);
+        assert(r.error == "Not your turn.");
+    }
+    {
+        auto r = gs.end_turn(PlayerSide::BLUE);
+        assert(!r.ok);
+        assert(r.error == "Not your turn.");
+    }
+
+    // RED CAN act
+    {
+        auto r = gs.move(PlayerSide::RED, "paris");
+        assert(r.ok);
+    }
+
+    // RED ends their turn
+    {
+        auto r = gs.end_turn(PlayerSide::RED);
+        assert(r.ok);
+    }
+
+    // ── Turn 2: BLUE's turn ──────────────────────────────────────
+    assert(gs.current_turn() == PlayerSide::BLUE);
+    assert(gs.turn_number() == 2);
+
+    // RED must NOT be able to act while it is BLUE's turn
+    {
+        auto r = gs.move(PlayerSide::RED, "zurich");
+        assert(!r.ok);
+        assert(r.error == "Not your turn.");
+    }
+    {
+        auto r = gs.end_turn(PlayerSide::RED);
+        assert(!r.ok);
+        assert(r.error == "Not your turn.");
+    }
+
+    // BLUE CAN act
+    {
+        auto r = gs.move(PlayerSide::BLUE, "warsaw");
+        assert(r.ok);
+        assert(gs.player(PlayerSide::BLUE).current_city == "warsaw");
+    }
+
+    // BLUE ends their turn
+    {
+        auto r = gs.end_turn(PlayerSide::BLUE);
+        assert(r.ok);
+    }
+
+    // ── Turn 3: back to RED ───────────────────────────────────────
+    assert(gs.current_turn() == PlayerSide::RED);
+    assert(gs.turn_number() == 3);
+    // RED's actions should have been reset to 2
+    assert(gs.player(PlayerSide::RED).actions_remaining == 2);
+
+    std::cout << "OK\n";
+}
+
+static void test_starting_cities_not_adjacent() {
+    std::cout << "  test_starting_cities_not_adjacent... ";
+    GameState gs(test_map());
+
+    // london and paris ARE adjacent — must be rejected
+    bool threw = false;
+    try {
+        gs.set_starting_cities("london", "paris");
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    assert(threw);
+
+    // london and moscow are NOT adjacent — must succeed
+    gs.set_starting_cities("london", "moscow");
+    assert(gs.player(PlayerSide::RED).current_city == "london");
+    assert(gs.player(PlayerSide::BLUE).current_city == "moscow");
+
+    std::cout << "OK\n";
+}
+
 int main() {
     std::cout << "Running GameState unit tests...\n";
     test_starting_cities();
@@ -152,9 +284,13 @@ int main() {
     test_move_wrong_turn();
     test_strike_hit();
     test_strike_miss();
+    test_strike_miss_no_location_reveal();
+    test_strike_hit_no_spurious_notification();
     test_end_turn();
     test_no_actions_remaining();
     test_city_graph_adjacency();
+    test_turn_alternation();
+    test_starting_cities_not_adjacent();
     std::cout << "All tests passed!\n";
     return 0;
 }

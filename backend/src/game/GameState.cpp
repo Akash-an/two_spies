@@ -18,8 +18,13 @@ void GameState::set_starting_cities(const std::string& red_city, const std::stri
     if (red_city == blue_city) {
         throw std::invalid_argument("Starting cities must be distinct");
     }
+    if (graph_.are_adjacent(red_city, blue_city)) {
+        throw std::invalid_argument("Starting cities cannot be adjacent");
+    }
     red_.current_city = red_city;
-    blue_.current_city = blue_city;
+    red_.starting_city = red_city;
+    blue_.current_city = blue_city; 
+    blue_.starting_city = blue_city;
     red_.actions_remaining = 2;
     blue_.actions_remaining = 2;
     red_.intel = 2;
@@ -65,6 +70,9 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
     p.current_city = target_city;
     p.actions_remaining -= 1;
     p.has_cover = true;  // moving grants cover
+    if (!p.has_moved_from_start) {
+        p.has_moved_from_start = true;  // first move away from starting city
+    }
 
     // Clear opponent's knowledge of this player's location (Locate effect wears off)
     auto& opponent = player_mut(opposite(side));
@@ -122,9 +130,11 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
         return result;
     }
 
-    // MISS — striker's position is revealed to the opponent
-    opponent.known_opponent_city = attacker.current_city;
-    attacker.has_cover = false;
+    // MISS — striker loses cover but their location is NOT revealed to the opponent.
+    // The opponent is only notified that a strike occurred (opponent_used_strike flag);
+    // they learn nothing about WHERE the striker is.
+    opponent.opponent_used_strike = true;  // notify opponent that a strike was attempted
+    attacker.has_cover = false;             // striker loses cover for taking an aggressive action
 
     result.ok = true;
     return result;
@@ -179,6 +189,9 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                 if (!opp.has_cover) {
                     p.known_opponent_city = opp.current_city;
                 }
+                // Notify opponent that locate was used
+                auto& opponent_mut = player_mut(opposite(side));
+                opponent_mut.opponent_used_locate = true;
             }
             break;
         default:
@@ -260,6 +273,10 @@ ActionResult GameState::end_turn(PlayerSide side) {
     // Reset the next player's actions
     auto& next = player_mut(current_turn_);
     next.actions_remaining = 2;
+    
+    // Clear opponent action notifications for the new turn
+    next.opponent_used_strike = false;
+    next.opponent_used_locate = false;
 
     result.ok = true;
     return result;

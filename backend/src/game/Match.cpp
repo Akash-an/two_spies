@@ -40,15 +40,37 @@ void Match::start(unsigned int seed) {
     if (started_) return;
     started_ = true;
 
-    // Pick random distinct starting cities
+    // Pick random distinct starting cities that are NOT adjacent.
+    // We shuffle all city IDs and scan for the first pair (i, j) that satisfies
+    // the constraints.  This guarantees we never pass an invalid pair to
+    // set_starting_cities(), which would throw and crash the server.
     auto city_ids = state_->graph().all_city_ids();
     std::mt19937 rng(seed);
     std::shuffle(city_ids.begin(), city_ids.end(), rng);
 
-    state_->set_starting_cities(city_ids[0], city_ids[1]);
+    std::string red_city, blue_city;
+    bool found = false;
+    for (std::size_t i = 0; i < city_ids.size() && !found; ++i) {
+        for (std::size_t j = i + 1; j < city_ids.size() && !found; ++j) {
+            if (!state_->graph().are_adjacent(city_ids[i], city_ids[j])) {
+                red_city  = city_ids[i];
+                blue_city = city_ids[j];
+                found = true;
+            }
+        }
+    }
 
-    std::cout << "[Match " << session_id_ << "] Started: RED=" << city_ids[0]
-              << " BLUE=" << city_ids[1] << "\n";
+    if (!found) {
+        // Extremely degenerate map — every pair of cities is adjacent.
+        // Fall back to allowing adjacent starts (the game will still run).
+        red_city  = city_ids[0];
+        blue_city = city_ids[1];
+    }
+
+    state_->set_starting_cities(red_city, blue_city);
+
+    std::cout << "[Match " << session_id_ << "] Started: RED=" << red_city
+              << " BLUE=" << blue_city << "\n";
 
     // Send MATCH_START to each player with their assigned side
     {

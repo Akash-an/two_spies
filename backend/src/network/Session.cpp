@@ -82,6 +82,7 @@ void Session::on_read(beast::error_code ec, std::size_t /*bytes_transferred*/) {
 }
 
 void Session::on_message(const std::string& raw) {
+    try {
     auto msg_opt = protocol::parse_client_message(raw);
     if (!msg_opt) {
         auto err = protocol::make_error("", "Malformed message");
@@ -168,6 +169,11 @@ void Session::on_message(const std::string& raw) {
             match->handle_end_turn(player_id_);
             break;
         }
+    }
+    } catch (const std::exception& e) {
+        std::cerr << "[Session " << player_id_ << "] Unhandled exception in on_message: "
+                  << e.what() << "\n";
+        send(protocol::make_error("", std::string("Internal server error: ") + e.what()));
     }
 }
 

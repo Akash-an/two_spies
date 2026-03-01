@@ -36,6 +36,16 @@ export class GameScene extends Phaser.Scene {
   // Current selected action mode
   private actionMode: 'MOVE' | 'STRIKE' | null = null;
 
+  // Turn number on which we last showed an opponent-action banner.
+  // Prevents the same banner firing multiple times for one state update.
+  private lastStrikeBannerTurn = -1;
+  private lastLocateBannerTurn = -1;
+
+  // Currently visible notification banner objects (if any).
+  // Stored so an incoming banner can instantly dismiss the previous one
+  // instead of overlapping it.
+  private activeBannerObjects: Phaser.GameObjects.GameObject[] = [];
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -46,14 +56,12 @@ export class GameScene extends Phaser.Scene {
     this.net = this.registry.get('network') as INetworkClient;
 
     // ── Listen for state updates ─────────────────────────────────
-    this.net.on(ServerMessageType.MATCH_STATE, (_msg: unknown) => {
-      const msg = _msg as { payload: MatchState };
-      console.log('[GameScene] MATCH_STATE received via network listener');
-      this.state = msg.payload;
-      this.onStateUpdate();
-    });
-
-    // Also listen for state updates via game events (from App.tsx)
+    // State arrives through the App.tsx → game-event bridge ONLY.
+    // Do NOT add a direct this.net.on(MATCH_STATE) here — App.tsx already
+    // emits 'match-state-updated' for every MATCH_STATE message, and
+    // subscribing to both would cause onStateUpdate() to fire twice per
+    // message, creating duplicate auto-end-turn timers and spurious
+    // "Not your turn" errors.
     this.game.events.on('match-state-updated', (state: MatchState) => {
       console.log('[GameScene] MATCH_STATE received via game events');
       this.state = state;
@@ -394,6 +402,18 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(800, () => {
         this.net.send(ClientMessageType.END_TURN, {});
       });
+    } else if (p.opponentUsedStrike) {
+      // Opponent attempted a strike — show a prominent banner once per event
+      if (this.state.turnNumber !== this.lastStrikeBannerTurn) {
+        this.lastStrikeBannerTurn = this.state.turnNumber;
+        this.showOpponentStrikeBanner();
+      }
+    } else if (p.opponentUsedLocate) {
+      // Opponent used Locate on us — show a prominent banner once per event
+      if (this.state.turnNumber !== this.lastLocateBannerTurn) {
+        this.lastLocateBannerTurn = this.state.turnNumber;
+        this.showOpponentLocateBanner();
+      }
     } else {
       this.showStatus('', '#e0c872');
     }
@@ -469,10 +489,110 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private updateOpponentMarker(): void {
-    if (!this.board || !this.state) return;
+  private updateOpponentMarker(): void {    if (!this.board || !this.state) return;
     
     // Show opponent location if known (backend clears it after opponent's action)
     this.board.updateOpponentLocation(this.state.player.knownOpponentCity);
+  }
+
+  /**
+   * Show a transient notification banner anchored just below the HUD.
+   * Auto-destroys after `durationMs`.  Does NOT block gameplay.
+   * Any previously shown banner is dismissed immediately before the new one appears.
+   */
+  private showNotificationBanner(
+    line1: string,
+    line2: string,
+    borderColor: number,
+    durationMs = 3500,
+  ): void {
+    // Dismiss any banner that is still on-screen right now
+    this.dismissActiveBanner();
+
+    const w = this.cameras.main.width;
+    const bannerW = 420;
+    const bannerH = 64;
+    const bannerX = w / 2;
+    const bannerY = 120;  // just below the top HUD text block
+
+    // Background rect
+    const bg = this.add.rectangle(bannerX, bannerY, bannerW, bannerH, 0x1a1a2e, 0.93)
+      .setDepth(500)
+      .setStrokeStyle(2, borderColor);
+
+    // Main line
+    const t1 = this.add.text(bannerX, bannerY - 10, line1, {
+      fontFamily: 'monospace',
+      fontSize: '15px',
+      color: Phaser.Display.Color.IntegerToColor(borderColor).rgba,
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(501);
+
+    // Sub line
+    const t2 = this.add.text(bannerX, bannerY + 13, line2, {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#aaaacc',
+    }).setOrigin(0.5).setDepth(501);
+
+    // Track so the next banner (or an explicit dismiss) can remove these
+    this.activeBannerObjects = [bg, t1, t2];
+
+    // Slide in from above
+    const startY = bannerY - 50;
+    bg.setY(startY);
+    t1.setY(startY);
+    t2.setY(startY);
+    this.tweens.add({
+      targets: [bg, t1, t2],
+      y: `+=${50}`,
+      duration: 250,
+      ease: 'Back.easeOut',
+    });
+
+    // Auto-dismiss: fade out then destroy
+    this.time.delayedCall(durationMs, () => {
+      // Only destroy if these objects are still the active ones
+      if (this.activeBannerObjects[0] === bg) {
+        this.tweens.add({
+          targets: [bg, t1, t2],
+          alpha: 0,
+          duration: 400,
+          onComplete: () => {
+            bg.destroy();
+            t1.destroy();
+            t2.destroy();
+            if (this.activeBannerObjects[0] === bg) {
+              this.activeBannerObjects = [];
+            }
+          },
+        });
+      }
+    });
+  }
+
+  /** Immediately destroy any banner that is currently on screen. */
+  private dismissActiveBanner(): void {
+    if (this.activeBannerObjects.length > 0) {
+      this.tweens.killTweensOf(this.activeBannerObjects);
+      this.activeBannerObjects.forEach(obj => obj.destroy());
+      this.activeBannerObjects = [];
+    }
+  }
+
+  private showOpponentStrikeBanner(): void {
+    this.showNotificationBanner(
+      '⚠  YOUR OPPONENT STRUCK!',
+      'They missed — your position is safe.',
+      0xff5533,
+    );
+  }
+
+  private showOpponentLocateBanner(): void {
+    this.showNotificationBanner(
+      '⚠  OPPONENT USED LOCATE',
+      'Your current position may be known.',
+      0xffaa33,
+    );
   }
 }

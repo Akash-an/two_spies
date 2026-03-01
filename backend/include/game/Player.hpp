@@ -43,11 +43,19 @@ struct PlayerData {
     PlayerSide side;
     std::string name;  // display name chosen by the player
     std::string current_city;
+    std::string starting_city;  // remembers where this player started
     int intel = 2;
     int actions_remaining = 2;
     bool has_cover = false;
     std::string known_opponent_city;  // empty = unknown
     std::vector<AbilityId> abilities = { AbilityId::LOCATE, AbilityId::DEEP_COVER };
+    
+    // Opponent action notifications - cleared each turn
+    bool opponent_used_strike = false;  // opponent attempted a strike this turn
+    bool opponent_used_locate = false;  // opponent used locate ability this turn
+
+    // Tracks whether this player has ever moved away from their starting city
+    bool has_moved_from_start = false;
 };
 
 } // namespace two_spies::game

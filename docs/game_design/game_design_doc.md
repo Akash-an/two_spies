@@ -24,8 +24,9 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 
 ### Starting Positions
 
-* Each spy begins in a **random distinct city**.
-* Spy positions remain hidden from the opponent until revealed by abilities or mistakes.
+* Each spy begins in a **random distinct city** that is **not adjacent** to the opponent's starting city.
+* **Both players know each other's starting positions** — this information is shared at match start.
+* Spy positions during the game remain hidden from the opponent until revealed by abilities or mistakes.
 
 ---
 
@@ -47,6 +48,7 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 * A player may use an action to attempt a **strike at their current location**.
 * If the opponent is in the same city — the round ends, striker wins.
 * If the opponent is not there — the attacking spy's **location is revealed** to the opponent.
+* **The opponent is notified** that a strike attempt was made, even if it missed.
 * **Implementation note:** Strike no longer requires city selection; it always targets current location.
 
 ### Wait Action
@@ -74,7 +76,7 @@ All abilities cost Intel and modify information visibility or mobility.
 | -------------- | ---------------------------------------------------------------------- |
 | Deep Cover     | Reduces visibility to opponent tracking temporarily.                   |
 | Encryption     | Masks what Intel was spent on, limiting opponent deduction.            |
-| Locate         | Reveals the opponent's current location with a prominent pulsing yellow marker. The marker disappears after the opponent takes any action. |
+| Locate         | Reveals the opponent's current location with a prominent pulsing yellow marker. The marker disappears after the opponent takes any action. **The opponent is notified** that the Locate ability was used against them. |
 | Strike Report  | Provides enhanced information after a strike attempt.                  |
 | Rapid Recon    | Grants additional movement options or reveals potential move paths.    |
 | Prep Mission   | Grants an extra action or sets up a future positional advantage.       |

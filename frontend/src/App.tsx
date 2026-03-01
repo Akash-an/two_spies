@@ -183,6 +183,7 @@ export default function App() {
       if (client) {
         client.off(ServerMessageType.MATCH_CREATED, onMatchCreated);
         client.off(ServerMessageType.MATCH_START, onMatchStart);
+        client.off(ServerMessageType.MATCH_STATE, onMatchState);
         client.off(ServerMessageType.ERROR, onError);
         client.disconnect();
       }
