@@ -1,0 +1,9 @@
+/Users/akashan/projects/side_quest/two_spies/build/CMakeFiles/two_spies_lib.dir
+/Users/akashan/projects/side_quest/two_spies/build/CMakeFiles/two_spies_server.dir
+/Users/akashan/projects/side_quest/two_spies/build/CMakeFiles/test.dir
+/Users/akashan/projects/side_quest/two_spies/build/CMakeFiles/edit_cache.dir
+/Users/akashan/projects/side_quest/two_spies/build/CMakeFiles/rebuild_cache.dir
+/Users/akashan/projects/side_quest/two_spies/build/tests/CMakeFiles/unit_tests.dir
+/Users/akashan/projects/side_quest/two_spies/build/tests/CMakeFiles/test.dir
+/Users/akashan/projects/side_quest/two_spies/build/tests/CMakeFiles/edit_cache.dir
+/Users/akashan/projects/side_quest/two_spies/build/tests/CMakeFiles/rebuild_cache.dir

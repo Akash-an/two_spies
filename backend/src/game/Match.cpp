@@ -69,6 +69,9 @@ void Match::start(unsigned int seed) {
 
     state_->set_starting_cities(red_city, blue_city);
 
+    // Initialize turn timer
+    turn_start_time_ = std::chrono::steady_clock::now();
+
     std::cout << "[Match " << session_id_ << "] Started: RED=" << red_city
               << " BLUE=" << blue_city << "\n";
 
@@ -97,6 +100,14 @@ void Match::start(unsigned int seed) {
 void Match::handle_action(const std::string& player_id, const std::string& action,
                            const std::string& target_city, const std::string& ability_id) {
     std::lock_guard lock(mutex_);
+    
+    // Check for turn timeout before processing action
+    if (check_turn_timeout()) {
+        send_error(player_id, "Your turn time expired. Actions forfeited.");
+        broadcast_state();
+        return;
+    }
+    
     if (!started_ || state_->is_game_over()) {
         send_error(player_id, "Match not active.");
         return;
@@ -135,6 +146,9 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
         return;
     }
 
+    // Reset timer on successful action
+    turn_start_time_ = std::chrono::steady_clock::now();
+
     if (result.game_over) {
         // Send GAME_OVER to both players
         auto go_msg = protocol::make_server_message(
@@ -165,6 +179,9 @@ void Match::handle_end_turn(const std::string& player_id) {
         return;
     }
 
+    // Reset timer for next player's turn
+    turn_start_time_ = std::chrono::steady_clock::now();
+
     broadcast_state();
 }
 
@@ -190,15 +207,17 @@ std::string Match::player_id_of(PlayerSide side) const {
 }
 
 void Match::broadcast_state() {
+    long long elapsed = time_since_turn_start();
+    
     // Send per-player filtered state
     if (!red_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::RED);
+        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::RED, elapsed);
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
         send_to(red_player_id_, msg);
     }
     if (!blue_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BLUE);
+        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BLUE, elapsed);
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
         send_to(blue_player_id_, msg);
@@ -214,6 +233,41 @@ void Match::send_to(const std::string& player_id, const std::string& msg) {
 void Match::send_error(const std::string& player_id, const std::string& error) {
     auto msg = protocol::make_error(session_id_, error);
     send_to(player_id, msg);
+}
+
+long long Match::time_since_turn_start() const {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now - turn_start_time_
+    );
+    return elapsed.count();
+}
+
+bool Match::check_turn_timeout() {
+    if (!started_ || state_->is_game_over()) {
+        return false;
+    }
+
+    long long elapsed = time_since_turn_start();
+    if (elapsed >= TURN_DURATION_MS) {
+        // Forfeit all remaining actions and end turn for current player
+        PlayerSide current_player = state_->current_turn();
+        auto& player_data = state_->player_mut(current_player);
+        player_data.actions_remaining = 0;
+        
+        // Force end turn
+        state_->end_turn(current_player);
+        
+        // Reset timer for next player
+        turn_start_time_ = std::chrono::steady_clock::now();
+        
+        std::cout << "[Match " << session_id_ << "] Turn timeout: " 
+                  << to_string(current_player) << " forfeited remaining actions.\n";
+        
+        return true;
+    }
+
+    return false;
 }
 
 } // namespace two_spies::game

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <unordered_set>
 #include <cstdint>
 
 namespace two_spies::game {
@@ -56,6 +57,12 @@ struct PlayerData {
 
     // Tracks whether this player has ever moved away from their starting city
     bool has_moved_from_start = false;
+
+    // Tracks which cities have been visited for exploration bonus calculation
+    std::unordered_set<std::string> visited_cities;
+    
+    // Tracks if player moved to a new city this turn (for +4 Intel at end of turn)
+    bool moved_to_new_city_this_turn = false;
 };
 
 } // namespace two_spies::game

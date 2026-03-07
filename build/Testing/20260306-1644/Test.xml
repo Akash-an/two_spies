@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20260306-1644-Experimental"
+	Name="(empty)"
+	Generator="ctest-4.2.3"
+	CompilerName=""
+	CompilerVersion=""
+	OSName="macOS"
+	Hostname="M3Air.local"
+	OSRelease="26.2"
+	OSVersion="25C56"
+	OSPlatform="arm64"
+	Is64Bits="1"
+	VendorString="Apple"
+	VendorID="Apple"
+	FamilyID="0"
+	ModelID="0"
+	ModelName="Apple M3"
+	ProcessorCacheSize="131072"
+	NumberOfLogicalCPU="8"
+	NumberOfPhysicalCPU="8"
+	TotalVirtualMemory="17408"
+	TotalPhysicalMemory="16384"
+	LogicalProcessorsPerPhysical="8"
+	ProcessorClockFrequency="0"
+	>
+	<Testing>
+		<StartDateTime>Mar 07 23:31 IST</StartDateTime>
+		<StartTestTime>1772906504</StartTestTime>
+		<TestList/>
+		<EndDateTime>Mar 07 23:31 IST</EndDateTime>
+		<EndTestTime>1772906504</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

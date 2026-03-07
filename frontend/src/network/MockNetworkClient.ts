@@ -156,6 +156,12 @@ export class MockNetworkClient extends EventEmitter {
       gameOver: false,
       winner: null,
       opponentMovedFromStart: false,
+      turnStartTime: 0,
+      turnDuration: 15000,
+      timeElapsedMs: 0,
+      disappearedCities: [],
+      scheduledDisappearCity: undefined,
+      isPlayerStranded: false,
     };
   }
 

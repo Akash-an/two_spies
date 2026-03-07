@@ -69,8 +69,7 @@ json serialize_map(const game::MapDef& map) {
         cj["name"] = c.name;
         cj["x"] = c.x;
         cj["y"] = c.y;
-        if (c.is_bonus)  cj["isBonus"] = true;
-        if (c.is_pickup) cj["isPickup"] = true;
+        // All cities are now uniform - no special bonuses
         cities_arr.push_back(cj);
     }
 
@@ -84,7 +83,8 @@ json serialize_map(const game::MapDef& map) {
 
 json serialize_match_state(const std::string& session_id,
                            const game::GameState& state,
-                           game::PlayerSide for_player) {
+                           game::PlayerSide for_player,
+                           long long time_elapsed_ms) {
     const auto& p = state.player(for_player);
     const auto& opp = state.player(game::opposite(for_player));
 
@@ -128,6 +128,25 @@ json serialize_match_state(const std::string& session_id,
     result["map"] = serialize_map(state.graph().map_def());
     result["gameOver"] = state.is_game_over();
     result["opponentMovedFromStart"] = opp.has_moved_from_start;
+    
+    // Shrinking map feature
+    if (!state.scheduled_disappear_city().empty()) {
+        result["scheduledDisappearCity"] = state.scheduled_disappear_city();
+    } else {
+        result["scheduledDisappearCity"] = nullptr;
+    }
+    
+    json disappeared_arr = json::array();
+    for (const auto& city : state.disappeared_cities()) {
+        disappeared_arr.push_back(city);
+    }
+    result["disappearedCities"] = disappeared_arr;
+    result["isPlayerStranded"] = state.is_player_stranded(for_player);
+    
+    // Timer information (15 seconds per turn, in milliseconds)
+    result["turnStartTime"] = 0;  // server timestamp will be set client-side
+    result["turnDuration"] = 15000;  // 15 seconds in ms
+    result["timeElapsedMs"] = time_elapsed_ms;  // time since turn started
 
     if (state.is_game_over()) {
         result["winner"] = game::to_string(state.winner());

@@ -24,6 +24,8 @@ export interface CitySprite {
   highlight?: Phaser.GameObjects.Image;
   screenX: number;
   screenY: number;
+  disappearedOverlay?: Phaser.GameObjects.Graphics;  // Grey X overlay for disappeared cities
+  scheduledPulseRing?: Phaser.GameObjects.Graphics;  // Pulsing gold border for scheduled disappearing
 }
 
 export class BoardRenderer {
@@ -59,7 +61,7 @@ export class BoardRenderer {
 
     // Draw edges first (behind cities)
     this.edgeGraphics = this.scene.add.graphics();
-    this.drawEdges(map.edges, map.cities);
+    this.drawEdges(map.edges, map.cities, state);
 
     // Draw city nodes
     for (const city of map.cities) {
@@ -97,6 +99,71 @@ export class BoardRenderer {
       cs.label.setColor(
         id === state.player.currentCity ? COL_CITY_LABEL_CURRENT : COL_CITY_LABEL,
       );
+    }
+    
+    // Update disappeared cities visuals
+    const disappearedSet = new Set(state.disappearedCities ?? []);
+    for (const [cityId, cs] of this.citySprites) {
+      const isDisappeared = disappearedSet.has(cityId);
+      
+      if (isDisappeared && !cs.disappearedOverlay) {
+        // City just disappeared - add overlay
+        cs.sprite.setAlpha(0.3);
+        cs.label.setAlpha(0.3);
+        
+        const overlay = this.scene.add.graphics().setDepth(6);
+        overlay.lineStyle(4, 0xff3333, 0.8);
+        
+        const size = 12;
+        overlay.beginPath();
+        overlay.moveTo(cs.screenX - size, cs.screenY - size);
+        overlay.lineTo(cs.screenX + size, cs.screenY + size);
+        overlay.strokePath();
+        
+        overlay.beginPath();
+        overlay.moveTo(cs.screenX + size, cs.screenY - size);
+        overlay.lineTo(cs.screenX - size, cs.screenY + size);
+        overlay.strokePath();
+        
+        cs.disappearedOverlay = overlay;
+      }
+    }
+    
+    // Update scheduled disappearing city visual
+    for (const [cityId, cs] of this.citySprites) {
+      const isScheduled = state.scheduledDisappearCity === cityId;
+      
+      if (isScheduled && !cs.scheduledPulseRing) {
+        // City just scheduled - add pulse ring
+        const pulseRing = this.scene.add.graphics().setDepth(6);
+        
+        const updatePulseRing = () => {
+          pulseRing.clear();
+          pulseRing.lineStyle(3, 0xffdd44, 0.8);
+          pulseRing.strokeCircle(cs.screenX, cs.screenY, 26);
+          
+          pulseRing.lineStyle(1, 0xffdd44, 0.4);
+          pulseRing.strokeCircle(cs.screenX, cs.screenY, 20);
+        };
+        
+        updatePulseRing();
+        
+        this.scene.tweens.add({
+          targets: pulseRing,
+          alpha: { from: 1, to: 0.4 },
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+        
+        cs.scheduledPulseRing = pulseRing;
+      } else if (!isScheduled && cs.scheduledPulseRing) {
+        // City no longer scheduled - remove pulse ring
+        this.scene.tweens.killTweensOf(cs.scheduledPulseRing);
+        cs.scheduledPulseRing.destroy();
+        cs.scheduledPulseRing = undefined;
+      }
     }
 
     // Clear the player's own start marker once they've moved away
@@ -229,12 +296,27 @@ export class BoardRenderer {
     };
   }
 
-  private drawEdges(edges: EdgeDef[], cities: CityDef[]): void {
+  private drawEdges(edges: EdgeDef[], cities: CityDef[], state?: MatchState): void {
     const lookup = new Map<string, CityDef>();
     for (const c of cities) lookup.set(c.id, c);
+    
+    const disappearedCities = new Set(state?.disappearedCities ?? []);
+    const playerCurrentCity = state?.player.currentCity ?? '';
+    const isPlayerStranded = state?.isPlayerStranded ?? false;
 
     this.edgeGraphics.lineStyle(3, COL_EDGE, 0.7);  // Increased thickness and opacity
     for (const e of edges) {
+      // Skip edges connected to disappeared cities UNLESS player is stranded in one of them
+      const edgeConnectedToDisappeared = disappearedCities.has(e.from) || disappearedCities.has(e.to);
+      
+      if (edgeConnectedToDisappeared) {
+        // If player is stranded, keep edges from their current city visible (so they can escape)
+        const playerInEdge = isPlayerStranded && (e.from === playerCurrentCity || e.to === playerCurrentCity);
+        if (!playerInEdge) {
+          continue;  // Skip this edge
+        }
+      }
+      
       const a = lookup.get(e.from);
       const b = lookup.get(e.to);
       if (!a || !b) continue;
@@ -247,15 +329,14 @@ export class BoardRenderer {
     }
   }
 
-  private drawCity(city: CityDef, _state: MatchState): void {
+  private drawCity(city: CityDef, state: MatchState): void {
     const pos = this.toScreen(city.x, city.y);
 
     // Store city data for tooltip
     this.cityData.set(city.id, city);
 
-    let textureKey = 'city';
-    if (city.isBonus) textureKey = 'city_bonus';
-    else if (city.isPickup) textureKey = 'city_pickup';
+    // All cities now use the same texture
+    const textureKey = 'city';
 
     const sprite = this.scene.add
       .image(pos.x, pos.y, textureKey)
@@ -272,13 +353,72 @@ export class BoardRenderer {
       .setOrigin(0.5, 0)
       .setDepth(5);
 
-    this.citySprites.set(city.id, {
+    const citySprite: CitySprite = {
       id: city.id,
       sprite,
       label,
       screenX: pos.x,
       screenY: pos.y,
-    });
+    };
+    
+    // Handle disappeared cities: grey overlay with red X
+    const isDisappeared = state.disappearedCities?.includes(city.id) ?? false;
+    if (isDisappeared) {
+      // Dim the city sprite
+      sprite.setAlpha(0.3);
+      label.setAlpha(0.3);
+      
+      // Create red X overlay
+      const overlay = this.scene.add.graphics().setDepth(6);
+      overlay.lineStyle(4, 0xff3333, 0.8);
+      
+      // Draw X
+      const size = 12;
+      overlay.beginPath();
+      overlay.moveTo(pos.x - size, pos.y - size);
+      overlay.lineTo(pos.x + size, pos.y + size);
+      overlay.strokePath();
+      
+      overlay.beginPath();
+      overlay.moveTo(pos.x + size, pos.y - size);
+      overlay.lineTo(pos.x - size, pos.y + size);
+      overlay.strokePath();
+      
+      citySprite.disappearedOverlay = overlay;
+    }
+    
+    // Handle scheduled disappearing cities: pulsing gold border
+    const isScheduled = state.scheduledDisappearCity === city.id;
+    if (isScheduled) {
+      const pulseRing = this.scene.add.graphics().setDepth(6);
+      
+      const updatePulseRing = () => {
+        pulseRing.clear();
+        // Outer ring (pulsing)
+        pulseRing.lineStyle(3, 0xffdd44, 0.8);
+        pulseRing.strokeCircle(pos.x, pos.y, 26);
+        
+        // Inner ring
+        pulseRing.lineStyle(1, 0xffdd44, 0.4);
+        pulseRing.strokeCircle(pos.x, pos.y, 20);
+      };
+      
+      updatePulseRing();
+      
+      // Animate pulse
+      this.scene.tweens.add({
+        targets: pulseRing,
+        alpha: { from: 1, to: 0.4 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+      
+      citySprite.scheduledPulseRing = pulseRing;
+    }
+
+    this.citySprites.set(city.id, citySprite);
   }
 
   /** Enable hover tooltips on cities. Call after drawBoard(). */
@@ -297,9 +437,8 @@ export class BoardRenderer {
       cs.sprite.on('pointerover', (pointer: Phaser.Input.Pointer) => {
         if (!this.tooltipText) return;
         
-        let typeText = 'Normal City';
-        if (city.isBonus) typeText = 'Bonus City (+Intel per turn)';
-        else if (city.isPickup) typeText = 'Pickup City (+Action or Intel)';
+        // All cities are now uniform
+        const typeText = 'City';
         
         this.tooltipText.setText(`${city.name}\n${typeText}`);
         this.tooltipText.setPosition(pointer.x + 12, pointer.y - 8);

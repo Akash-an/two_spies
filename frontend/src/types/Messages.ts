@@ -53,8 +53,6 @@ export interface CityDef {
   name: string;
   x: number;          // normalised 0-1 canvas position
   y: number;
-  isBonus?: boolean;   // bonus Intel city
-  isPickup?: boolean;  // pickup city
 }
 
 export interface EdgeDef {
@@ -98,6 +96,12 @@ export interface MatchState {
   gameOver: boolean;
   winner: PlayerSide | null;
   opponentMovedFromStart: boolean;  // true once opponent leaves their starting city
+  turnStartTime: number;         // server timestamp (ms) when current turn began
+  turnDuration: number;          // max turn duration in ms (default: 15000)
+  scheduledDisappearCity?: string;   // city scheduled to disappear (shown during actions 4-5)
+  disappearedCities: string[];   // cities that have disappeared
+  isPlayerStranded: boolean;     // true if player is in the disappearing city
+  timeElapsedMs: number;         // elapsed time since turn started (ms)
 }
 
 // ─── Messages ────────────────────────────────────────────────────────

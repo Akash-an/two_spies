@@ -71,9 +71,11 @@ std::string make_error(const std::string& session_id,
 // ─── State serialization ─────────────────────────────────────────
 
 /// Serialize the per-player filtered MatchState as JSON payload.
+/// Includes turn timer information for client-side display.
 json serialize_match_state(const std::string& session_id,
                            const game::GameState& state,
-                           game::PlayerSide for_player);
+                           game::PlayerSide for_player,
+                           long long time_elapsed_ms = 0);
 
 /// Serialize map definition.
 json serialize_map(const game::MapDef& map);

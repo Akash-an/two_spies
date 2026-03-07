@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/akashan/projects/side_quest/two_spies/build/cmake_install.cmake",
+		"/Users/akashan/projects/side_quest/two_spies/build/tests/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

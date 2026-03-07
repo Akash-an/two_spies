@@ -6,6 +6,7 @@
 #include <memory>
 #include <functional>
 #include <mutex>
+#include <chrono>
 
 namespace two_spies::game {
 
@@ -48,6 +49,13 @@ public:
     bool is_started() const { return started_; }
     bool is_game_over() const;
 
+    /// Returns milliseconds since turn started.
+    long long time_since_turn_start() const;
+
+    /// Returns true if current turn has exceeded time limit (15 seconds).
+    /// If true, automatically forfeits remaining actions and ends turn.
+    bool check_turn_timeout();
+
 private:
     std::string session_id_;
     std::unique_ptr<GameState> state_;
@@ -58,6 +66,10 @@ private:
     std::string red_player_id_;
     std::string blue_player_id_;
     bool started_ = false;
+
+    // Turn timer (15 seconds per turn)
+    static constexpr long long TURN_DURATION_MS = 15000;
+    std::chrono::steady_clock::time_point turn_start_time_;
 
     PlayerSide side_of(const std::string& player_id) const;
     std::string player_id_of(PlayerSide side) const;

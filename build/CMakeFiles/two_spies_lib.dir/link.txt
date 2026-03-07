@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtwo_spies_lib.a CMakeFiles/two_spies_lib.dir/src/game/CityGraph.cpp.o CMakeFiles/two_spies_lib.dir/src/game/GameState.cpp.o CMakeFiles/two_spies_lib.dir/src/game/Match.cpp.o CMakeFiles/two_spies_lib.dir/src/game/MatchManager.cpp.o CMakeFiles/two_spies_lib.dir/src/protocol/Messages.cpp.o
+/usr/bin/ranlib libtwo_spies_lib.a

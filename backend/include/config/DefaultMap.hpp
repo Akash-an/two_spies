@@ -15,30 +15,30 @@ inline game::MapDef default_map() {
     // ── Cities ───────────────────────────────────────────────────
     map.cities = {
         // Northern Europe
-        {"london",     "London",     0.22, 0.28, true,  false},
-        {"paris",      "Paris",      0.30, 0.42, false, false},
-        {"amsterdam",  "Amsterdam",  0.35, 0.26, false, false},
-        {"berlin",     "Berlin",     0.48, 0.28, true,  false},
-        {"copenhagen", "Copenhagen", 0.44, 0.17, false, false},
+        {"london",     "London",     0.22, 0.28},
+        {"paris",      "Paris",      0.30, 0.42},
+        {"amsterdam",  "Amsterdam",  0.35, 0.26},
+        {"berlin",     "Berlin",     0.48, 0.28},
+        {"copenhagen", "Copenhagen", 0.44, 0.17},
 
         // Central Europe
-        {"zurich",     "Zurich",     0.38, 0.48, false, false},
-        {"vienna",     "Vienna",     0.52, 0.44, false, true},
-        {"prague",     "Prague",     0.50, 0.36, false, false},
+        {"zurich",     "Zurich",     0.38, 0.48},
+        {"vienna",     "Vienna",     0.52, 0.44},
+        {"prague",     "Prague",     0.50, 0.36},
 
         // Southern Europe
-        {"rome",       "Rome",       0.44, 0.62, false, false},
-        {"madrid",     "Madrid",     0.15, 0.62, true,  false},
-        {"istanbul",   "Istanbul",   0.72, 0.58, false, true},
+        {"rome",       "Rome",       0.44, 0.62},
+        {"madrid",     "Madrid",     0.15, 0.62},
+        {"istanbul",   "Istanbul",   0.72, 0.58},
 
         // Eastern Europe
-        {"warsaw",     "Warsaw",     0.58, 0.28, false, false},
-        {"moscow",     "Moscow",     0.78, 0.20, true,  false},
-        {"budapest",   "Budapest",   0.56, 0.48, false, false},
-        {"bucharest",  "Bucharest",  0.64, 0.52, false, false},
+        {"warsaw",     "Warsaw",     0.58, 0.28},
+        {"moscow",     "Moscow",     0.78, 0.20},
+        {"budapest",   "Budapest",   0.56, 0.48},
+        {"bucharest",  "Bucharest",  0.64, 0.52},
 
         // Scandinavia
-        {"stockholm",  "Stockholm",  0.50, 0.10, false, true},
+        {"stockholm",  "Stockholm",  0.50, 0.10},
     };
 
     // ── Edges ────────────────────────────────────────────────────

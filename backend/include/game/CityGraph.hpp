@@ -11,8 +11,6 @@ struct CityDef {
     std::string name;
     double x = 0.0;           // normalised 0–1
     double y = 0.0;
-    bool   is_bonus  = false;  // bonus Intel city
-    bool   is_pickup = false;  // pickup city
 };
 
 struct EdgeDef {

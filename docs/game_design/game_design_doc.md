@@ -19,8 +19,7 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 
 * A graph of interconnected **cities** representing a stylized Cold War Europe.
 * Each city is a **node**; connections (edges) define valid movement paths.
-* Some cities are **bonus cities** — controlling these yields extra Intel per turn.
-* Some cities are **pickup cities** — ending a turn here grants a bonus action or Intel.
+* All cities are uniform — there are no bonus or special cities.
 
 ### Starting Positions
 
@@ -58,32 +57,71 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 
 ---
 
-## 4. Resources
+## 4. Shrinking Map Mechanic
+
+To add strategic pressure and prevent indefinitely long matches, the game board progressively shrinks throughout the match.
+
+### How It Works
+
+* **Action Counter:** The server tracks a global cumulative action counter that increments every time either player takes an action (move, strike, ability use, or wait).
+* **6-Action Cycle:** The action counter operates in cycles of 6.
+  - At **action count 4:** A random city is selected and **marked for disappearance**. This city is highlighted with a **pulsing gold border** to visually alert both players.
+  - At **action count 6:** The marked city **disappears**. The city is greyed out with a red X overlay, and all edges connected to it are removed from the graph.
+  - The cycle repeats: at action 10 a new city is marked, at action 12 it disappears, and so on.
+
+### Stranded Player Mechanic
+
+If a player is currently in a city when it disappears, they become **stranded**:
+
+* **Stranded Status:** The player can only take the **MOVE action** on their next turn. All other action buttons (Strike, abilities, Wait) are **disabled and greyed out**.
+* **Recovery:** The stranded player must move to an adjacent city (that hasn't disappeared). Once they leave the disappearing city, their action options return to normal on subsequent turns.
+* **Visual Indicator:** When a player is stranded, the UI displays an error message: *"You must move out of the disappearing city!"*
+
+### Strategic Impact
+
+* Disappearing cities create **urgency** — players must avoid getting trapped.
+* The mechanic **encourages movement** and prevents camping in one location indefinitely.
+* Players must **reason about timing** — being aware of the action count helps predict which cities will vanish.
+* The **random city selection** prevents perfect prediction and keeps the game dynamic.
+
+---
+
+## 5. Resources
 
 ### Intel
 
-* Intel is the primary resource.
-* Earned each turn automatically, with bonuses from **controlled cities**.
-* Spent to unlock or activate strategic abilities.
+Intel is the primary resource in *Two Spies*. It serves as both currency and a measure of player progress.
+
+**Intel Income:**
+* Base: **1 Intel per turn** (earned at end of turn).
+* **Exploration bonus:** **+4 Intel if you move to a city you have not previously visited** (bonus applied at end of turn when you end your turn in a new city).
+
+**Intel Spending:**
+* Spent to activate strategic abilities.
+* Examples: Locate costs 10 Intel, other abilities have their own costs (defined in Section 5).
+
+**Button Disabling:**
+* If a player has fewer Intel points than an ability requires, that ability button is **disabled** and cannot be used.
+* Example: If you have only 6 Intel, the Locate button (costs 10) is disabled until you earn more Intel.
 
 ---
 
-## 5. Abilities
+## 6. Abilities
 
 All abilities cost Intel and modify information visibility or mobility.
 
-| Ability        | Effect                                                                 |
-| -------------- | ---------------------------------------------------------------------- |
-| Deep Cover     | Reduces visibility to opponent tracking temporarily.                   |
-| Encryption     | Masks what Intel was spent on, limiting opponent deduction.            |
-| Locate         | Reveals the opponent's current location with a prominent pulsing yellow marker. The marker disappears after the opponent takes any action. **The opponent is notified** that the Locate ability was used against them. |
-| Strike Report  | Provides enhanced information after a strike attempt.                  |
-| Rapid Recon    | Grants additional movement options or reveals potential move paths.    |
-| Prep Mission   | Grants an extra action or sets up a future positional advantage.       |
+| Ability        | Cost | Effect                                                                 |
+| -------------- | ---- | ---------------------------------------------------------------------- |
+| Deep Cover     | TBD  | Reduces visibility to opponent tracking temporarily.                   |
+| Encryption     | TBD  | Masks what Intel was spent on, limiting opponent deduction.            |
+| Locate         | 10   | Reveals the opponent's current location with a prominent pulsing yellow marker. The marker disappears after the opponent takes any action. **The opponent is notified** that the Locate ability was used against them. |
+| Strike Report  | TBD  | Provides enhanced information after a strike attempt.                  |
+| Rapid Recon    | TBD  | Grants additional movement options or reveals potential move paths.    |
+| Prep Mission   | TBD  | Grants an extra action or sets up a future positional advantage.       |
 
 ---
 
-## 6. Victory Conditions
+## 7. Victory Conditions
 
 A player wins a round when:
 
@@ -96,7 +134,7 @@ A player loses a round when:
 
 ---
 
-## 7. Stealth and Fog of War
+## 8. Stealth and Fog of War
 
 * Player positions are **private** — opponents only learn location through deduction and abilities.
 * Ending a turn in the same city as the opponent without cover results in an immediate loss.
@@ -105,7 +143,7 @@ A player loses a round when:
 
 ---
 
-## 8. Strategy and Player Goals
+## 9. Strategy and Player Goals
 
 Players must balance competing priorities each turn:
 
@@ -122,7 +160,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 9. Game Modes
+## 10. Game Modes
 
 | Mode         | Description                              |
 | ------------ | ---------------------------------------- |
@@ -132,7 +170,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 10. Game Loop Summary
+## 11. Game Loop Summary
 
 ```
 1. Initialization
@@ -154,7 +192,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 11. Implementation Notes
+## 12. Implementation Notes
 
 * Player positions must **never be sent to the wrong client**. The server must filter state per player before broadcasting.
 * Map data (city nodes + edges) must be **external config**, not hardcoded in game logic.
@@ -164,7 +202,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 12. Visual Reference
+## 13. Visual Reference
 
 The following screenshots from the original *Two Spies* game are stored in `docs/mockups/` and serve as the authoritative visual reference for UI layout, game board design, and UX decisions.
 

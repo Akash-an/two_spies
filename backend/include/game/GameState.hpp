@@ -4,6 +4,8 @@
 #include "game/Player.hpp"
 #include <string>
 #include <optional>
+#include <unordered_set>
+#include <random>
 
 namespace two_spies::game {
 
@@ -73,6 +75,16 @@ public:
 
     const CityGraph& graph() const { return graph_; }
 
+    // ── Shrinking Map Feature ─────────────────────────────────
+    /// Get the city scheduled to disappear at the end of this action count
+    const std::string& scheduled_disappear_city() const { return scheduled_disappear_city_; }
+    
+    /// Get all cities that have disappeared
+    const std::unordered_set<std::string>& disappeared_cities() const { return disappeared_cities_; }
+    
+    /// Check if a player is stranded (in a disappearing city)
+    bool is_player_stranded(PlayerSide side) const;
+
 private:
     CityGraph graph_;
     PlayerData red_;
@@ -82,6 +94,22 @@ private:
     bool game_over_ = false;
     PlayerSide winner_{};
     std::string game_over_reason_;
+
+    // ── Shrinking Map Tracking ────────────────────────────────
+    int action_count_ = 0;                              // cumulative action count
+    std::string scheduled_disappear_city_;              // city to disappear at action 6, 12, 18, etc.
+    std::unordered_set<std::string> disappeared_cities_; // cities that have already disappeared
+    std::mt19937 rng_{};                                // for random city selection
+
+    /// Select a random city to disappear (one that hasn't disappeared yet)
+    /// Ensures the remaining graph stays connected
+    std::string select_random_city_to_disappear();
+
+    /// Check if graph would remain connected after removing a city
+    bool would_graph_stay_connected(const std::string& city_to_remove) const;
+
+    /// Handle action count increment and city disappearance logic
+    void increment_action_count();
 
     /// Check if both spies are in the same city with no cover.
     ActionResult check_same_city();

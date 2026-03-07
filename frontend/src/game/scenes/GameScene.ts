@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BoardRenderer } from '../entities/BoardRenderer';
+import { TimerDisplay } from '../entities/TimerDisplay';
 import {
   ActionKind,
   AbilityId,
@@ -21,6 +22,7 @@ export class GameScene extends Phaser.Scene {
   private board!: BoardRenderer;
   private net!: INetworkClient;
   private state!: MatchState;
+  private timerDisplay!: TimerDisplay;
 
   // HUD elements
   private turnText!: Phaser.GameObjects.Text;
@@ -45,6 +47,11 @@ export class GameScene extends Phaser.Scene {
   // Stored so an incoming banner can instantly dismiss the previous one
   // instead of overlapping it.
   private activeBannerObjects: Phaser.GameObjects.GameObject[] = [];
+
+  // Timer tracking — for smooth client-side timer updates
+  // The server sends timeElapsedMs periodically, but we interpolate locally
+  private lastServerElapsedMs = 0;
+  private lastStateUpdateTime = 0;  // client timestamp when state was received
 
   constructor() {
     super({ key: 'GameScene' });
@@ -112,7 +119,24 @@ export class GameScene extends Phaser.Scene {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(_time: number, _delta: number): void {
-    // future: animations, interpolation
+    // Update timer display based on state
+    // Only interpolate locally for the active player's turn
+    if (this.state && this.timerDisplay) {
+      const isMyTurn = this.state.currentTurn === this.state.player.side;
+      
+      if (isMyTurn) {
+        // My turn: interpolate timer locally for smooth countdown
+        const now = Date.now();
+        const timeSinceStateUpdate = now - this.lastStateUpdateTime;
+        const elapsedMs = this.lastServerElapsedMs + timeSinceStateUpdate;
+        const duration = this.state.turnDuration || 15000;
+        this.timerDisplay.update(elapsedMs, duration);
+        this.timerDisplay.setVisible(true);
+      } else {
+        // Not my turn: hide or freeze timer
+        this.timerDisplay.setVisible(false);
+      }
+    }
   }
 
   // ── HUD construction ────────────────────────────────────────────
@@ -158,6 +182,9 @@ export class GameScene extends Phaser.Scene {
 
     // ── Action buttons ───────────────────────────────────────────
     this.createActionButtons();
+
+    // ── Timer Display (left-center) ──────────────────────────────
+    this.timerDisplay = new TimerDisplay(this);
   }
 
   private createCityLegend(): void {
@@ -169,23 +196,11 @@ export class GameScene extends Phaser.Scene {
     // Title
     this.add.text(legendX, legendY, 'City Types:', { ...legendStyle, color: '#aaaacc' }).setDepth(20);
     
-    // Normal city (white border)
+    // All cities are now uniform
     const normalCircle = this.add.graphics().setDepth(20);
     normalCircle.lineStyle(2, 0xffffff, 0.8);
     normalCircle.strokeCircle(legendX + 8, legendY + 22, 6);
-    this.add.text(legendX + 20, legendY + 16, 'Normal', legendStyle).setDepth(20);
-    
-    // Bonus city (gold border)
-    const bonusCircle = this.add.graphics().setDepth(20);
-    bonusCircle.lineStyle(2, 0xe0c872, 1);
-    bonusCircle.strokeCircle(legendX + 8, legendY + 40, 6);
-    this.add.text(legendX + 20, legendY + 34, 'Bonus (+Intel)', legendStyle).setDepth(20);
-    
-    // Pickup city (green border)
-    const pickupCircle = this.add.graphics().setDepth(20);
-    pickupCircle.lineStyle(2, 0x66cc88, 1);
-    pickupCircle.strokeCircle(legendX + 8, legendY + 58, 6);
-    this.add.text(legendX + 20, legendY + 52, 'Pickup (+Action)', legendStyle).setDepth(20);
+    this.add.text(legendX + 20, legendY + 16, 'All cities are the same', legendStyle).setDepth(20);
   }
 
   private moveBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
@@ -217,6 +232,10 @@ export class GameScene extends Phaser.Scene {
         this.showStatus('Not your turn', '#666688');
         return;
       }
+      if (this.state?.isPlayerStranded) {
+        this.showStatus('You must move out of the disappearing city!', '#ff6666');
+        return;
+      }
       // Strike at current location immediately (no city selection needed)
       if (!this.state) return;
       this.net.send(ClientMessageType.PLAYER_ACTION, {
@@ -231,6 +250,16 @@ export class GameScene extends Phaser.Scene {
         this.showStatus('Not your turn', '#666688');
         return;
       }
+      if (this.state?.isPlayerStranded) {
+        this.showStatus('You must move out of the disappearing city!', '#ff6666');
+        return;
+      }
+      // Check Intel cost for Locate ability
+      const LOCATE_COST = 10;
+      if (!this.state || this.state.player.intel < LOCATE_COST) {
+        this.showStatus(`Locate costs ${LOCATE_COST} Intel. You only have ${this.state?.player.intel || 0}.`, '#ff8866');
+        return;
+      }
       // Use LOCATE ability to reveal opponent position
       this.net.send(ClientMessageType.PLAYER_ACTION, {
         action: ActionKind.ABILITY,
@@ -242,6 +271,10 @@ export class GameScene extends Phaser.Scene {
     this.waitBtn = this.makeButton(startX + (btnW + gap) * 3, btnY, btnW, btnH, 'WAIT', () => {
       if (!this.areButtonsEnabled()) {
         this.showStatus('Not your turn', '#666688');
+        return;
+      }
+      if (this.state?.isPlayerStranded) {
+        this.showStatus('You must move out of the disappearing city!', '#ff6666');
         return;
       }
       // Wait action - consumes action point without doing anything
@@ -294,11 +327,11 @@ export class GameScene extends Phaser.Scene {
     return { bg, label, zone };
   }
 
-  private drawBtn(gfx: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, hover: boolean, active: boolean): void {
+  private drawBtn(gfx: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, hover: boolean, active: boolean, forceDisabled: boolean = false): void {
     gfx.clear();
     
     // Check if buttons should be disabled
-    const disabled = !this.areButtonsEnabled();
+    const disabled = forceDisabled || !this.areButtonsEnabled();
     
     // Determine background color based on state
     let fillColor: number;
@@ -328,17 +361,21 @@ export class GameScene extends Phaser.Scene {
 
   private updateActionButtons(): void {
     const disabled = !this.areButtonsEnabled();
-    const updateBtn = (btn: typeof this.moveBtn, isActive: boolean) => {
+    const LOCATE_COST = 10;
+    const locateDisabled = disabled || (this.state && this.state.player.intel < LOCATE_COST);
+    const isStranded = this.state?.isPlayerStranded ?? false;
+    
+    const updateBtn = (btn: typeof this.moveBtn, isActive: boolean, btnDisabled: boolean = disabled) => {
       const isHovering = (btn.zone as any).isHovering ? (btn.zone as any).isHovering() : false;
       // Dim label color when disabled
-      btn.label.setColor(disabled ? '#555566' : (isActive ? '#ffffff' : '#e0c872'));
-      this.drawBtn(btn.bg, btn.zone.x, btn.zone.y, 100, 38, isHovering, isActive);
+      btn.label.setColor(btnDisabled ? '#555566' : (isActive ? '#ffffff' : '#e0c872'));
+      this.drawBtn(btn.bg, btn.zone.x, btn.zone.y, 100, 38, isHovering, isActive, btnDisabled);
     };
     updateBtn(this.moveBtn, this.actionMode === 'MOVE');
-    // Strike, Locate, Wait don't have active states (immediate actions)
-    updateBtn(this.strikeBtn, false);
-    updateBtn(this.locateBtn, false);
-    updateBtn(this.waitBtn, false);
+    // Strike, Locate, Wait are disabled if stranded (must move out first)
+    updateBtn(this.strikeBtn, false, disabled || isStranded);
+    updateBtn(this.locateBtn, false, locateDisabled || isStranded);
+    updateBtn(this.waitBtn, false, disabled || isStranded);
   }
 
   // ── State handling ──────────────────────────────────────────────
@@ -392,6 +429,15 @@ export class GameScene extends Phaser.Scene {
 
     // Update button states (enable/disable based on turn)
     this.updateActionButtons();
+
+    // Capture server's elapsed time and current timestamp for timer interpolation
+    this.lastServerElapsedMs = this.state.timeElapsedMs || 0;
+    this.lastStateUpdateTime = Date.now();
+
+    // Reset timer display on state change (typically when turn changes)
+    if (this.timerDisplay) {
+      this.timerDisplay.reset();
+    }
 
     // Auto-end turn if no actions remaining
     if (isMyTurn && p.actionsRemaining === 0) {
