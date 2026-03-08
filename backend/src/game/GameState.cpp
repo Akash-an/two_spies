@@ -26,9 +26,11 @@ void GameState::set_starting_cities(const std::string& red_city, const std::stri
     red_.current_city = red_city;
     red_.starting_city = red_city;
     red_.visited_cities.insert(red_city);  // Starting city is visited
+    red_.has_cover = false;  // Start visible to opponent
     blue_.current_city = blue_city; 
     blue_.starting_city = blue_city;
     blue_.visited_cities.insert(blue_city);  // Starting city is visited
+    blue_.has_cover = false;  // Start visible to opponent
     red_.actions_remaining = 2;
     blue_.actions_remaining = 2;
     red_.intel = 2;
@@ -90,9 +92,23 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
         p.moved_to_new_city_this_turn = true;  // Flag for end-of-turn bonus
     }
 
+    // Check if opponent controls this city — if so, cover is blown
+    bool entered_controlled_city = false;
+    auto it = city_controllers_.find(target_city);
+    if (it != city_controllers_.end() && it->second == opposite(side)) {
+        // Opponent controls this city — automatically blow this player's cover
+        p.has_cover = false;
+        entered_controlled_city = true;
+    }
+
     // Clear opponent's knowledge of this player's location (Locate effect wears off)
+    // UNLESS we just entered their controlled city (then they gain sight of us)
     auto& opponent = player_mut(opposite(side));
-    opponent.known_opponent_city = "";  // player took action, clear their known location
+    if (!entered_controlled_city) {
+        opponent.known_opponent_city = "";  // player took action, clear their known location
+    } else {
+        opponent.known_opponent_city = target_city;  // opponent sees us due to controlled city
+    }
 
     // No automatic collision detection - players must strike to win
     // auto collision = check_same_city();
@@ -137,10 +153,6 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
 
     attacker.actions_remaining -= 1;
 
-    // Clear opponent's knowledge of attacker's location (Locate effect wears off)
-    auto& opponent = player_mut(opposite(side));
-    opponent.known_opponent_city = "";  // attacker took action, clear their known location
-
     const auto& defender = player(opposite(side));
 
     if (defender.current_city == target_city) {
@@ -157,11 +169,10 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
         return result;
     }
 
-    // MISS — striker loses cover but their location is NOT revealed to the opponent.
-    // The opponent is only notified that a strike occurred (opponent_used_strike flag);
-    // they learn nothing about WHERE the striker is.
-    opponent.opponent_used_strike = true;  // notify opponent that a strike was attempted
-    attacker.has_cover = false;             // striker loses cover for taking an aggressive action
+    // MISS — striker becomes visible by attempting a strike
+    auto& opponent = player_mut(opposite(side));
+    attacker.has_cover = false;              // striker loses cover for taking an aggressive action
+    opponent.opponent_used_strike = true;    // notify opponent that a strike was attempted
 
     // Increment action counter for shrinking map feature
     increment_action_count();
@@ -219,26 +230,30 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     // Consume one action
     p.actions_remaining -= 1;
 
-    // Clear opponent's knowledge of this player's location (Locate effect wears off)
     auto& opponent = player_mut(opposite(side));
-    opponent.known_opponent_city = "";  // player took action, clear their known location
 
-    // TODO: per-ability effects (deep cover, locate, etc.)
+    // Per-ability effects
     switch (ability) {
         case AbilityId::DEEP_COVER:
+            // Deep Cover grants cover (player becomes hidden)
             p.has_cover = true;
+            // Clear opponent's knowledge of this player's location
+            opponent.known_opponent_city = "";
             break;
         case AbilityId::LOCATE:
-            // Reveal a clue about opponent's location
-            // For now: if opponent has no cover, reveal their city
+            // Locate reveals opponent's current location and makes both players visible
             {
                 const auto& opp = player(opposite(side));
-                if (!opp.has_cover) {
-                    p.known_opponent_city = opp.current_city;
-                }
-                // Notify opponent that locate was used
-                auto& opponent_mut = player_mut(opposite(side));
-                opponent_mut.opponent_used_locate = true;
+                // I learn opponent's location
+                p.known_opponent_city = opp.current_city;
+                // Opponent becomes visible to me
+                auto& opp_mut = player_mut(opposite(side));
+                opp_mut.has_cover = false;  // Locate ability reveals opponent
+                opp_mut.opponent_used_locate = true;  // Notify opponent
+                // I also become visible by using Locate
+                p.has_cover = false;
+                // Opponent learns my location
+                opponent.known_opponent_city = p.current_city;
             }
             break;
         default:
@@ -282,9 +297,81 @@ ActionResult GameState::wait(PlayerSide side) {
     // Wait action: consume an action point without doing anything
     p.actions_remaining -= 1;
 
-    // Clear opponent's knowledge of this player's location (Locate effect wears off)
+    // Check if currently in an opponent-controlled city
+    bool in_opponent_controlled_city = false;
+    auto it = city_controllers_.find(p.current_city);
+    if (it != city_controllers_.end() && it->second == opposite(side)) {
+        in_opponent_controlled_city = true;
+    }
+
+    if (in_opponent_controlled_city) {
+        // Stay visible in opponent's controlled city
+        p.has_cover = false;
+        // Opponent maintains vision of us
+        auto& opponent = player_mut(opposite(side));
+        opponent.known_opponent_city = p.current_city;
+    } else {
+        // Safe city: waiting grants cover (player becomes hidden)
+        p.has_cover = true;
+        // Clear opponent's knowledge of this player's location
+        auto& opponent = player_mut(opposite(side));
+        opponent.known_opponent_city = "";
+    }
+
+    // Increment action counter for shrinking map feature
+    increment_action_count();
+
+    result.ok = true;
+    return result;
+}
+
+// ── CONTROL ──────────────────────────────────────────────────────────
+
+ActionResult GameState::control(PlayerSide side) {
+    ActionResult result;
+
+    if (game_over_) {
+        result.error = "Game is already over.";
+        return result;
+    }
+    if (side != current_turn_) {
+        result.error = "Not your turn.";
+        return result;
+    }
+
+    // Check if player is stranded in a disappearing city
+    if (is_player_stranded(side)) {
+        result.error = "Cannot control while in a disappearing city. You must move out.";
+        return result;
+    }
+
+    auto& p = player_mut(side);
+    if (p.actions_remaining <= 0) {
+        result.error = "No actions remaining — end your turn.";
+        return result;
+    }
+
+    const std::string& current_city = p.current_city;
+
+    // Check if player already controls this city
+    auto it = city_controllers_.find(current_city);
+    if (it != city_controllers_.end() && it->second == side) {
+        result.error = "You already control this city.";
+        return result;
+    }
+
+    // Take control of the city (may override opponent's control)
+    city_controllers_[current_city] = side;
+
+    // Blow the player's cover — opponent knows their location
+    p.has_cover = false;
+    
+    // Notify opponent of the action by revealing this player's location
     auto& opponent = player_mut(opposite(side));
-    opponent.known_opponent_city = "";  // player took action, clear their known location
+    opponent.known_opponent_city = current_city;
+
+    // Consume one action
+    p.actions_remaining -= 1;
 
     // Increment action counter for shrinking map feature
     increment_action_count();
@@ -319,8 +406,8 @@ ActionResult GameState::end_turn(PlayerSide side) {
         p.moved_to_new_city_this_turn = false;  // Reset flag for next turn
     }
 
-    // Reset cover at end of turn
-    p.has_cover = false;
+    // NOTE: Cover state persists based on player actions. Do NOT reset at turn end.
+    // Cover changes only when actions are taken (move, wait, strike, control, locate, deep_cover).
 
     // Advance turn
     current_turn_ = opposite(current_turn_);
@@ -513,6 +600,16 @@ bool GameState::is_player_stranded(PlayerSide side) const {
     const auto& p = player(side);
     // A player is stranded if they're in a city that has already disappeared
     return disappeared_cities_.find(p.current_city) != disappeared_cities_.end();
+}
+
+PlayerSide GameState::get_city_controller(const std::string& city) const {
+    auto it = city_controllers_.find(city);
+    if (it != city_controllers_.end()) {
+        return it->second;
+    }
+    // Return a default PlayerSide value (RED) if no controller found
+    // Caller should check if city is actually controlled using city_controllers() map
+    return PlayerSide::RED;  // This value indicates "not controlled" when used with the map check
 }
 
 } // namespace two_spies::game

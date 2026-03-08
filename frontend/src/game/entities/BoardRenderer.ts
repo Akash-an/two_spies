@@ -7,7 +7,7 @@
  */
 
 import Phaser from 'phaser';
-import { CityDef, EdgeDef, MapDef, MatchState } from '../../types/Messages';
+import { CityDef, EdgeDef, MapDef, MatchState, PlayerSide } from '../../types/Messages';
 
 /** Layout constants — must match GameScene */
 const SIDEBAR_W = 130;
@@ -29,8 +29,10 @@ export interface CitySprite {
   highlight?: Phaser.GameObjects.Image;
   screenX: number;
   screenY: number;
-  disappearedOverlay?: Phaser.GameObjects.Graphics;
-  scheduledPulseRing?: Phaser.GameObjects.Graphics;
+  disappearedOverlay?: Phaser.GameObjects.Graphics;  // Grey X overlay for disappeared cities
+  scheduledPulseRing?: Phaser.GameObjects.Graphics;  // Pulsing gold border for scheduled disappearing
+  controlledOverlay?: Phaser.GameObjects.Graphics;   // Solid color overlay for controlled cities
+  controlledBy?: PlayerSide;  // Track current controller to detect changes
 }
 
 export class BoardRenderer {
@@ -49,9 +51,40 @@ export class BoardRenderer {
   private mapH = 0;
   private originX = 0;
   private originY = 0;
+  private spyMarkerBorder: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Apply cover styling to the spy marker.
+   * - hasCover=false (visible): solid colored icon
+   * - hasCover=true (hidden): translucent icon with solid border
+   */
+  private applySpyMarkerStyling(hasCover: boolean): void {
+    if (!this.spyMarker) return;
+
+    if (hasCover) {
+      // Hidden state: translucent with solid border
+      this.spyMarker.setAlpha(0.45);
+      
+      // Create or update border if needed
+      if (!this.spyMarkerBorder) {
+        this.spyMarkerBorder = this.scene.add.graphics().setDepth(9);
+      }
+      this.spyMarkerBorder.clear();
+      this.spyMarkerBorder.lineStyle(2, 0xffffff, 1);  // solid white border
+      this.spyMarkerBorder.strokeCircle(this.spyMarker.x, this.spyMarker.y, 14);
+    } else {
+      // Visible state: solid colored icon
+      this.spyMarker.setAlpha(1);
+      
+      // Remove border
+      if (this.spyMarkerBorder) {
+        this.spyMarkerBorder.clear();
+      }
+    }
   }
 
   /** Call once in `create()` to draw the full board for the given map. */
@@ -75,6 +108,9 @@ export class BoardRenderer {
     this.spyMarker = this.scene.add
       .image(playerCity?.screenX ?? 0, playerCity?.screenY ?? 0, 'spy_marker')
       .setDepth(10);
+    
+    // Apply cover styling based on visibility state
+    this.applySpyMarkerStyling(state.player.hasCover);
 
     this.drawStartingMarkers(state);
     this.highlightAdjacent(state.player.currentCity, map);
@@ -92,6 +128,9 @@ export class BoardRenderer {
         ease: 'Power2',
       });
     }
+
+    // Update spy marker styling based on cover state
+    this.applySpyMarkerStyling(state.player.hasCover);
 
     for (const [id, cs] of this.citySprites) {
       cs.label.setColor(
@@ -145,6 +184,35 @@ export class BoardRenderer {
       }
     }
 
+    // Update controlled city overlays
+    for (const [cityId, cs] of this.citySprites) {
+      const controller = state.controlledCities?.[cityId];
+      const oldController = cs.controlledBy;
+      
+      // Check if controller changed (or new/removed)
+      if (controller !== oldController) {
+        // Destroy old overlay if it exists
+        if (cs.controlledOverlay) {
+          cs.controlledOverlay.destroy();
+          cs.controlledOverlay = undefined;
+        }
+        
+        // Create new overlay if city is now controlled
+        if (controller) {
+          const overlay = this.scene.add.graphics().setDepth(5);
+          const color = controller === 'RED' ? 0xff5555 : 0x5555ff;
+          overlay.fillStyle(color, 0.35);
+          overlay.fillCircle(cs.screenX, cs.screenY, 16);
+          
+          cs.controlledOverlay = overlay;
+          cs.controlledBy = controller;
+        } else {
+          cs.controlledBy = undefined;
+        }
+      }
+    }
+
+    // Clear the player's own start marker once they've moved away
     if (this.playerStartMarker && state.player.currentCity !== state.player.startingCity) {
       this.playerStartMarker[0].destroy();
       this.playerStartMarker[1].destroy();
@@ -331,6 +399,20 @@ export class BoardRenderer {
         ease: 'Sine.easeInOut',
       });
       citySprite.scheduledPulseRing = ring;
+    }
+
+    // Handle controlled cities: solid color overlay
+    const controller = state.controlledCities?.[city.id];
+    if (controller) {
+      const overlay = this.scene.add.graphics().setDepth(5);
+      // Use player colors: RED cities get red overlay, BLUE cities get blue overlay
+      const color = controller === 'RED' ? 0xff5555 : 0x5555ff;
+      // Solid fill with transparency to show the city underneath
+      overlay.fillStyle(color, 0.35);
+      overlay.fillCircle(pos.x, pos.y, 16);
+      
+      citySprite.controlledOverlay = overlay;
+      citySprite.controlledBy = controller;
     }
 
     this.citySprites.set(city.id, citySprite);
