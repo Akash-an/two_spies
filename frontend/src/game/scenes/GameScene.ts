@@ -11,11 +11,35 @@ import {
 } from '../../types/Messages';
 import type { INetworkClient } from '../../network/NetworkClient';
 
+// ── Layout constants ──────────────────────────────────────────────
+const SIDEBAR_W    = 130;
+const ACTION_BAR_H = 82;
+const RIGHT_PANEL_W = 65;
+
+// ── Palette ───────────────────────────────────────────────────────
+const C_PARCHMENT_LIGHT = 0xf5f0d8;
+const C_PARCHMENT_MID   = 0xe8dfc0;
+const C_PARCHMENT_DARK  = 0xc8a96e;
+const C_INK_DARK        = 0x2a1a0a;
+const C_PANEL_HEADER    = 0x3d2010;
+const C_ACTIONS_RED     = 0xc0392b;
+const C_BUTTON_ACTIVE   = 0x3d2010;
+const C_BUTTON_DISABLED = 0xb0a888;
+const C_BANNER_RED      = 0xc0392b;
+const C_BANNER_GREEN    = 0x4db84e;
+const C_STAMP_BLUE      = 0x2a5a8a;
+const C_TARGET_RED      = 0xcc3322;
+
+const INK_DARK_STR  = '#2a1a0a';
+const INK_MID_STR   = '#5a3a1a';
+const WHITE_STR     = '#ffffff';
+const FONT_SERIF    = "'Georgia', serif";
+
 /**
  * GameScene — main gameplay scene.
  *
  * Renders the city-graph board via BoardRenderer and provides an action
- * bar (Move / Strike / End Turn).  All networking goes through the
+ * bar (Control / Strike / Locate / Wait).  All networking goes through the
  * network client stored in the Phaser registry.
  */
 export class GameScene extends Phaser.Scene {
@@ -24,34 +48,48 @@ export class GameScene extends Phaser.Scene {
   private state!: MatchState;
   private timerDisplay!: TimerDisplay;
 
-  // HUD elements
+  // Sidebar HUD elements
+  private playerRoleText!: Phaser.GameObjects.Text;
+  private boltIconText!: Phaser.GameObjects.Text;   // action bolt icons in header
   private turnText!: Phaser.GameObjects.Text;
-  private intelText!: Phaser.GameObjects.Text;
-  private actionsText!: Phaser.GameObjects.Text;
-  private statusText!: Phaser.GameObjects.Text;
   private cityText!: Phaser.GameObjects.Text;
   private coverText!: Phaser.GameObjects.Text;
+  private actionsTileValue!: Phaser.GameObjects.Text;
+  private intelTileValue!: Phaser.GameObjects.Text;
+
+  // Top-right names
   private playerNameText!: Phaser.GameObjects.Text;
   private opponentNameText!: Phaser.GameObjects.Text;
+
+  // Status text (above action bar)
+  private statusText!: Phaser.GameObjects.Text;
+
+  // Tooltip
   private tooltipText!: Phaser.GameObjects.Text;
 
-  // Current selected action mode
+  // Action mode
   private actionMode: 'MOVE' | 'STRIKE' | null = null;
 
-  // Turn number on which we last showed an opponent-action banner.
-  // Prevents the same banner firing multiple times for one state update.
+  // Action buttons — 9 total
+  private actionBtns: Array<{
+    bg: Phaser.GameObjects.Graphics;
+    label: Phaser.GameObjects.Text;
+    zone: Phaser.GameObjects.Zone;
+    icon: Phaser.GameObjects.Image | null;
+    forceDisabled: boolean;
+  }> = [];
+
+  // Banner de-dup tracking
   private lastStrikeBannerTurn = -1;
   private lastLocateBannerTurn = -1;
+  private lastTurnOwner: string | null = null;
 
-  // Currently visible notification banner objects (if any).
-  // Stored so an incoming banner can instantly dismiss the previous one
-  // instead of overlapping it.
+  // Active notification banner objects
   private activeBannerObjects: Phaser.GameObjects.GameObject[] = [];
 
-  // Timer tracking — for smooth client-side timer updates
-  // The server sends timeElapsedMs periodically, but we interpolate locally
+  // Timer interpolation
   private lastServerElapsedMs = 0;
-  private lastStateUpdateTime = 0;  // client timestamp when state was received
+  private lastStateUpdateTime = 0;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -59,16 +97,23 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     console.log('[GameScene] create() called');
-    this.cameras.main.setBackgroundColor('#0f0f23');
+    this.cameras.main.setBackgroundColor('#6db5ae');  // OCEAN_TEAL
     this.net = this.registry.get('network') as INetworkClient;
 
-    // ── Listen for state updates ─────────────────────────────────
-    // State arrives through the App.tsx → game-event bridge ONLY.
-    // Do NOT add a direct this.net.on(MATCH_STATE) here — App.tsx already
-    // emits 'match-state-updated' for every MATCH_STATE message, and
-    // subscribing to both would cause onStateUpdate() to fire twice per
-    // message, creating duplicate auto-end-turn timers and spurious
-    // "Not your turn" errors.
+    // ── Europe map background ────────────────────────────────────
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    if (this.textures.exists('europe_map')) {
+      this.add.image(w / 2, h / 2, 'europe_map').setDepth(0);
+    }
+
+    // ── Right parchment strip ────────────────────────────────────
+    const rStrip = this.add.graphics().setDepth(1);
+    rStrip.fillStyle(0xe8dfc0, 1);  // PARCHMENT_MID
+    rStrip.fillRect(w - RIGHT_PANEL_W, 0, RIGHT_PANEL_W, h);
+    rStrip.lineStyle(1, 0xc8a96e, 1);
+    rStrip.lineBetween(w - RIGHT_PANEL_W, 0, w - RIGHT_PANEL_W, h);
+
     this.game.events.on('match-state-updated', (state: MatchState) => {
       console.log('[GameScene] MATCH_STATE received via game events');
       this.state = state;
@@ -77,28 +122,22 @@ export class GameScene extends Phaser.Scene {
 
     this.net.on(ServerMessageType.ERROR, (_msg: unknown) => {
       const msg = _msg as { payload: { message: string } };
-      this.showStatus(msg.payload.message, '#ff6666');
+      this.showStatus(msg.payload.message, '#c0392b');
     });
 
     this.net.on(ServerMessageType.GAME_OVER, (_msg: unknown) => {
       const msg = _msg as { payload: { winner: PlayerSide; reason: string } };
-      this.showGameOverBanner(msg.payload.winner, msg.payload.reason);
+      this.showGameOverModal(msg.payload.winner, msg.payload.reason);
     });
 
-    // ── HUD ──────────────────────────────────────────────────────
     this.createHUD();
 
-    // ── Check for existing state in registry (arrived before scene started) ──
     const existingState = this.registry.get('latestMatchState') as MatchState | undefined;
     if (existingState) {
-      console.log('[GameScene] Found existing state in registry, processing it now');
       this.state = existingState;
       this.onStateUpdate();
-    } else {
-      console.log('[GameScene] No existing state found, waiting for MATCH_STATE');
     }
 
-    // ── Input: click on city ─────────────────────────────────────
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this.board || !this.state || !this.actionMode) return;
       const cityId = this.board.getCityAtPointer(pointer);
@@ -117,23 +156,15 @@ export class GameScene extends Phaser.Scene {
     this.game.events.emit('scene-ready', 'GameScene');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(_time: number, _delta: number): void {
-    // Update timer display based on state
-    // Only interpolate locally for the active player's turn
     if (this.state && this.timerDisplay) {
       const isMyTurn = this.state.currentTurn === this.state.player.side;
-      
       if (isMyTurn) {
-        // My turn: interpolate timer locally for smooth countdown
-        const now = Date.now();
-        const timeSinceStateUpdate = now - this.lastStateUpdateTime;
-        const elapsedMs = this.lastServerElapsedMs + timeSinceStateUpdate;
-        const duration = this.state.turnDuration || 15000;
-        this.timerDisplay.update(elapsedMs, duration);
+        const timeSinceUpdate = Date.now() - this.lastStateUpdateTime;
+        const elapsed = this.lastServerElapsedMs + timeSinceUpdate;
+        this.timerDisplay.update(elapsed, this.state.turnDuration || 15000);
         this.timerDisplay.setVisible(true);
       } else {
-        // Not my turn: hide or freeze timer
         this.timerDisplay.setVisible(false);
       }
     }
@@ -144,327 +175,438 @@ export class GameScene extends Phaser.Scene {
   private createHUD(): void {
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
-    const hud = { fontFamily: 'monospace', fontSize: '14px', color: '#cccce0' } as const;
-    const hudSmall = { fontFamily: 'monospace', fontSize: '12px', color: '#8888aa' } as const;
-    const hudPlayerName = { fontFamily: 'monospace', fontSize: '16px', color: '#e0c872' } as const;
 
-    // Top-left info block
-    this.turnText = this.add.text(16, 12, '', hud).setDepth(20);
-    this.actionsText = this.add.text(16, 32, '', hud).setDepth(20);
-    this.intelText = this.add.text(16, 52, '', hud).setDepth(20);
-    this.coverText = this.add.text(16, 72, '', hudSmall).setDepth(20);
-    this.cityText = this.add.text(16, 92, '', hudSmall).setDepth(20);
+    this.createSidebar(h);
+    this.createActionBar(w, h);
 
-    // Top-right player & opponent names (increased padding from 16 to 40 to prevent cutoff)
-    this.playerNameText = this.add.text(w - 40, 12, '', hudPlayerName).setOrigin(1, 0).setDepth(20);
-    this.opponentNameText = this.add.text(w - 40, 34, '', hudSmall).setOrigin(1, 0).setDepth(20);
+    // Top-right player/opponent names
+    this.playerNameText = this.add
+      .text(w - RIGHT_PANEL_W / 2, 12, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '13px',
+        color: INK_DARK_STR,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(25);
 
-    // Status bar (centre bottom) - made more prominent
+    this.opponentNameText = this.add
+      .text(w - RIGHT_PANEL_W / 2, 30, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '11px',
+        color: INK_MID_STR,
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(25);
+
+    // Status text — just above action bar
     this.statusText = this.add
-      .text(w / 2, h - 16, '', { fontFamily: 'monospace', fontSize: '16px', color: '#e0c872', fontStyle: 'bold' })
+      .text(w / 2, h - ACTION_BAR_H - 8, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '13px',
+        color: INK_MID_STR,
+        fontStyle: 'italic',
+      })
       .setOrigin(0.5, 1)
-      .setDepth(20);
+      .setDepth(25);
 
-    // ── City Type Legend (bottom-left) ──────────────────────────
-    this.createCityLegend();
-
-    // ── Tooltip (hidden by default, shown on hover) ─────────────
+    // Tooltip
     this.tooltipText = this.add
       .text(0, 0, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#ffffff',
-        backgroundColor: '#1a1a2e',
-        padding: { x: 8, y: 6 },
+        fontFamily: FONT_SERIF,
+        fontSize: '11px',
+        color: INK_MID_STR,
+        backgroundColor: '#f5f0d8',
+        padding: { x: 6, y: 4 },
       })
       .setDepth(100)
       .setVisible(false);
 
-    // ── Action buttons ───────────────────────────────────────────
-    this.createActionButtons();
-
-    // ── Timer Display (left-center) ──────────────────────────────
+    this.createActionButtons(w, h);
     this.timerDisplay = new TimerDisplay(this);
   }
 
-  private createCityLegend(): void {
-    const h = this.cameras.main.height;
-    const legendX = 16;
-    const legendY = h - 90;
-    const legendStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#8888aa' } as const;
-    
-    // Title
-    this.add.text(legendX, legendY, 'City Types:', { ...legendStyle, color: '#aaaacc' }).setDepth(20);
-    
-    // All cities are now uniform
-    const normalCircle = this.add.graphics().setDepth(20);
-    normalCircle.lineStyle(2, 0xffffff, 0.8);
-    normalCircle.strokeCircle(legendX + 8, legendY + 22, 6);
-    this.add.text(legendX + 20, legendY + 16, 'All cities are the same', legendStyle).setDepth(20);
+  // ── Left Sidebar ─────────────────────────────────────────────────
+
+  private createSidebar(h: number): void {
+    // Parchment panel background
+    const bg = this.add.graphics().setDepth(1);
+    bg.fillStyle(C_PARCHMENT_MID, 1);
+    bg.fillRect(0, 0, SIDEBAR_W, h);
+    bg.lineStyle(1, C_PARCHMENT_DARK, 1);
+    bg.lineBetween(SIDEBAR_W, 0, SIDEBAR_W, h);
+
+    // Dark header
+    const HEADER_H = 70;
+    const header = this.add.graphics().setDepth(2);
+    header.fillStyle(C_PANEL_HEADER, 1);
+    header.fillRect(0, 0, SIDEBAR_W, HEADER_H);
+
+    // Role label ("TARGET" or "SPY") — updated in onStateUpdate
+    this.playerRoleText = this.add
+      .text(SIDEBAR_W / 2, 10, '...', {
+        fontFamily: FONT_SERIF,
+        fontSize: '12px',
+        color: WHITE_STR,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(3);
+
+    // Bolt icons for actions remaining
+    this.boltIconText = this.add
+      .text(SIDEBAR_W / 2, 32, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '18px',
+        color: '#f5f0d8',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(3);
+
+    // Sidebar body HUD labels
+    const bodyStyle = { fontFamily: FONT_SERIF, fontSize: '11px', color: INK_MID_STR } as const;
+    const bodyBold  = { fontFamily: FONT_SERIF, fontSize: '11px', color: INK_DARK_STR, fontStyle: 'bold' } as const;
+
+    this.add.text(8, HEADER_H + 12, 'TURN', bodyStyle).setDepth(3);
+    this.turnText = this.add.text(8, HEADER_H + 24, '', bodyBold).setDepth(3);
+
+    this.add.text(8, HEADER_H + 48, 'LOCATION', bodyStyle).setDepth(3);
+    this.cityText = this.add.text(8, HEADER_H + 60, '', { ...bodyBold, fontSize: '10px' }).setDepth(3);
+
+    this.add.text(8, HEADER_H + 84, 'COVER', bodyStyle).setDepth(3);
+    this.coverText = this.add.text(8, HEADER_H + 96, '', bodyBold).setDepth(3);
+
+    // ACTIONS tile (bottom)
+    const TILE_H = 44;
+    const tile1Y = h - ACTION_BAR_H - TILE_H * 2;
+    const tile2Y = h - ACTION_BAR_H - TILE_H;
+
+    const tilesBg = this.add.graphics().setDepth(2);
+    tilesBg.fillStyle(C_ACTIONS_RED, 1);
+    tilesBg.fillRect(0, tile1Y, SIDEBAR_W, TILE_H);
+    tilesBg.fillRect(0, tile2Y, SIDEBAR_W, TILE_H);
+    // Divider line
+    tilesBg.lineStyle(1, C_PANEL_HEADER, 0.5);
+    tilesBg.lineBetween(4, tile2Y, SIDEBAR_W - 4, tile2Y);
+
+    this.add
+      .text(SIDEBAR_W / 2, tile1Y + 4, 'ACTIONS', {
+        fontFamily: FONT_SERIF,
+        fontSize: '9px',
+        color: '#f5f0d8',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(3);
+
+    this.actionsTileValue = this.add
+      .text(SIDEBAR_W / 2, tile1Y + 18, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '20px',
+        color: WHITE_STR,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(3);
+
+    this.add
+      .text(SIDEBAR_W / 2, tile2Y + 4, 'INTEL', {
+        fontFamily: FONT_SERIF,
+        fontSize: '9px',
+        color: '#f5f0d8',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(3);
+
+    this.intelTileValue = this.add
+      .text(SIDEBAR_W / 2, tile2Y + 18, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '16px',
+        color: WHITE_STR,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(3);
   }
 
-  private moveBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
-  private strikeBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
-  private locateBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
-  private waitBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
-  private createActionButtons(): void {
-    const h = this.cameras.main.height;
-    const w = this.cameras.main.width;
-    const btnW = 100;
-    const btnH = 38;
-    const gap = 12;
-    const totalW = btnW * 4 + gap * 3;  // 4 buttons now (removed End Turn)
-    const startX = w / 2 - totalW / 2 + btnW / 2;
-    const btnY = h - 54;
+  // ── Action Bar ───────────────────────────────────────────────────
 
-    this.moveBtn = this.makeButton(startX, btnY, btnW, btnH, 'MOVE', () => {
-      if (!this.areButtonsEnabled()) {
-        this.showStatus('Not your turn', '#666688');
-        return;
-      }
+  private createActionBar(w: number, h: number): void {
+    const bar = this.add.graphics().setDepth(50);
+    bar.fillStyle(C_PARCHMENT_LIGHT, 1);
+    bar.fillRect(0, h - ACTION_BAR_H, w, ACTION_BAR_H);
+    bar.lineStyle(1.5, C_PARCHMENT_DARK, 1);
+    bar.lineBetween(0, h - ACTION_BAR_H, w, h - ACTION_BAR_H);
+  }
+
+  // ── Action Buttons ───────────────────────────────────────────────
+
+  private createActionButtons(w: number, h: number): void {
+    const btnW = 64;
+    const btnH = 68;
+    const gap  = 8;
+    const totalW = btnW * 9 + gap * 8;
+    const startX = (w - totalW) / 2 + btnW / 2;
+    const btnY   = h - ACTION_BAR_H / 2;
+    const x = (i: number) => startX + i * (btnW + gap);
+
+    // 0: MOVE — move to adjacent city
+    this.actionBtns[0] = this.makeButton(x(0), btnY, btnW, btnH, 'MOVE', 'btn_control', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
       this.actionMode = this.actionMode === 'MOVE' ? null : 'MOVE';
       this.updateActionButtons();
-      this.showStatus(this.actionMode === 'MOVE' ? 'Click an adjacent city to move' : '', '#88ccff');
+      this.showStatus(this.actionMode === 'MOVE' ? 'Click an adjacent city to move' : '', INK_MID_STR);
     });
 
-    this.strikeBtn = this.makeButton(startX + (btnW + gap), btnY, btnW, btnH, 'STRIKE', () => {
-      if (!this.areButtonsEnabled()) {
-        this.showStatus('Not your turn', '#666688');
-        return;
-      }
-      if (this.state?.isPlayerStranded) {
-        this.showStatus('You must move out of the disappearing city!', '#ff6666');
-        return;
-      }
-      // Strike at current location immediately (no city selection needed)
+    // 1: STRIKE
+    this.actionBtns[1] = this.makeButton(x(1), btnY, btnW, btnH, 'STRIKE', 'btn_strike', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
+      if (this.state?.isPlayerStranded) { this.showStatus('You must move out of the disappearing city!', '#c0392b'); return; }
       if (!this.state) return;
-      this.net.send(ClientMessageType.PLAYER_ACTION, {
-        action: ActionKind.STRIKE,
-        targetCity: this.state.player.currentCity,
-      });
-      this.showStatus('Strike attempted at current location!', '#ff6666');
+      this.net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.STRIKE, targetCity: this.state.player.currentCity });
+      this.showStatus('Strike attempted at current location!', '#c0392b');
     });
 
-    this.locateBtn = this.makeButton(startX + (btnW + gap) * 2, btnY, btnW, btnH, 'LOCATE', () => {
-      if (!this.areButtonsEnabled()) {
-        this.showStatus('Not your turn', '#666688');
-        return;
-      }
-      if (this.state?.isPlayerStranded) {
-        this.showStatus('You must move out of the disappearing city!', '#ff6666');
-        return;
-      }
-      // Check Intel cost for Locate ability
+    // 2: WAIT
+    this.actionBtns[2] = this.makeButton(x(2), btnY, btnW, btnH, 'WAIT', 'btn_wait', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
+      if (this.state?.isPlayerStranded) { this.showStatus('You must move out of the disappearing city!', '#c0392b'); return; }
+      this.net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.WAIT });
+      this.showStatus('Waiting...', INK_MID_STR);
+    });
+
+    // 3: GO DEEP (not yet implemented)
+    this.actionBtns[3] = this.makeButton(x(3), btnY, btnW, btnH, 'GO DEEP', 'btn_go_deep', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
+      this.showStatus('Not yet available', INK_MID_STR);
+    });
+
+    // 4: LOCATE
+    this.actionBtns[4] = this.makeButton(x(4), btnY, btnW, btnH, 'LOCATE', 'btn_locate', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
+      if (this.state?.isPlayerStranded) { this.showStatus('You must move out of the disappearing city!', '#c0392b'); return; }
       const LOCATE_COST = 10;
       if (!this.state || this.state.player.intel < LOCATE_COST) {
-        this.showStatus(`Locate costs ${LOCATE_COST} Intel. You only have ${this.state?.player.intel || 0}.`, '#ff8866');
+        this.showStatus(`Locate costs ${LOCATE_COST} Intel. You have ${this.state?.player.intel || 0}.`, '#c0392b');
         return;
       }
-      // Use LOCATE ability to reveal opponent position
-      this.net.send(ClientMessageType.PLAYER_ACTION, {
-        action: ActionKind.ABILITY,
-        abilityId: AbilityId.LOCATE,
-      });
-      this.showStatus('Using Locate ability...', '#88ccff');
+      this.net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.ABILITY, abilityId: AbilityId.LOCATE });
+      this.showStatus('Using Locate ability...', INK_MID_STR);
     });
 
-    this.waitBtn = this.makeButton(startX + (btnW + gap) * 3, btnY, btnW, btnH, 'WAIT', () => {
-      if (!this.areButtonsEnabled()) {
-        this.showStatus('Not your turn', '#666688');
-        return;
-      }
-      if (this.state?.isPlayerStranded) {
-        this.showStatus('You must move out of the disappearing city!', '#ff6666');
-        return;
-      }
-      // Wait action - consumes action point without doing anything
-      this.net.send(ClientMessageType.PLAYER_ACTION, {
-        action: ActionKind.WAIT,
-      });
-      this.showStatus('Waiting...', '#8888aa');
+    // 5: PREP (not yet implemented)
+    this.actionBtns[5] = this.makeButton(x(5), btnY, btnW, btnH, 'PREP', 'btn_prep', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
+      this.showStatus('Not yet available', INK_MID_STR);
     });
+
+    // 6–8: UNLOCK slots (locked)
+    for (let i = 0; i < 3; i++) {
+      this.actionBtns[6 + i] = this.makeButton(x(6 + i), btnY, btnW, btnH, 'UNLOCK', 'btn_unlock', () => {
+        this.showStatus('Locked ability slot', INK_MID_STR);
+      }, true);
+    }
   }
 
-  /** Check if buttons should be enabled (player's turn and not game over) */
   private areButtonsEnabled(): boolean {
     if (!this.state) return false;
-    const isMyTurn = this.state.currentTurn === this.state.player.side;
-    return isMyTurn && !this.state.gameOver;
+    return this.state.currentTurn === this.state.player.side && !this.state.gameOver;
   }
 
   private makeButton(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
+    x: number, y: number, w: number, h: number,
     text: string,
+    iconKey: string,
     onClick: () => void,
+    forceDisabled = false,
   ) {
-    const bg = this.add.graphics().setDepth(20);
-    this.drawBtn(bg, x, y, w, h, false, false);
+    const bg = this.add.graphics().setDepth(51);
+    this.drawBtn(bg, x, y, w, h, false, false, forceDisabled);
+
+    const icon = this.textures.exists(iconKey)
+      ? this.add.image(x, y - 8, iconKey).setDepth(52)
+      : null;
 
     const label = this.add
-      .text(x, y, text, { fontFamily: 'monospace', fontSize: '13px', color: '#e0c872' })
-      .setOrigin(0.5)
-      .setDepth(21);
+      .text(x, y + h / 2 - 13, text, {
+        fontFamily: FONT_SERIF,
+        fontSize: '9px',
+        color: INK_DARK_STR,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(52);
 
-    const zone = this.add.zone(x, y, w, h).setInteractive({ useHandCursor: true }).setDepth(22);
+    const zone = this.add.zone(x, y, w, h).setInteractive({ useHandCursor: true }).setDepth(53);
     zone.on('pointerdown', onClick);
-    // Store hover state for dynamic redraw
+
     let isHovering = false;
-    zone.on('pointerover', () => {
-      isHovering = true;
-      // Will be redrawn by updateActionButtons if needed, or immediately if not active
-      this.updateActionButtons();
-    });
-    zone.on('pointerout', () => {
-      isHovering = false;
-      this.updateActionButtons();
-    });
-    // Store hover state on the button object for later reference
+    zone.on('pointerover', () => { isHovering = true;  this.updateActionButtons(); });
+    zone.on('pointerout',  () => { isHovering = false; this.updateActionButtons(); });
     (zone as any).isHovering = () => isHovering;
 
-    return { bg, label, zone };
+    return { bg, label, zone, icon, forceDisabled };
   }
 
-  private drawBtn(gfx: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, hover: boolean, active: boolean, forceDisabled: boolean = false): void {
+  private drawBtn(
+    gfx: Phaser.GameObjects.Graphics,
+    x: number, y: number, w: number, h: number,
+    hover: boolean, active: boolean,
+    forceDisabled = false,
+  ): void {
     gfx.clear();
-    
-    // Check if buttons should be disabled
     const disabled = forceDisabled || !this.areButtonsEnabled();
-    
-    // Determine background color based on state
+
     let fillColor: number;
+    let borderColor: number;
     let borderAlpha: number;
-    let borderColor: number = 0xe0c872; // default gold
-    
+    let labelColor: string;
+
     if (disabled) {
-      fillColor = 0x1a1a2a; // Very dark when disabled
-      borderAlpha = 0.3;
-      borderColor = 0x444455; // Dark grey border
+      fillColor   = C_BUTTON_DISABLED;
+      borderColor = 0xa09878;
+      borderAlpha = 0.7;
+      labelColor  = '#88806a';
     } else if (active) {
-      fillColor = hover ? 0x6a7a4a : 0x4a5a3a; // Green-tinted when active (brighter on hover)
-      borderAlpha = 1.0; // Full opacity border when active
+      fillColor   = C_BUTTON_ACTIVE;
+      borderColor = C_INK_DARK;
+      borderAlpha = 1;
+      labelColor  = WHITE_STR;
     } else if (hover) {
-      fillColor = 0x445577; // Blue-grey hover
-      borderAlpha = 0.7;
+      fillColor   = C_PARCHMENT_DARK;
+      borderColor = 0x8a6030;
+      borderAlpha = 1;
+      labelColor  = INK_DARK_STR;
     } else {
-      fillColor = 0x222244; // Dark normal state
-      borderAlpha = 0.7;
+      fillColor   = C_PARCHMENT_MID;
+      borderColor = C_PARCHMENT_DARK;
+      borderAlpha = 1;
+      labelColor  = INK_DARK_STR;
     }
-    
+
+    (gfx as any)._labelColor = labelColor;
+
     gfx.fillStyle(fillColor, 1);
-    gfx.fillRoundedRect(x - w / 2, y - h / 2, w, h, 6);
+    gfx.fillRoundedRect(x - w / 2, y - h / 2, w, h, 4);
     gfx.lineStyle(1, borderColor, borderAlpha);
-    gfx.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 6);
+    gfx.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 4);
   }
 
   private updateActionButtons(): void {
-    const disabled = !this.areButtonsEnabled();
-    const LOCATE_COST = 10;
-    const locateDisabled = disabled || (this.state && this.state.player.intel < LOCATE_COST);
+    if (!this.actionBtns.length) return;
+    const disabled   = !this.areButtonsEnabled();
     const isStranded = this.state?.isPlayerStranded ?? false;
-    
-    const updateBtn = (btn: typeof this.moveBtn, isActive: boolean, btnDisabled: boolean = disabled) => {
-      const isHovering = (btn.zone as any).isHovering ? (btn.zone as any).isHovering() : false;
-      // Dim label color when disabled
-      btn.label.setColor(btnDisabled ? '#555566' : (isActive ? '#ffffff' : '#e0c872'));
-      this.drawBtn(btn.bg, btn.zone.x, btn.zone.y, 100, 38, isHovering, isActive, btnDisabled);
-    };
-    updateBtn(this.moveBtn, this.actionMode === 'MOVE');
-    // Strike, Locate, Wait are disabled if stranded (must move out first)
-    updateBtn(this.strikeBtn, false, disabled || isStranded);
-    updateBtn(this.locateBtn, false, locateDisabled || isStranded);
-    updateBtn(this.waitBtn, false, disabled || isStranded);
+    const locateIntel = this.state?.player.intel ?? 0;
+
+    const enabledMap = [
+      disabled,                                      // 0 MOVE
+      disabled || isStranded,                        // 1 STRIKE
+      disabled || isStranded,                        // 2 WAIT
+      disabled,                                      // 3 GO DEEP (not yet implemented)
+      disabled || isStranded || locateIntel < 10,    // 4 LOCATE
+      disabled,                                      // 5 PREP (not yet implemented)
+      true, true, true,                              // 6-8 UNLOCK always off
+    ];
+    const activeMap = [this.actionMode === 'MOVE', false, false, false, false, false, false, false, false];
+
+    for (let i = 0; i < this.actionBtns.length; i++) {
+      const btn = this.actionBtns[i];
+      const isBtnDisabled = btn.forceDisabled || (enabledMap[i] ?? true);
+      const isActive      = activeMap[i] ?? false;
+      const isHovering    = (btn.zone as any).isHovering?.() ?? false;
+
+      this.drawBtn(btn.bg, btn.zone.x, btn.zone.y, 64, 68, isHovering, isActive, isBtnDisabled);
+      btn.label.setColor((btn.bg as any)._labelColor ?? INK_DARK_STR);
+
+      if (btn.icon) {
+        if (isBtnDisabled)     btn.icon.setTint(0x908870);
+        else if (isActive)     btn.icon.setTint(0xffffff);
+        else                   btn.icon.clearTint();
+      }
+    }
   }
 
-  // ── State handling ──────────────────────────────────────────────
+  // ── State handling ───────────────────────────────────────────────
 
   private boardDrawn = false;
 
   private onStateUpdate(): void {
-    if (!this.state) {
-      console.warn('[GameScene] onStateUpdate called but state is null');
-      return;
-    }
-
-    console.log('[GameScene] onStateUpdate - Turn:', this.state.turnNumber, 'BoardDrawn:', this.boardDrawn);
+    if (!this.state) return;
 
     if (!this.boardDrawn) {
-      console.log('[GameScene] Drawing board for first time');
       this.board = new BoardRenderer(this);
       this.board.drawBoard(this.state.map, this.state);
-      // Enable tooltips only if tooltip element exists
-      if (this.tooltipText) {
-        this.board.enableTooltips(this.tooltipText);
-      } else {
-        console.warn('[GameScene] tooltipText not available yet');
-      }
+      if (this.tooltipText) this.board.enableTooltips(this.tooltipText);
       this.boardDrawn = true;
     } else {
       this.board.updateState(this.state);
     }
 
-    // Update HUD
     const p = this.state.player;
     const isMyTurn = this.state.currentTurn === p.side;
-    this.turnText.setText(
-      `Turn ${this.state.turnNumber}  —  ${isMyTurn ? 'YOUR TURN' : "OPPONENT'S TURN"}`,
-    );
-    this.turnText.setColor(isMyTurn ? '#e0c872' : '#666688');
-    this.actionsText.setText(`Actions: ${p.actionsRemaining} / 2`);
-    this.intelText.setText(`Intel: ${p.intel}`);
-    this.coverText.setText(`Cover: ${p.hasCover ? 'YES' : 'NO'}`);
-    this.coverText.setColor(p.hasCover ? '#66cc88' : '#8888aa');
-    this.cityText.setText(`Location: ${p.currentCity}`);
-    // Use the server-provided name, falling back to registry (set pre-match) or side
+
+    // Sidebar HUD
+    this.playerRoleText.setText(p.side);
+    // Action remaining indicator in header
+    const totalActions = 2;
+    const filled = p.actionsRemaining;
+    const bolts = Array(totalActions).fill(0).map((_, i) => i < filled ? '\u25C6' : '\u25C7').join(' ');
+    this.boltIconText.setText(bolts);
+    this.boltIconText.setColor(filled > 0 ? '#f5f0d8' : '#8a6a5a');
+
+    this.turnText.setText(`${this.state.turnNumber}`);
+    // Look up display name for current city
+    const cityDef = this.state.map?.cities?.find((c) => c.id === p.currentCity);
+    this.cityText.setText(cityDef?.name ?? p.currentCity);
+    this.coverText.setText(p.hasCover ? 'ACTIVE' : 'NONE');
+    this.coverText.setColor(p.hasCover ? '#3a9a3a' : INK_MID_STR);
+
+    // ACTIONS tile: show filled/empty diamonds for remaining actions
+    const actionSymbols = Array(totalActions).fill(0)
+      .map((_, i) => i < p.actionsRemaining ? '\u25C6' : '\u25C7').join(' ');
+    this.actionsTileValue.setText(actionSymbols);
+    this.intelTileValue.setText(`${p.intel}`);
+
+    // Top-right names
     const displayName = p.name || this.registry.get('playerName') || p.side;
-    console.log('[GameScene] Setting player name to:', displayName);
     this.playerNameText.setText(displayName);
+    this.opponentNameText.setText(`vs ${this.state.opponentName || '???'}`);
 
-    // Opponent name
-    const oppName = this.state.opponentName || '???';
-    console.log('[GameScene] Setting opponent name to:', oppName);
-    this.opponentNameText.setText(`vs ${oppName}`);
-
-    // Update button states (enable/disable based on turn)
     this.updateActionButtons();
 
-    // Capture server's elapsed time and current timestamp for timer interpolation
-    this.lastServerElapsedMs = this.state.timeElapsedMs || 0;
-    this.lastStateUpdateTime = Date.now();
+    // Timer
+    this.lastServerElapsedMs  = this.state.timeElapsedMs || 0;
+    this.lastStateUpdateTime  = Date.now();
+    if (this.timerDisplay) this.timerDisplay.reset();
 
-    // Reset timer display on state change (typically when turn changes)
-    if (this.timerDisplay) {
-      this.timerDisplay.reset();
+    // Turn banner — show once when turn owner changes
+    if (this.state.currentTurn !== this.lastTurnOwner) {
+      this.lastTurnOwner = this.state.currentTurn;
+      this.showTurnBanner(isMyTurn);
     }
 
-    // Auto-end turn if no actions remaining
+    // Auto end-turn
     if (isMyTurn && p.actionsRemaining === 0) {
-      console.log('[GameScene] Auto-ending turn - no actions remaining');
       this.actionMode = null;
-      this.showStatus('No actions remaining - ending turn automatically', '#ff8844');
-      // Delay slightly so player can see the message
+      this.showStatus('No actions remaining — ending turn', INK_MID_STR);
       this.time.delayedCall(800, () => {
         this.net.send(ClientMessageType.END_TURN, {});
       });
     } else if (p.opponentUsedStrike) {
-      // Opponent attempted a strike — show a prominent banner once per event
       if (this.state.turnNumber !== this.lastStrikeBannerTurn) {
         this.lastStrikeBannerTurn = this.state.turnNumber;
         this.showOpponentStrikeBanner();
       }
     } else if (p.opponentUsedLocate) {
-      // Opponent used Locate on us — show a prominent banner once per event
       if (this.state.turnNumber !== this.lastLocateBannerTurn) {
         this.lastLocateBannerTurn = this.state.turnNumber;
         this.showOpponentLocateBanner();
       }
     } else {
-      this.showStatus('', '#e0c872');
+      this.showStatus('', INK_MID_STR);
     }
 
-    // Update opponent location marker
     this.updateOpponentMarker();
   }
 
@@ -473,122 +615,152 @@ export class GameScene extends Phaser.Scene {
     this.statusText.setColor(color);
   }
 
-  private showGameOverBanner(winner: PlayerSide, reason: string): void {
+  // ── Turn Banner ──────────────────────────────────────────────────
+
+  private showTurnBanner(isMyTurn: boolean): void {
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    const bannerW = 360;
+    const bannerH = 56;
+    const bannerX = w / 2;
+    const bannerY = h / 2 - 80;
+    const bannerColor = isMyTurn ? C_BANNER_RED : C_BANNER_GREEN;
+    const bannerText  = isMyTurn ? 'Your Turn!' : "Target's Turn";
+
+    const bg = this.add.rectangle(bannerX, bannerY - 80, bannerW, bannerH, bannerColor, 1)
+      .setDepth(510)
+      .setOrigin(0.5);
+
+    const t = this.add.text(bannerX, bannerY - 80, bannerText, {
+      fontFamily: FONT_SERIF,
+      fontSize: '26px',
+      color: WHITE_STR,
+      fontStyle: 'bold italic',
+    }).setOrigin(0.5).setDepth(511);
+
+    // Slide in from above
+    this.tweens.add({
+      targets: [bg, t],
+      y: bannerY,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Auto-dismiss after 2s
+    this.time.delayedCall(2000, () => {
+      this.tweens.add({
+        targets: [bg, t],
+        alpha: 0,
+        duration: 400,
+        onComplete: () => { bg.destroy(); t.destroy(); },
+      });
+    });
+  }
+
+  // ── Game Over Modal ──────────────────────────────────────────────
+
+  private showGameOverModal(winner: PlayerSide, reason: string): void {
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
     const isVictory = winner === this.state?.player.side;
 
-    // Semi-transparent dark overlay
-    const overlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.7);
-    overlay.setDepth(1000);
+    // Overlay scrim
+    this.add.rectangle(w / 2, h / 2, w, h, 0x140a05, 0.65).setDepth(1000);
 
-    // Banner background
-    const bannerW = 600;
-    const bannerH = 280;
-    const bannerBg = this.add.rectangle(w / 2, h / 2, bannerW, bannerH, 0x1a1a2e);
-    bannerBg.setDepth(1001);
-    bannerBg.setStrokeStyle(4, isVictory ? 0x4ecdc4 : 0xff6b6b);
+    // Parchment card
+    const cardW = 560;
+    const cardH = 320;
+    const card = this.add.rectangle(w / 2, h / 2, cardW, cardH, C_PARCHMENT_LIGHT, 1)
+      .setDepth(1001)
+      .setStrokeStyle(3, C_PARCHMENT_DARK);
 
-    // Main text: VICTORY! or DEFEAT!
-    const mainText = isVictory ? 'VICTORY!' : 'DEFEAT!';
-    const mainColor = isVictory ? '#4ecdc4' : '#ff6b6b';
-    const title = this.add.text(w / 2, h / 2 - 60, mainText, {
-      fontFamily: 'Arial',
+    void card; // suppress unused warning
+
+    // Stamp heading
+    const stampColor = isVictory ? C_STAMP_BLUE : C_TARGET_RED;
+    const stampText  = isVictory ? 'VICTORY' : 'DEFEAT';
+    this.add.text(w / 2, h / 2 - 100, stampText, {
+      fontFamily: FONT_SERIF,
       fontSize: '64px',
-      color: mainColor,
+      color: Phaser.Display.Color.IntegerToColor(stampColor).rgba,
       fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 6,
-    });
-    title.setOrigin(0.5);
-    title.setDepth(1002);
+      letterSpacing: 4,
+    }).setOrigin(0.5).setDepth(1002);
 
-    // Winner subtitle
-    const winnerText = this.add.text(w / 2, h / 2 + 10, `${winner} wins`, {
-      fontFamily: 'Arial',
-      fontSize: '28px',
-      color: '#e0c872',
-    });
-    winnerText.setOrigin(0.5);
-    winnerText.setDepth(1002);
-
-    // Reason text
-    const reasonText = this.add.text(w / 2, h / 2 + 60, reason, {
-      fontFamily: 'Arial',
+    // Sub-text
+    const subMsg = isVictory ? 'A decisive win. Great work, agent.' : reason;
+    this.add.text(w / 2, h / 2 - 28, subMsg, {
+      fontFamily: FONT_SERIF,
       fontSize: '18px',
-      color: '#aaaacc',
+      color: INK_MID_STR,
       align: 'center',
-      wordWrap: { width: bannerW - 40 },
-    });
-    reasonText.setOrigin(0.5);
-    reasonText.setDepth(1002);
+      wordWrap: { width: cardW - 60 },
+    }).setOrigin(0.5).setDepth(1002);
 
-    // Optional: Add a subtle pulse animation to the title
-    this.tweens.add({
-      targets: title,
-      scaleX: 1.05,
-      scaleY: 1.05,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    // Player markers
+    const markerY = h / 2 + 30;
+    this.add.image(w / 2 - 60, markerY, 'spy_marker').setDepth(1002).setScale(1.2);
+    this.add.image(w / 2 + 60, markerY, 'opponent_marker').setDepth(1002).setScale(1.2);
+
+    // Names
+    const nameStyle = {
+      fontFamily: FONT_SERIF, fontSize: '13px',
+      color: INK_DARK_STR, fontStyle: 'bold',
+    };
+    const playerName = this.state?.player.name || this.registry.get('playerName') || winner;
+    const oppName    = this.state?.opponentName || '???';
+    this.add.text(w / 2 - 60, markerY + 30, playerName, nameStyle).setOrigin(0.5).setDepth(1002);
+    this.add.text(w / 2 + 60, markerY + 30, oppName,    nameStyle).setOrigin(0.5).setDepth(1002);
+
+    // "Next game..." hint
+    this.add.text(w / 2, h / 2 + 110, 'Next game in...', {
+      fontFamily: FONT_SERIF,
+      fontSize: '13px',
+      color: INK_MID_STR,
+    }).setOrigin(0.5).setDepth(1002);
   }
 
-  private updateOpponentMarker(): void {    if (!this.board || !this.state) return;
-    
-    // Show opponent location if known (backend clears it after opponent's action)
+  private updateOpponentMarker(): void {
+    if (!this.board || !this.state) return;
     this.board.updateOpponentLocation(this.state.player.knownOpponentCity);
   }
 
-  /**
-   * Show a transient notification banner anchored just below the HUD.
-   * Auto-destroys after `durationMs`.  Does NOT block gameplay.
-   * Any previously shown banner is dismissed immediately before the new one appears.
-   */
+  // ── Notification Banners ─────────────────────────────────────────
+
   private showNotificationBanner(
     line1: string,
     line2: string,
     borderColor: number,
     durationMs = 3500,
   ): void {
-    // Dismiss any banner that is still on-screen right now
     this.dismissActiveBanner();
 
     const w = this.cameras.main.width;
     const bannerW = 420;
-    const bannerH = 64;
+    const bannerH = 60;
     const bannerX = w / 2;
-    const bannerY = 120;  // just below the top HUD text block
+    const bannerY = 90;
 
-    // Background rect
-    const bg = this.add.rectangle(bannerX, bannerY, bannerW, bannerH, 0x1a1a2e, 0.93)
+    const bg = this.add.rectangle(bannerX, bannerY - 50, bannerW, bannerH, C_PARCHMENT_MID, 0.96)
       .setDepth(500)
-      .setStrokeStyle(2, borderColor);
+      .setStrokeStyle(2, borderColor)
+      .setOrigin(0.5);
 
-    // Main line
-    const t1 = this.add.text(bannerX, bannerY - 10, line1, {
-      fontFamily: 'monospace',
-      fontSize: '15px',
+    const t1 = this.add.text(bannerX, bannerY - 50 - 10, line1, {
+      fontFamily: FONT_SERIF,
+      fontSize: '14px',
       color: Phaser.Display.Color.IntegerToColor(borderColor).rgba,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(501);
 
-    // Sub line
-    const t2 = this.add.text(bannerX, bannerY + 13, line2, {
-      fontFamily: 'monospace',
+    const t2 = this.add.text(bannerX, bannerY - 50 + 12, line2, {
+      fontFamily: FONT_SERIF,
       fontSize: '12px',
-      color: '#aaaacc',
+      color: INK_MID_STR,
     }).setOrigin(0.5).setDepth(501);
 
-    // Track so the next banner (or an explicit dismiss) can remove these
     this.activeBannerObjects = [bg, t1, t2];
 
-    // Slide in from above
-    const startY = bannerY - 50;
-    bg.setY(startY);
-    t1.setY(startY);
-    t2.setY(startY);
     this.tweens.add({
       targets: [bg, t1, t2],
       y: `+=${50}`,
@@ -596,49 +768,42 @@ export class GameScene extends Phaser.Scene {
       ease: 'Back.easeOut',
     });
 
-    // Auto-dismiss: fade out then destroy
     this.time.delayedCall(durationMs, () => {
-      // Only destroy if these objects are still the active ones
       if (this.activeBannerObjects[0] === bg) {
         this.tweens.add({
           targets: [bg, t1, t2],
           alpha: 0,
           duration: 400,
           onComplete: () => {
-            bg.destroy();
-            t1.destroy();
-            t2.destroy();
-            if (this.activeBannerObjects[0] === bg) {
-              this.activeBannerObjects = [];
-            }
+            bg.destroy(); t1.destroy(); t2.destroy();
+            if (this.activeBannerObjects[0] === bg) this.activeBannerObjects = [];
           },
         });
       }
     });
   }
 
-  /** Immediately destroy any banner that is currently on screen. */
   private dismissActiveBanner(): void {
     if (this.activeBannerObjects.length > 0) {
       this.tweens.killTweensOf(this.activeBannerObjects);
-      this.activeBannerObjects.forEach(obj => obj.destroy());
+      this.activeBannerObjects.forEach(o => o.destroy());
       this.activeBannerObjects = [];
     }
   }
 
   private showOpponentStrikeBanner(): void {
     this.showNotificationBanner(
-      '⚠  YOUR OPPONENT STRUCK!',
+      'YOUR OPPONENT STRUCK!',
       'They missed — your position is safe.',
-      0xff5533,
+      C_TARGET_RED,
     );
   }
 
   private showOpponentLocateBanner(): void {
     this.showNotificationBanner(
-      '⚠  OPPONENT USED LOCATE',
+      'OPPONENT USED LOCATE',
       'Your current position may be known.',
-      0xffaa33,
+      0xc8763a,
     );
   }
 }

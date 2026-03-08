@@ -382,6 +382,20 @@ See **`.agents/skills/debug-and-logs/SKILL.md`** for comprehensive debugging wor
 
 ---
 
+# 18. UI Visual Style
+
+All visual and CSS styling decisions must conform to the vintage Cold War board-game aesthetic defined in:
+
+**`.agents/skills/ui-style/SKILL.md`**
+
+Key points:
+- Source of truth for all colours, fonts, component styles, and layout
+- Derived from `docs/mockups/game_start.jpg`, `game_turn.jpg`, `game_end.jpg`, `possible_actions.jpg`
+- The current dark space theme (`#0f0f23`, neon gold) is a **placeholder** — do not treat it as target style
+- Trigger this skill whenever working on any Phaser scene, HUD, button, banner, modal, or map element
+
+---
+
 # 17. Documentation Updates
 
 When changes are significant (behavioral changes, public APIs, message formats, or other user-visible behavior), **update the relevant project documentation** and mention these updates in your commit message so reviewers notice the change.

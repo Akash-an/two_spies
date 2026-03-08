@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(screencapture:*)",
+      "Bash(osascript:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
