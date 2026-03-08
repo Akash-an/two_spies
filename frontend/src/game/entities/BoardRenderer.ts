@@ -51,9 +51,40 @@ export class BoardRenderer {
   private mapH = 0;
   private originX = 0;
   private originY = 0;
+  private spyMarkerBorder: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Apply cover styling to the spy marker.
+   * - hasCover=false (visible): solid colored icon
+   * - hasCover=true (hidden): translucent icon with solid border
+   */
+  private applySpyMarkerStyling(hasCover: boolean): void {
+    if (!this.spyMarker) return;
+
+    if (hasCover) {
+      // Hidden state: translucent with solid border
+      this.spyMarker.setAlpha(0.45);
+      
+      // Create or update border if needed
+      if (!this.spyMarkerBorder) {
+        this.spyMarkerBorder = this.scene.add.graphics().setDepth(9);
+      }
+      this.spyMarkerBorder.clear();
+      this.spyMarkerBorder.lineStyle(2, 0xffffff, 1);  // solid white border
+      this.spyMarkerBorder.strokeCircle(this.spyMarker.x, this.spyMarker.y, 14);
+    } else {
+      // Visible state: solid colored icon
+      this.spyMarker.setAlpha(1);
+      
+      // Remove border
+      if (this.spyMarkerBorder) {
+        this.spyMarkerBorder.clear();
+      }
+    }
   }
 
   /** Call once in `create()` to draw the full board for the given map. */
@@ -77,6 +108,9 @@ export class BoardRenderer {
     this.spyMarker = this.scene.add
       .image(playerCity?.screenX ?? 0, playerCity?.screenY ?? 0, 'spy_marker')
       .setDepth(10);
+    
+    // Apply cover styling based on visibility state
+    this.applySpyMarkerStyling(state.player.hasCover);
 
     this.drawStartingMarkers(state);
     this.highlightAdjacent(state.player.currentCity, map);
@@ -94,6 +128,9 @@ export class BoardRenderer {
         ease: 'Power2',
       });
     }
+
+    // Update spy marker styling based on cover state
+    this.applySpyMarkerStyling(state.player.hasCover);
 
     for (const [id, cs] of this.citySprites) {
       cs.label.setColor(
