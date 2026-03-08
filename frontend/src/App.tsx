@@ -197,7 +197,7 @@ export default function App() {
   const Overlay: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(15, 15, 35, 0.92)',
+      backgroundColor: '#6db5ae',  // OCEAN_TEAL
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       zIndex: 1000,
@@ -208,8 +208,8 @@ export default function App() {
         .lobby-spinner {
           display: inline-block;
           width: 20px; height: 20px;
-          border: 3px solid #334466;
-          border-top-color: #e0c872;
+          border: 3px solid #c8a96e;
+          border-top-color: #3d2010;
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
@@ -219,56 +219,60 @@ export default function App() {
 
   const nameTag = (
     <>
-      <h1 style={{ color: '#e0c872', fontSize: '28px', marginBottom: '4px', fontFamily: 'monospace' }}>
+      <h1 style={{ color: '#2a1a0a', fontSize: '28px', marginBottom: '4px', fontFamily: "'Georgia', serif", fontWeight: 'bold' }}>
         {playerName}
       </h1>
-      <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '28px', fontFamily: 'monospace' }}>
+      <p style={{ color: '#5a3a1a', fontSize: '13px', marginBottom: '28px', fontFamily: "'Georgia', serif", fontStyle: 'italic' }}>
         Your codename
       </p>
     </>
   );
 
   const btnStyle: React.CSSProperties = {
-    padding: '12px 32px',
-    fontSize: '16px',
-    fontFamily: 'monospace',
+    padding: '11px 30px',
+    fontSize: '14px',
+    fontFamily: "'Georgia', serif",
     fontWeight: 'bold',
-    border: '2px solid #e0c872',
-    borderRadius: '6px',
+    border: '1px solid #c8a96e',
+    borderRadius: '4px',
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    transition: 'background 0.15s',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '1px',
   };
 
   const errorBanner = errorMsg && (
-    <p style={{ color: '#ff6666', fontSize: '13px', fontFamily: 'monospace', marginTop: '16px' }}>
+    <p style={{ color: '#c0392b', fontSize: '13px', fontFamily: "'Georgia', serif", marginTop: '16px' }}>
       {errorMsg}
     </p>
   );
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#0f0f23' }}>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#6db5ae' }}>
       {/* Phase 1: Enter your codename */}
       {phase === 'entering-name' && <PlayerNameModal onSubmit={handleNameSubmit} />}
 
       {/* Phase 2: Lobby — Start Game / Join Game */}
       {phase === 'lobby' && (
         <Overlay>
+          <h1 style={{ fontFamily: "'Georgia', serif", fontSize: '52px', fontWeight: 'bold', color: '#2a1a0a', marginBottom: '4px', letterSpacing: '2px' }}>TWO SPIES</h1>
+          <p style={{ fontFamily: "'Georgia', serif", fontSize: '16px', fontStyle: 'italic', color: '#5a3a1a', marginBottom: '36px' }}>a game of espionage</p>
           {nameTag}
-          <div style={{ display: 'flex', gap: '20px' }}>
+          <div style={{ display: 'flex', gap: '16px' }}>
             <button
               onClick={handleStartGame}
-              style={{ ...btnStyle, background: '#e0c872', color: '#0f0f23' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#f0d882')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#e0c872')}
+              style={{ ...btnStyle, background: '#3d2010', color: '#f5f0d8', borderColor: '#2a1a0a' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#5a3010')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d2010')}
             >
               Start Game
             </button>
             <button
               onClick={handleJoinGame}
-              style={{ ...btnStyle, background: 'transparent', color: '#e0c872' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(224,200,114,0.1)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              style={{ ...btnStyle, background: '#e8dfc0', color: '#2a1a0a' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#c8a96e')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#e8dfc0')}
             >
               Join Game
             </button>
@@ -281,27 +285,29 @@ export default function App() {
       {phase === 'creating' && (
         <Overlay>
           {nameTag}
-          <p style={{ color: '#cccce0', fontSize: '14px', fontFamily: 'monospace', marginBottom: '12px' }}>
+          <p style={{ color: '#5a3a1a', fontSize: '14px', fontFamily: "'Georgia', serif", marginBottom: '12px', fontStyle: 'italic' }}>
             Share this code with your opponent:
           </p>
           <div style={{
-            fontSize: '48px', fontFamily: 'monospace', fontWeight: 'bold',
-            color: '#e0c872', letterSpacing: '12px', marginBottom: '28px',
+            fontSize: '48px', fontFamily: "'Georgia', serif", fontWeight: 'bold',
+            color: '#2a1a0a', letterSpacing: '14px', marginBottom: '28px',
+            backgroundColor: '#f5f0d8', padding: '12px 28px', borderRadius: '4px',
+            border: '1px solid #c8a96e',
           }}>
             {roomCode || '----'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span className="lobby-spinner" />
-            <span style={{ color: '#cccce0', fontSize: '15px', fontFamily: 'monospace' }}>
-              Waiting for opponent to join…
+            <span style={{ color: '#2a1a0a', fontSize: '15px', fontFamily: "'Georgia', serif", fontStyle: 'italic' }}>
+              Waiting for opponent to join...
             </span>
           </div>
           <button
             onClick={() => { setPhase('lobby'); setRoomCode(''); }}
             style={{
               ...btnStyle, marginTop: '32px',
-              background: 'transparent', color: '#8888aa',
-              border: '1px solid #555577', fontSize: '13px', padding: '8px 20px',
+              background: '#e8dfc0', color: '#5a3a1a',
+              border: '1px solid #c8a96e', fontSize: '12px', padding: '8px 20px',
             }}
           >
             Cancel
@@ -313,7 +319,7 @@ export default function App() {
       {phase === 'joining' && (
         <Overlay>
           {nameTag}
-          <p style={{ color: '#cccce0', fontSize: '14px', fontFamily: 'monospace', marginBottom: '16px' }}>
+          <p style={{ color: '#5a3a1a', fontSize: '14px', fontFamily: "'Georgia', serif", marginBottom: '16px', fontStyle: 'italic' }}>
             Enter the 4-digit room code:
           </p>
           <input
@@ -324,25 +330,26 @@ export default function App() {
             onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitJoinCode(); }}
             autoFocus
             style={{
-              width: '160px', fontSize: '36px', fontFamily: 'monospace', fontWeight: 'bold',
+              width: '160px', fontSize: '36px', fontFamily: "'Georgia', serif", fontWeight: 'bold',
               textAlign: 'center', letterSpacing: '10px', padding: '8px',
-              background: '#1a1a2e', border: '2px solid #e0c872', borderRadius: '6px',
-              color: '#e0c872', outline: 'none', marginBottom: '20px',
+              background: '#f5f0d8', border: '2px solid #c8a96e', borderRadius: '4px',
+              color: '#2a1a0a', outline: 'none', marginBottom: '20px',
             }}
           />
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
               onClick={handleSubmitJoinCode}
-              style={{ ...btnStyle, background: '#e0c872', color: '#0f0f23' }}
+              style={{ ...btnStyle, background: '#3d2010', color: '#f5f0d8', borderColor: '#2a1a0a' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#5a3010')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#3d2010')}
             >
               Join
             </button>
             <button
               onClick={() => { setPhase('lobby'); setErrorMsg(''); }}
-              style={{
-                ...btnStyle, background: 'transparent', color: '#8888aa',
-                border: '1px solid #555577',
-              }}
+              style={{ ...btnStyle, background: '#e8dfc0', color: '#5a3a1a' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#c8a96e')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#e8dfc0')}
             >
               Back
             </button>
@@ -357,8 +364,8 @@ export default function App() {
           {nameTag}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span className="lobby-spinner" />
-            <span style={{ color: '#cccce0', fontSize: '16px', fontFamily: 'monospace' }}>
-              Joining match…
+            <span style={{ color: '#2a1a0a', fontSize: '16px', fontFamily: "'Georgia', serif", fontStyle: 'italic' }}>
+              Joining match...
             </span>
           </div>
         </Overlay>

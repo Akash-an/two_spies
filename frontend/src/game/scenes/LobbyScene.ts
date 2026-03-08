@@ -17,28 +17,33 @@ export class LobbyScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.cameras.main;
-    this.cameras.main.setBackgroundColor('#0f0f23');
+    this.cameras.main.setBackgroundColor('#6db5ae');  // OCEAN_TEAL
+
+    // ── Map background ───────────────────────────────────────────
+    if (this.textures.exists('europe_map')) {
+      this.add.image(width / 2, height / 2, 'europe_map').setDepth(0);
+    }
 
     // ── Title ────────────────────────────────────────────────────
     this.add
       .text(width / 2, height * 0.25, 'TWO SPIES', {
-        fontFamily: 'monospace',
+        fontFamily: "'Georgia', serif",
         fontSize: '48px',
-        color: '#e0c872',
+        color: '#2a1a0a',  // INK_DARK
+        fontStyle: 'bold',
       })
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, height * 0.25 + 52, 'a game of espionage', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#8888aa',
+      .text(width / 2, height * 0.25 + 54, 'a game of espionage', {
+        fontFamily: "'Georgia', serif",
+        fontSize: '16px',
+        color: '#5a3a1a',  // INK_MID
+        fontStyle: 'italic',
       })
       .setOrigin(0.5);
 
     // ── Listen for MATCH_START from network layer ────────────────
-    // The React overlay sends JOIN_MATCH; the server replies with
-    // MATCH_START once both players are in.  We transition to GameScene.
     const net = this.registry.get('network');
     if (net) {
       net.on('MATCH_START', () => {

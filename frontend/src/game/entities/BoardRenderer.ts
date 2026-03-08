@@ -2,20 +2,25 @@
  * BoardRenderer — draws the city graph (nodes + edges) and the player marker.
  *
  * All coordinates in MapDef are normalised 0–1.  BoardRenderer maps them into
- * a padded rectangle within the Phaser scene camera.
+ * a padded rectangle within the Phaser scene camera, accounting for the
+ * left sidebar (85 px) and bottom action bar (82 px).
  */
 
 import Phaser from 'phaser';
 import { CityDef, EdgeDef, MapDef, MatchState } from '../../types/Messages';
 
-/** Padding from canvas edge (pixels). */
-const PAD = 80;
+/** Layout constants — must match GameScene */
+const SIDEBAR_W = 130;
+const ACTION_BAR_H = 82;
+const PAD_TOP = 16;
+const PAD_LEFT = 15;   // gap between sidebar right edge and first city
+const PAD_RIGHT = 75;  // accounts for 65px right parchment strip + 10px margin
 
-/** Colours */
-const COL_EDGE = 0x5577aa;  // Brighter blue for better visibility
-const COL_EDGE_ADJACENT = 0x66ddff;  // Brighter cyan for adjacent edges
-const COL_CITY_LABEL = '#cccce0';
-const COL_CITY_LABEL_CURRENT = '#e0c872';
+/** Palette */
+const COL_EDGE          = 0x7a4030;  // MAP_EDGE brown/rust
+const COL_EDGE_ADJACENT = 0xcc3322;  // MAP_EDGE_ADJACENT red
+const COL_CITY_LABEL          = '#2a1a0a';  // INK_DARK
+const COL_CITY_LABEL_CURRENT  = '#4db84e';  // SPY_GREEN (current city)
 
 export interface CitySprite {
   id: string;
@@ -24,8 +29,8 @@ export interface CitySprite {
   highlight?: Phaser.GameObjects.Image;
   screenX: number;
   screenY: number;
-  disappearedOverlay?: Phaser.GameObjects.Graphics;  // Grey X overlay for disappeared cities
-  scheduledPulseRing?: Phaser.GameObjects.Graphics;  // Pulsing gold border for scheduled disappearing
+  disappearedOverlay?: Phaser.GameObjects.Graphics;
+  scheduledPulseRing?: Phaser.GameObjects.Graphics;
 }
 
 export class BoardRenderer {
@@ -33,12 +38,10 @@ export class BoardRenderer {
   private edgeGraphics!: Phaser.GameObjects.Graphics;
   private citySprites: Map<string, CitySprite> = new Map();
   private spyMarker!: Phaser.GameObjects.Image;
-  private opponentMarker: Phaser.GameObjects.Graphics | null = null;
+  private opponentMarker: Phaser.GameObjects.Image | null = null;
   private tooltipText: Phaser.GameObjects.Text | null = null;
   private cityData: Map<string, CityDef> = new Map();
 
-  // Starting city markers — cleared when the respective player first moves
-  // Each entry is [ring: Graphics, label: Text] so both are destroyed together.
   private playerStartMarker: [Phaser.GameObjects.Graphics, Phaser.GameObjects.Text] | null = null;
   private opponentStartMarker: [Phaser.GameObjects.Graphics, Phaser.GameObjects.Text] | null = null;
 
@@ -54,30 +57,26 @@ export class BoardRenderer {
   /** Call once in `create()` to draw the full board for the given map. */
   drawBoard(map: MapDef, state: MatchState): void {
     const cam = this.scene.cameras.main;
-    this.originX = PAD;
-    this.originY = PAD;
-    this.mapW = cam.width - PAD * 2;
-    this.mapH = cam.height - PAD * 2;
+    this.originX = SIDEBAR_W + PAD_LEFT;
+    this.originY = PAD_TOP;
+    this.mapW = cam.width - this.originX - PAD_RIGHT;
+    // Stretch map vertically so cities fill more of the canvas.
+    // City y-coords max at ~0.62; dividing by 0.72 gives ~86% canvas fill.
+    this.mapH = (cam.height - this.originY - ACTION_BAR_H - PAD_TOP) / 0.72;
 
-    // Draw edges first (behind cities)
-    this.edgeGraphics = this.scene.add.graphics();
+    this.edgeGraphics = this.scene.add.graphics().setDepth(3);
     this.drawEdges(map.edges, map.cities, state);
 
-    // Draw city nodes
     for (const city of map.cities) {
       this.drawCity(city, state);
     }
 
-    // Player spy marker
     const playerCity = this.citySprites.get(state.player.currentCity);
     this.spyMarker = this.scene.add
       .image(playerCity?.screenX ?? 0, playerCity?.screenY ?? 0, 'spy_marker')
       .setDepth(10);
 
-    // Starting city markers (shown until each player first moves)
     this.drawStartingMarkers(state);
-
-    // Highlight reachable cities
     this.highlightAdjacent(state.player.currentCity, map);
   }
 
@@ -94,86 +93,64 @@ export class BoardRenderer {
       });
     }
 
-    // Update labels — highlight current city
     for (const [id, cs] of this.citySprites) {
       cs.label.setColor(
         id === state.player.currentCity ? COL_CITY_LABEL_CURRENT : COL_CITY_LABEL,
       );
     }
-    
-    // Update disappeared cities visuals
+
+    // Update disappeared city overlays
     const disappearedSet = new Set(state.disappearedCities ?? []);
     for (const [cityId, cs] of this.citySprites) {
-      const isDisappeared = disappearedSet.has(cityId);
-      
-      if (isDisappeared && !cs.disappearedOverlay) {
-        // City just disappeared - add overlay
+      if (disappearedSet.has(cityId) && !cs.disappearedOverlay) {
         cs.sprite.setAlpha(0.3);
         cs.label.setAlpha(0.3);
-        
         const overlay = this.scene.add.graphics().setDepth(6);
-        overlay.lineStyle(4, 0xff3333, 0.8);
-        
-        const size = 12;
+        overlay.lineStyle(4, 0xcc3322, 0.8);
+        const size = 10;
         overlay.beginPath();
         overlay.moveTo(cs.screenX - size, cs.screenY - size);
         overlay.lineTo(cs.screenX + size, cs.screenY + size);
         overlay.strokePath();
-        
         overlay.beginPath();
         overlay.moveTo(cs.screenX + size, cs.screenY - size);
         overlay.lineTo(cs.screenX - size, cs.screenY + size);
         overlay.strokePath();
-        
         cs.disappearedOverlay = overlay;
       }
     }
-    
-    // Update scheduled disappearing city visual
+
+    // Update scheduled disappearing city pulse ring
     for (const [cityId, cs] of this.citySprites) {
       const isScheduled = state.scheduledDisappearCity === cityId;
-      
       if (isScheduled && !cs.scheduledPulseRing) {
-        // City just scheduled - add pulse ring
-        const pulseRing = this.scene.add.graphics().setDepth(6);
-        
-        const updatePulseRing = () => {
-          pulseRing.clear();
-          pulseRing.lineStyle(3, 0xffdd44, 0.8);
-          pulseRing.strokeCircle(cs.screenX, cs.screenY, 26);
-          
-          pulseRing.lineStyle(1, 0xffdd44, 0.4);
-          pulseRing.strokeCircle(cs.screenX, cs.screenY, 20);
-        };
-        
-        updatePulseRing();
-        
+        const ring = this.scene.add.graphics().setDepth(6);
+        ring.lineStyle(3, 0xc8a96e, 0.9);  // PARCHMENT_DARK gold
+        ring.strokeCircle(cs.screenX, cs.screenY, 26);
+        ring.lineStyle(1, 0xc8a96e, 0.4);
+        ring.strokeCircle(cs.screenX, cs.screenY, 20);
         this.scene.tweens.add({
-          targets: pulseRing,
-          alpha: { from: 1, to: 0.4 },
+          targets: ring,
+          alpha: { from: 1, to: 0.35 },
           duration: 600,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut',
         });
-        
-        cs.scheduledPulseRing = pulseRing;
+        cs.scheduledPulseRing = ring;
       } else if (!isScheduled && cs.scheduledPulseRing) {
-        // City no longer scheduled - remove pulse ring
         this.scene.tweens.killTweensOf(cs.scheduledPulseRing);
         cs.scheduledPulseRing.destroy();
         cs.scheduledPulseRing = undefined;
       }
     }
 
-    // Clear the player's own start marker once they've moved away
     if (this.playerStartMarker && state.player.currentCity !== state.player.startingCity) {
       this.playerStartMarker[0].destroy();
       this.playerStartMarker[1].destroy();
       this.playerStartMarker = null;
     }
 
-    // Clear the opponent's start marker once they've moved away from their start
     if (this.opponentStartMarker && state.opponentMovedFromStart) {
       this.opponentStartMarker[0].destroy();
       this.opponentStartMarker[1].destroy();
@@ -183,37 +160,24 @@ export class BoardRenderer {
     this.highlightAdjacent(state.player.currentCity, state.map);
   }
 
-  /** Show or hide opponent location marker (yellow blip). */
+  /** Show or hide opponent location marker (red diamond kite). */
   updateOpponentLocation(knownOpponentCity: string | null | undefined): void {
-    // Remove existing marker
     if (this.opponentMarker) {
+      this.scene.tweens.killTweensOf(this.opponentMarker);
       this.opponentMarker.destroy();
       this.opponentMarker = null;
     }
 
-    // If opponent location is known, show prominent yellow marker
     if (knownOpponentCity) {
-      const citySprite = this.citySprites.get(knownOpponentCity);
-      if (citySprite) {
-        this.opponentMarker = this.scene.add.graphics().setDepth(15);
-        
-        // Draw outer pulsing ring (larger, bright yellow)
-        this.opponentMarker.lineStyle(4, 0xffee44, 0.9);
-        this.opponentMarker.strokeCircle(citySprite.screenX, citySprite.screenY, 24);
-        
-        // Draw middle ring
-        this.opponentMarker.lineStyle(3, 0xffdd44, 0.8);
-        this.opponentMarker.strokeCircle(citySprite.screenX, citySprite.screenY, 18);
-        
-        // Draw inner filled circle (bright yellow)
-        this.opponentMarker.fillStyle(0xffdd44, 0.7);
-        this.opponentMarker.fillCircle(citySprite.screenX, citySprite.screenY, 14);
-        
-        // Add alpha pulsing animation (stays within city bounds)
+      const cs = this.citySprites.get(knownOpponentCity);
+      if (cs) {
+        this.opponentMarker = this.scene.add
+          .image(cs.screenX, cs.screenY, 'opponent_marker')
+          .setDepth(15);
         this.scene.tweens.add({
           targets: this.opponentMarker,
-          alpha: { from: 1, to: 0.4 },
-          duration: 500,
+          alpha: { from: 1, to: 0.45 },
+          duration: 700,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut',
@@ -224,14 +188,9 @@ export class BoardRenderer {
 
   /**
    * Draw start-position rings for both players.
-   *
-   * - Own start: blue dashed ring — clears when the player first moves.
-   * - Opponent start: red dashed ring — clears when the opponent first moves.
-   *
-   * Both cities are known at match start (shared information per GDD §2).
+   * Own start: SPY_GREEN ring.  Opponent start: TARGET_RED ring.
    */
   private drawStartingMarkers(state: MatchState): void {
-    // Returns [ring, label] so both can be destroyed together when the marker is cleared.
     const drawRing = (
       cityId: string,
       color: number,
@@ -241,29 +200,23 @@ export class BoardRenderer {
       if (!cs) return null;
 
       const gfx = this.scene.add.graphics().setDepth(7);
+      gfx.lineStyle(2.5, color, 0.9);
+      gfx.strokeCircle(cs.screenX, cs.screenY, 22);
+      gfx.lineStyle(1, color, 0.45);
+      gfx.strokeCircle(cs.screenX, cs.screenY, 16);
 
-      // Outer ring
-      gfx.lineStyle(3, color, 0.9);
-      gfx.strokeCircle(cs.screenX, cs.screenY, 26);
-
-      // Inner thin ring
-      gfx.lineStyle(1, color, 0.5);
-      gfx.strokeCircle(cs.screenX, cs.screenY, 20);
-
-      // Label stored alongside the ring so it can be destroyed with it
       const txt = this.scene.add
-        .text(cs.screenX, cs.screenY - 34, label, {
-          fontFamily: 'monospace',
+        .text(cs.screenX, cs.screenY - 30, label, {
+          fontFamily: "'Georgia', serif",
           fontSize: '10px',
           color: Phaser.Display.Color.IntegerToColor(color).rgba,
         })
         .setOrigin(0.5, 1)
         .setDepth(7);
 
-      // Gentle pulse on the ring (not the text — avoids jitter)
       this.scene.tweens.add({
         targets: gfx,
-        alpha: { from: 1, to: 0.5 },
+        alpha: { from: 1, to: 0.45 },
         duration: 1200,
         yoyo: true,
         repeat: -1,
@@ -273,8 +226,8 @@ export class BoardRenderer {
       return [gfx, txt];
     };
 
-    this.playerStartMarker  = drawRing(state.player.startingCity,         0x44aaff, 'YOUR START');
-    this.opponentStartMarker = drawRing(state.player.opponentStartingCity, 0xff5555, 'OPP START');
+    this.playerStartMarker   = drawRing(state.player.startingCity,         0x4db84e, 'YOUR START');
+    this.opponentStartMarker = drawRing(state.player.opponentStartingCity, 0xcc3322, 'OPP START');
   }
 
   /** Returns the city ID that was clicked, or null. */
@@ -299,24 +252,18 @@ export class BoardRenderer {
   private drawEdges(edges: EdgeDef[], cities: CityDef[], state?: MatchState): void {
     const lookup = new Map<string, CityDef>();
     for (const c of cities) lookup.set(c.id, c);
-    
+
     const disappearedCities = new Set(state?.disappearedCities ?? []);
     const playerCurrentCity = state?.player.currentCity ?? '';
-    const isPlayerStranded = state?.isPlayerStranded ?? false;
+    const isPlayerStranded  = state?.isPlayerStranded ?? false;
 
-    this.edgeGraphics.lineStyle(3, COL_EDGE, 0.7);  // Increased thickness and opacity
+    this.edgeGraphics.lineStyle(2, COL_EDGE, 0.85);
     for (const e of edges) {
-      // Skip edges connected to disappeared cities UNLESS player is stranded in one of them
-      const edgeConnectedToDisappeared = disappearedCities.has(e.from) || disappearedCities.has(e.to);
-      
-      if (edgeConnectedToDisappeared) {
-        // If player is stranded, keep edges from their current city visible (so they can escape)
+      const edgeHasDisappeared = disappearedCities.has(e.from) || disappearedCities.has(e.to);
+      if (edgeHasDisappeared) {
         const playerInEdge = isPlayerStranded && (e.from === playerCurrentCity || e.to === playerCurrentCity);
-        if (!playerInEdge) {
-          continue;  // Skip this edge
-        }
+        if (!playerInEdge) continue;
       }
-      
       const a = lookup.get(e.from);
       const b = lookup.get(e.to);
       if (!a || !b) continue;
@@ -331,21 +278,16 @@ export class BoardRenderer {
 
   private drawCity(city: CityDef, state: MatchState): void {
     const pos = this.toScreen(city.x, city.y);
-
-    // Store city data for tooltip
     this.cityData.set(city.id, city);
 
-    // All cities now use the same texture
-    const textureKey = 'city';
-
     const sprite = this.scene.add
-      .image(pos.x, pos.y, textureKey)
+      .image(pos.x, pos.y, 'city')
       .setInteractive({ useHandCursor: true })
       .setDepth(5);
 
     const label = this.scene.add
-      .text(pos.x, pos.y + 22, city.name, {
-        fontFamily: 'monospace',
+      .text(pos.x, pos.y + 14, city.name, {
+        fontFamily: "'Georgia', serif",
         fontSize: '11px',
         color: COL_CITY_LABEL,
         align: 'center',
@@ -353,69 +295,42 @@ export class BoardRenderer {
       .setOrigin(0.5, 0)
       .setDepth(5);
 
-    const citySprite: CitySprite = {
-      id: city.id,
-      sprite,
-      label,
-      screenX: pos.x,
-      screenY: pos.y,
-    };
-    
-    // Handle disappeared cities: grey overlay with red X
+    const citySprite: CitySprite = { id: city.id, sprite, label, screenX: pos.x, screenY: pos.y };
+
     const isDisappeared = state.disappearedCities?.includes(city.id) ?? false;
     if (isDisappeared) {
-      // Dim the city sprite
       sprite.setAlpha(0.3);
       label.setAlpha(0.3);
-      
-      // Create red X overlay
       const overlay = this.scene.add.graphics().setDepth(6);
-      overlay.lineStyle(4, 0xff3333, 0.8);
-      
-      // Draw X
-      const size = 12;
+      overlay.lineStyle(4, 0xcc3322, 0.8);
+      const size = 10;
       overlay.beginPath();
       overlay.moveTo(pos.x - size, pos.y - size);
       overlay.lineTo(pos.x + size, pos.y + size);
       overlay.strokePath();
-      
       overlay.beginPath();
       overlay.moveTo(pos.x + size, pos.y - size);
       overlay.lineTo(pos.x - size, pos.y + size);
       overlay.strokePath();
-      
       citySprite.disappearedOverlay = overlay;
     }
-    
-    // Handle scheduled disappearing cities: pulsing gold border
+
     const isScheduled = state.scheduledDisappearCity === city.id;
     if (isScheduled) {
-      const pulseRing = this.scene.add.graphics().setDepth(6);
-      
-      const updatePulseRing = () => {
-        pulseRing.clear();
-        // Outer ring (pulsing)
-        pulseRing.lineStyle(3, 0xffdd44, 0.8);
-        pulseRing.strokeCircle(pos.x, pos.y, 26);
-        
-        // Inner ring
-        pulseRing.lineStyle(1, 0xffdd44, 0.4);
-        pulseRing.strokeCircle(pos.x, pos.y, 20);
-      };
-      
-      updatePulseRing();
-      
-      // Animate pulse
+      const ring = this.scene.add.graphics().setDepth(6);
+      ring.lineStyle(3, 0xc8a96e, 0.9);
+      ring.strokeCircle(pos.x, pos.y, 26);
+      ring.lineStyle(1, 0xc8a96e, 0.4);
+      ring.strokeCircle(pos.x, pos.y, 20);
       this.scene.tweens.add({
-        targets: pulseRing,
-        alpha: { from: 1, to: 0.4 },
+        targets: ring,
+        alpha: { from: 1, to: 0.35 },
         duration: 600,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
-      
-      citySprite.scheduledPulseRing = pulseRing;
+      citySprite.scheduledPulseRing = ring;
     }
 
     this.citySprites.set(city.id, citySprite);
@@ -423,52 +338,36 @@ export class BoardRenderer {
 
   /** Enable hover tooltips on cities. Call after drawBoard(). */
   enableTooltips(tooltipText: Phaser.GameObjects.Text | null): void {
-    if (!tooltipText) {
-      console.warn('[BoardRenderer] enableTooltips called with null tooltipText');
-      return;
-    }
+    if (!tooltipText) return;
     this.tooltipText = tooltipText;
 
     for (const [cityId, cs] of this.citySprites) {
       const city = this.cityData.get(cityId);
       if (!city) continue;
 
-      // Show tooltip on hover
       cs.sprite.on('pointerover', (pointer: Phaser.Input.Pointer) => {
         if (!this.tooltipText) return;
-        
-        // All cities are now uniform
-        const typeText = 'City';
-        
-        this.tooltipText.setText(`${city.name}\n${typeText}`);
-        this.tooltipText.setPosition(pointer.x + 12, pointer.y - 8);
+        this.tooltipText.setText(city.name);
+        this.tooltipText.setPosition(pointer.x + 14, pointer.y - 10);
         this.tooltipText.setVisible(true);
       });
-
-      // Hide tooltip when pointer leaves
       cs.sprite.on('pointerout', () => {
-        if (this.tooltipText) {
-          this.tooltipText.setVisible(false);
-        }
+        if (this.tooltipText) this.tooltipText.setVisible(false);
       });
-
-      // Update tooltip position while hovering
       cs.sprite.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-        if (this.tooltipText && this.tooltipText.visible) {
-          this.tooltipText.setPosition(pointer.x + 12, pointer.y - 8);
+        if (this.tooltipText?.visible) {
+          this.tooltipText.setPosition(pointer.x + 14, pointer.y - 10);
         }
       });
     }
   }
 
   private highlightAdjacent(currentCity: string, map: MapDef): void {
-    // Remove old highlights
     for (const cs of this.citySprites.values()) {
       cs.highlight?.destroy();
       cs.highlight = undefined;
     }
 
-    // Redraw edges with adjacency colour
     this.edgeGraphics.clear();
     const lookup = new Map<string, CityDef>();
     for (const c of map.cities) lookup.set(c.id, c);
@@ -490,22 +389,29 @@ export class BoardRenderer {
       const pa = this.toScreen(a.x, a.y);
       const pb = this.toScreen(b.x, b.y);
 
-      // Adjacent edges are brighter and thicker; non-adjacent are still clearly visible
-      this.edgeGraphics.lineStyle(isAdj ? 4 : 3, isAdj ? COL_EDGE_ADJACENT : COL_EDGE, isAdj ? 0.9 : 0.6);
-      this.edgeGraphics.beginPath();
-      this.edgeGraphics.moveTo(pa.x, pa.y);
-      this.edgeGraphics.lineTo(pb.x, pb.y);
-      this.edgeGraphics.strokePath();
+      if (isAdj) {
+        // Dashed red for adjacent edges
+        this.edgeGraphics.lineStyle(2, COL_EDGE_ADJACENT, 0.9);
+        this.edgeGraphics.beginPath();
+        this.edgeGraphics.moveTo(pa.x, pa.y);
+        this.edgeGraphics.lineTo(pb.x, pb.y);
+        this.edgeGraphics.strokePath();
+      } else {
+        this.edgeGraphics.lineStyle(2, COL_EDGE, 0.55);
+        this.edgeGraphics.beginPath();
+        this.edgeGraphics.moveTo(pa.x, pa.y);
+        this.edgeGraphics.lineTo(pb.x, pb.y);
+        this.edgeGraphics.strokePath();
+      }
     }
 
-    // Place highlight rings on adjacent cities
     for (const adjId of adjSet) {
       const cs = this.citySprites.get(adjId);
       if (!cs) continue;
       const hl = this.scene.add
         .image(cs.screenX, cs.screenY, 'city_highlight')
         .setDepth(4)
-        .setAlpha(0.6);
+        .setAlpha(0.7);
       cs.highlight = hl;
     }
   }

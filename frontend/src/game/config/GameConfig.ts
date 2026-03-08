@@ -7,7 +7,7 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 1280,
   height: 720,
-  backgroundColor: '#0f0f23',
+  backgroundColor: '#6db5ae',
   scene: [BootScene, LobbyScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,

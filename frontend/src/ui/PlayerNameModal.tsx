@@ -29,32 +29,66 @@ export function PlayerNameModal({ onSubmit }: PlayerNameModalProps) {
     <div
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(15, 15, 35, 0.9)',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: '#6db5ae',  // OCEAN_TEAL — full background
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
       }}
     >
+      {/* Map-style title above the card */}
+      <h1 style={{
+        fontFamily: "'Georgia', serif",
+        fontSize: '52px',
+        fontWeight: 'bold',
+        color: '#2a1a0a',
+        marginBottom: '4px',
+        letterSpacing: '2px',
+      }}>
+        TWO SPIES
+      </h1>
+      <p style={{
+        fontFamily: "'Georgia', serif",
+        fontSize: '16px',
+        fontStyle: 'italic',
+        color: '#5a3a1a',
+        marginBottom: '40px',
+      }}>
+        a game of espionage
+      </p>
+
       <form
         onSubmit={handleSubmit}
         style={{
-          backgroundColor: '#1a1a2e',
-          border: '2px solid #e0c872',
-          borderRadius: '8px',
-          padding: '32px',
-          maxWidth: '400px',
+          backgroundColor: '#f5f0d8',  // PARCHMENT_LIGHT
+          border: '2px solid #c8a96e',  // PARCHMENT_DARK
+          borderRadius: '6px',
+          padding: '32px 40px',
+          width: '360px',
           textAlign: 'center',
+          boxShadow: '0 4px 24px rgba(42,26,10,0.18)',
         }}
       >
-        <h1 style={{ color: '#e0c872', marginBottom: '16px', fontSize: '24px' }}>
+        <h2 style={{
+          fontFamily: "'Georgia', serif",
+          color: '#2a1a0a',
+          marginBottom: '10px',
+          fontSize: '20px',
+          fontWeight: 'bold',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+        }}>
           Enter Your Codename
-        </h1>
-        <p style={{ color: '#8888aa', marginBottom: '24px', fontSize: '14px' }}>
+        </h2>
+        <p style={{
+          fontFamily: "'Georgia', serif",
+          color: '#5a3a1a',
+          marginBottom: '22px',
+          fontSize: '13px',
+          fontStyle: 'italic',
+        }}>
           Leave blank to generate a random codename.
         </p>
         <input
@@ -64,15 +98,16 @@ export function PlayerNameModal({ onSubmit }: PlayerNameModalProps) {
           placeholder="Your codename..."
           style={{
             width: '100%',
-            padding: '12px',
-            marginBottom: '16px',
-            backgroundColor: '#0f0f23',
-            border: '1px solid #8888aa',
+            padding: '10px 12px',
+            marginBottom: '14px',
+            backgroundColor: '#e8dfc0',  // PARCHMENT_MID
+            border: '1px solid #c8a96e',  // PARCHMENT_DARK
             borderRadius: '4px',
-            color: '#e0c872',
-            fontFamily: 'monospace',
-            fontSize: '14px',
+            color: '#2a1a0a',
+            fontFamily: "'Georgia', serif",
+            fontSize: '15px',
             boxSizing: 'border-box',
+            outline: 'none',
           }}
           autoFocus
         />
@@ -80,16 +115,20 @@ export function PlayerNameModal({ onSubmit }: PlayerNameModalProps) {
           type="submit"
           style={{
             width: '100%',
-            padding: '12px',
-            backgroundColor: '#e0c872',
-            border: 'none',
+            padding: '11px',
+            backgroundColor: '#3d2010',  // PANEL_HEADER
+            border: '1px solid #2a1a0a',
             borderRadius: '4px',
-            color: '#0f0f23',
+            color: '#f5f0d8',
             fontWeight: 'bold',
-            fontSize: '14px',
+            fontSize: '13px',
             cursor: 'pointer',
-            fontFamily: 'monospace',
+            fontFamily: "'Georgia', serif",
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#5a3010')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3d2010')}
         >
           Begin Game
         </button>
