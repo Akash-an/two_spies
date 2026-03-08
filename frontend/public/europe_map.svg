@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- Ocean background -->
+  <rect width="1280" height="720" fill="#6db5ae"/>
+
+  <!-- Coastal shelf (slightly lighter teal, expanded shapes behind land) -->
+  <polygon
+    points="
+      430,0 770,0 890,0 970,16 1014,36
+      1115,136 1136,276 1116,378 1034,458
+      912,518 750,576 692,628 660,678 628,720
+      548,720 532,664 498,616 456,584
+      416,564 364,580 296,622 220,584
+      156,522 116,444 116,384
+      152,304 232,248 322,208 408,158
+      428,94 440,48 430,14
+    "
+    fill="#5aada5"
+    opacity="0.55"
+  />
+
+  <!-- Mainland Europe -->
+  <polygon
+    points="
+      450,0 750,0 870,0 960,20 1000,40
+      1100,140 1120,280 1100,380 1020,460
+      900,520 740,580 680,630 650,680 620,720
+      560,720 545,670 510,620 465,590
+      430,570 380,585 310,625 235,590
+      170,530 130,450 130,390
+      165,310 240,255 330,215 415,165
+      435,100 445,55 450,20
+    "
+    fill="#f5f0d8"
+    stroke="#c8a96e"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+
+  <!-- Great Britain (coastal shelf) -->
+  <polygon
+    points="282,108 362,76 422,90 460,122 465,168 450,224 414,284 366,316 310,318 264,290 242,248 250,188 274,142"
+    fill="#5aada5"
+    opacity="0.55"
+  />
+
+  <!-- Great Britain -->
+  <polygon
+    points="295,118 355,88 410,98 445,128 450,168 435,218 400,275 355,305 305,310 265,285 245,245 255,192 280,152"
+    fill="#f5f0d8"
+    stroke="#c8a96e"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+
+  <!-- Ireland -->
+  <polygon
+    points="205,195 232,175 252,200 240,245 208,238"
+    fill="#f5f0d8"
+    stroke="#c8a96e"
+    stroke-width="1"
+    stroke-linejoin="round"
+  />
+
+  <!-- Corsica -->
+  <polygon
+    points="482,548 492,532 504,548 498,570 482,562"
+    fill="#f5f0d8"
+    stroke="#c8a96e"
+    stroke-width="0.8"
+  />
+
+  <!-- Sardinia -->
+  <polygon
+    points="482,580 496,570 506,588 500,614 484,610"
+    fill="#f5f0d8"
+    stroke="#c8a96e"
+    stroke-width="0.8"
+  />
+
+  <!-- Sicily -->
+  <polygon
+    points="572,648 596,638 614,648 610,670 584,674"
+    fill="#f5f0d8"
+    stroke="#c8a96e"
+    stroke-width="0.8"
+  />
+
+</svg>
