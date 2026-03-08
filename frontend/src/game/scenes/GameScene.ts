@@ -351,8 +351,8 @@ export class GameScene extends Phaser.Scene {
     const btnY   = h - ACTION_BAR_H / 2;
     const x = (i: number) => startX + i * (btnW + gap);
 
-    // 0: CONTROL — move to adjacent city
-    this.actionBtns[0] = this.makeButton(x(0), btnY, btnW, btnH, 'CONTROL', 'btn_control', () => {
+    // 0: MOVE — move to adjacent city
+    this.actionBtns[0] = this.makeButton(x(0), btnY, btnW, btnH, 'MOVE', 'btn_control', () => {
       if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
       this.actionMode = this.actionMode === 'MOVE' ? null : 'MOVE';
       this.updateActionButtons();
@@ -500,7 +500,7 @@ export class GameScene extends Phaser.Scene {
     const locateIntel = this.state?.player.intel ?? 0;
 
     const enabledMap = [
-      disabled,                                      // 0 CONTROL
+      disabled,                                      // 0 MOVE
       disabled || isStranded,                        // 1 STRIKE
       disabled || isStranded,                        // 2 WAIT
       disabled,                                      // 3 GO DEEP (not yet implemented)
