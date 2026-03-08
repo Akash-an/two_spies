@@ -207,13 +207,14 @@ export class GameScene extends Phaser.Scene {
   private strikeBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
   private locateBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
   private waitBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
+  private controlBtn!: { bg: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone };
   private createActionButtons(): void {
     const h = this.cameras.main.height;
     const w = this.cameras.main.width;
-    const btnW = 100;
+    const btnW = 85;
     const btnH = 38;
-    const gap = 12;
-    const totalW = btnW * 4 + gap * 3;  // 4 buttons now (removed End Turn)
+    const gap = 10;
+    const totalW = btnW * 5 + gap * 4;  // 5 buttons (MOVE, STRIKE, LOCATE, WAIT, CONTROL)
     const startX = w / 2 - totalW / 2 + btnW / 2;
     const btnY = h - 54;
 
@@ -282,6 +283,28 @@ export class GameScene extends Phaser.Scene {
         action: ActionKind.WAIT,
       });
       this.showStatus('Waiting...', '#8888aa');
+    });
+
+    this.controlBtn = this.makeButton(startX + (btnW + gap) * 4, btnY, btnW, btnH, 'CONTROL', () => {
+      if (!this.areButtonsEnabled()) {
+        this.showStatus('Not your turn', '#666688');
+        return;
+      }
+      if (this.state?.isPlayerStranded) {
+        this.showStatus('You must move out of the disappearing city!', '#ff6666');
+        return;
+      }
+      // Check if already controlling this city
+      const currentCity = this.state?.player.currentCity;
+      if (currentCity && this.state?.controlledCities[currentCity] === this.state?.player.side) {
+        this.showStatus('Already controlling this city', '#ff8866');
+        return;
+      }
+      // Use CONTROL action to claim territorial control
+      this.net.send(ClientMessageType.PLAYER_ACTION, {
+        action: ActionKind.CONTROL,
+      });
+      this.showStatus('Taking control of city...', '#88ff88');
     });
   }
 
@@ -365,17 +388,27 @@ export class GameScene extends Phaser.Scene {
     const locateDisabled = disabled || (this.state && this.state.player.intel < LOCATE_COST);
     const isStranded = this.state?.isPlayerStranded ?? false;
     
+    // Check if already controlling current city
+    const currentCity = this.state?.player.currentCity;
+    const alreadyControlling = !!(
+      currentCity && 
+      this.state?.controlledCities[currentCity] === this.state?.player.side
+    );
+    const controlDisabled = disabled || isStranded || alreadyControlling;
+    
     const updateBtn = (btn: typeof this.moveBtn, isActive: boolean, btnDisabled: boolean = disabled) => {
       const isHovering = (btn.zone as any).isHovering ? (btn.zone as any).isHovering() : false;
       // Dim label color when disabled
       btn.label.setColor(btnDisabled ? '#555566' : (isActive ? '#ffffff' : '#e0c872'));
-      this.drawBtn(btn.bg, btn.zone.x, btn.zone.y, 100, 38, isHovering, isActive, btnDisabled);
+      this.drawBtn(btn.bg, btn.zone.x, btn.zone.y, 85, 38, isHovering, isActive, btnDisabled);
     };
     updateBtn(this.moveBtn, this.actionMode === 'MOVE');
     // Strike, Locate, Wait are disabled if stranded (must move out first)
     updateBtn(this.strikeBtn, false, disabled || isStranded);
     updateBtn(this.locateBtn, false, locateDisabled || isStranded);
     updateBtn(this.waitBtn, false, disabled || isStranded);
+    // Control is disabled if stranded or already controlling
+    updateBtn(this.controlBtn, false, controlDisabled);
   }
 
   // ── State handling ──────────────────────────────────────────────

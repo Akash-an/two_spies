@@ -6,7 +6,7 @@
  */
 
 import Phaser from 'phaser';
-import { CityDef, EdgeDef, MapDef, MatchState } from '../../types/Messages';
+import { CityDef, EdgeDef, MapDef, MatchState, PlayerSide } from '../../types/Messages';
 
 /** Padding from canvas edge (pixels). */
 const PAD = 80;
@@ -26,6 +26,8 @@ export interface CitySprite {
   screenY: number;
   disappearedOverlay?: Phaser.GameObjects.Graphics;  // Grey X overlay for disappeared cities
   scheduledPulseRing?: Phaser.GameObjects.Graphics;  // Pulsing gold border for scheduled disappearing
+  controlledOverlay?: Phaser.GameObjects.Graphics;   // Solid color overlay for controlled cities
+  controlledBy?: PlayerSide;  // Track current controller to detect changes
 }
 
 export class BoardRenderer {
@@ -163,6 +165,34 @@ export class BoardRenderer {
         this.scene.tweens.killTweensOf(cs.scheduledPulseRing);
         cs.scheduledPulseRing.destroy();
         cs.scheduledPulseRing = undefined;
+      }
+    }
+
+    // Update controlled city overlays
+    for (const [cityId, cs] of this.citySprites) {
+      const controller = state.controlledCities?.[cityId];
+      const oldController = cs.controlledBy;
+      
+      // Check if controller changed (or new/removed)
+      if (controller !== oldController) {
+        // Destroy old overlay if it exists
+        if (cs.controlledOverlay) {
+          cs.controlledOverlay.destroy();
+          cs.controlledOverlay = undefined;
+        }
+        
+        // Create new overlay if city is now controlled
+        if (controller) {
+          const overlay = this.scene.add.graphics().setDepth(5);
+          const color = controller === 'RED' ? 0xff5555 : 0x5555ff;
+          overlay.fillStyle(color, 0.35);
+          overlay.fillCircle(cs.screenX, cs.screenY, 16);
+          
+          cs.controlledOverlay = overlay;
+          cs.controlledBy = controller;
+        } else {
+          cs.controlledBy = undefined;
+        }
       }
     }
 
@@ -416,6 +446,20 @@ export class BoardRenderer {
       });
       
       citySprite.scheduledPulseRing = pulseRing;
+    }
+
+    // Handle controlled cities: solid color overlay
+    const controller = state.controlledCities?.[city.id];
+    if (controller) {
+      const overlay = this.scene.add.graphics().setDepth(5);
+      // Use player colors: RED cities get red overlay, BLUE cities get blue overlay
+      const color = controller === 'RED' ? 0xff5555 : 0x5555ff;
+      // Solid fill with transparency to show the city underneath
+      overlay.fillStyle(color, 0.35);
+      overlay.fillCircle(pos.x, pos.y, 16);
+      
+      citySprite.controlledOverlay = overlay;
+      citySprite.controlledBy = controller;
     }
 
     this.citySprites.set(city.id, citySprite);

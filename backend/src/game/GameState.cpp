@@ -90,9 +90,23 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
         p.moved_to_new_city_this_turn = true;  // Flag for end-of-turn bonus
     }
 
+    // Check if opponent controls this city — if so, cover is blown
+    bool entered_controlled_city = false;
+    auto it = city_controllers_.find(target_city);
+    if (it != city_controllers_.end() && it->second == opposite(side)) {
+        // Opponent controls this city — automatically blow this player's cover
+        p.has_cover = false;
+        entered_controlled_city = true;
+    }
+
     // Clear opponent's knowledge of this player's location (Locate effect wears off)
+    // UNLESS we just entered their controlled city (then they gain sight of us)
     auto& opponent = player_mut(opposite(side));
-    opponent.known_opponent_city = "";  // player took action, clear their known location
+    if (!entered_controlled_city) {
+        opponent.known_opponent_city = "";  // player took action, clear their known location
+    } else {
+        opponent.known_opponent_city = target_city;  // opponent sees us due to controlled city
+    }
 
     // No automatic collision detection - players must strike to win
     // auto collision = check_same_city();
@@ -285,6 +299,61 @@ ActionResult GameState::wait(PlayerSide side) {
     // Clear opponent's knowledge of this player's location (Locate effect wears off)
     auto& opponent = player_mut(opposite(side));
     opponent.known_opponent_city = "";  // player took action, clear their known location
+
+    // Increment action counter for shrinking map feature
+    increment_action_count();
+
+    result.ok = true;
+    return result;
+}
+
+// ── CONTROL ──────────────────────────────────────────────────────────
+
+ActionResult GameState::control(PlayerSide side) {
+    ActionResult result;
+
+    if (game_over_) {
+        result.error = "Game is already over.";
+        return result;
+    }
+    if (side != current_turn_) {
+        result.error = "Not your turn.";
+        return result;
+    }
+
+    // Check if player is stranded in a disappearing city
+    if (is_player_stranded(side)) {
+        result.error = "Cannot control while in a disappearing city. You must move out.";
+        return result;
+    }
+
+    auto& p = player_mut(side);
+    if (p.actions_remaining <= 0) {
+        result.error = "No actions remaining — end your turn.";
+        return result;
+    }
+
+    const std::string& current_city = p.current_city;
+
+    // Check if player already controls this city
+    auto it = city_controllers_.find(current_city);
+    if (it != city_controllers_.end() && it->second == side) {
+        result.error = "You already control this city.";
+        return result;
+    }
+
+    // Take control of the city (may override opponent's control)
+    city_controllers_[current_city] = side;
+
+    // Blow the player's cover — opponent knows their location
+    p.has_cover = false;
+    
+    // Notify opponent of the action by revealing this player's location
+    auto& opponent = player_mut(opposite(side));
+    opponent.known_opponent_city = current_city;
+
+    // Consume one action
+    p.actions_remaining -= 1;
 
     // Increment action counter for shrinking map feature
     increment_action_count();
@@ -513,6 +582,16 @@ bool GameState::is_player_stranded(PlayerSide side) const {
     const auto& p = player(side);
     // A player is stranded if they're in a city that has already disappeared
     return disappeared_cities_.find(p.current_city) != disappeared_cities_.end();
+}
+
+PlayerSide GameState::get_city_controller(const std::string& city) const {
+    auto it = city_controllers_.find(city);
+    if (it != city_controllers_.end()) {
+        return it->second;
+    }
+    // Return a default PlayerSide value (RED) if no controller found
+    // Caller should check if city is actually controlled using city_controllers() map
+    return PlayerSide::RED;  // This value indicates "not controlled" when used with the map check
 }
 
 } // namespace two_spies::game

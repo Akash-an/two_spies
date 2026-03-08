@@ -162,6 +162,7 @@ export class MockNetworkClient extends EventEmitter {
       disappearedCities: [],
       scheduledDisappearCity: undefined,
       isPlayerStranded: false,
+      controlledCities: {},
     };
   }
 
@@ -183,6 +184,9 @@ export class MockNetworkClient extends EventEmitter {
         break;
       case ActionKind.ABILITY:
         this.handleAbility(payload);
+        break;
+      case ActionKind.CONTROL:
+        this.handleControl();
         break;
       default:
         this.emitError(`Unknown action: ${action}`);
@@ -246,6 +250,24 @@ export class MockNetworkClient extends EventEmitter {
         break;
     }
 
+    this.emitState();
+  }
+
+  private handleControl(): void {
+    const currentCity = this.state.player.currentCity;
+
+    // Check if already controlling this city
+    if (this.state.controlledCities[currentCity] === this.playerSide) {
+      this.emitError('Already controlling this city.');
+      return;
+    }
+
+    // Take control and blow cover
+    this.state.controlledCities[currentCity] = this.playerSide;
+    this.state.player.hasCover = false;
+    this.state.player.actionsRemaining -= 1;
+
+    console.info(`[MockNet] CONTROL used — took control of ${currentCity} and lost cover`);
     this.emitState();
   }
 
