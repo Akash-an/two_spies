@@ -173,6 +173,11 @@ export default function App() {
         },
       });
       gameRef.current = game;
+
+      // "Play Again" — reload the page so the lobby re-initialises cleanly
+      game.events.on('return-to-lobby', () => {
+        window.location.reload();
+      });
     };
 
     initClient();
