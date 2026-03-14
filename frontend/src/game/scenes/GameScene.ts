@@ -25,7 +25,6 @@ const C_PANEL_HEADER    = 0x3d2010;
 const C_ACTIONS_RED     = 0xc0392b;
 const C_BUTTON_ACTIVE   = 0x3d2010;
 const C_BUTTON_DISABLED = 0xb0a888;
-const C_BANNER_RED      = 0xc0392b;
 const C_BANNER_GREEN    = 0x4db84e;
 const C_STAMP_BLUE      = 0x2a5a8a;
 const C_TARGET_RED      = 0xcc3322;
@@ -91,6 +90,10 @@ export class GameScene extends Phaser.Scene {
   private lastServerElapsedMs = 0;
   private lastStateUpdateTime = 0;
 
+  // Feedback tracking
+  private lastHasCover: boolean | null = null;
+  private lastIntel = -1;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -144,6 +147,15 @@ export class GameScene extends Phaser.Scene {
       if (!cityId) return;
 
       if (this.actionMode === 'MOVE') {
+        const currentCity = this.state.player.currentCity;
+        const isAdjacent = this.state.map.edges.some(
+          e => (e.from === currentCity && e.to === cityId) ||
+               (e.to === currentCity && e.from === cityId)
+        );
+        if (!isAdjacent) {
+          this.showStatus('Not adjacent — choose a connected city', '#c0392b');
+          return;
+        }
         this.net.send(ClientMessageType.PLAYER_ACTION, {
           action: ActionKind.MOVE,
           targetCity: cityId,
@@ -153,17 +165,30 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // Fix timer drift: when the tab comes back into focus, reset the local
+    // time reference so we don't fast-forward the timer past what the server knows.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        this.lastStateUpdateTime = Date.now();
+      }
+    });
+
     this.game.events.emit('scene-ready', 'GameScene');
   }
 
   update(_time: number, _delta: number): void {
     if (this.state && this.timerDisplay) {
       const isMyTurn = this.state.currentTurn === this.state.player.side;
-      if (isMyTurn) {
+      if (isMyTurn && !this.state.gameOver) {
         const timeSinceUpdate = Date.now() - this.lastStateUpdateTime;
         const elapsed = this.lastServerElapsedMs + timeSinceUpdate;
-        this.timerDisplay.update(elapsed, this.state.turnDuration || 15000);
+        const duration = this.state.turnDuration || 15000;
+        this.timerDisplay.update(elapsed, duration);
         this.timerDisplay.setVisible(true);
+        // If local timer expired, show message — server will auto-end shortly
+        if (elapsed >= duration && this.state.player.actionsRemaining > 0) {
+          this.showStatus('Turn time expired — waiting for server…', '#c0392b');
+        }
       } else {
         this.timerDisplay.setVisible(false);
       }
@@ -604,10 +629,10 @@ export class GameScene extends Phaser.Scene {
       this.showTurnBanner(isMyTurn);
     }
 
-    // Auto end-turn
+    // Auto end-turn (highest priority — overwrites everything)
     if (isMyTurn && p.actionsRemaining === 0) {
       this.actionMode = null;
-      this.showStatus('No actions remaining — ending turn', INK_MID_STR);
+      this.showStatus('No actions remaining — ending turn…', INK_MID_STR);
       this.time.delayedCall(800, () => {
         this.net.send(ClientMessageType.END_TURN, {});
       });
@@ -622,7 +647,24 @@ export class GameScene extends Phaser.Scene {
         this.showOpponentLocateBanner();
       }
     } else {
-      this.showStatus('', INK_MID_STR);
+      this.showStatus('', INK_MID_STR);  // clear any stale message
+    }
+
+    // Intel / cover feedback — show AFTER the clear above so they aren't wiped
+    const intelGain = this.lastIntel >= 0 ? p.intel - this.lastIntel : 0;
+    this.lastIntel = p.intel;
+    const coverChanged = this.lastHasCover !== null && this.lastHasCover !== p.hasCover;
+    this.lastHasCover = p.hasCover;
+
+    if (coverChanged) {
+      // Cover change takes priority over intel message
+      if (p.hasCover) {
+        this.showStatus('Cover active — your position is hidden', '#3a9a3a');
+      } else {
+        this.showStatus('Cover lost — you are now visible', '#c0392b');
+      }
+    } else if (intelGain > 0) {
+      this.showStatus(`+${intelGain} intel`, '#5a8a3a');
     }
 
     this.updateOpponentMarker();
@@ -642,8 +684,8 @@ export class GameScene extends Phaser.Scene {
     const bannerH = 56;
     const bannerX = w / 2;
     const bannerY = h / 2 - 80;
-    const bannerColor = isMyTurn ? C_BANNER_RED : C_BANNER_GREEN;
-    const bannerText  = isMyTurn ? 'Your Turn!' : "Target's Turn";
+    const bannerColor = isMyTurn ? C_BANNER_GREEN : 0x5a3a1a;  // green = go; ink-brown = wait
+    const bannerText  = isMyTurn ? 'Your Turn!' : "Opponent's Turn";
 
     const bg = this.add.rectangle(bannerX, bannerY - 80, bannerW, bannerH, bannerColor, 1)
       .setDepth(510)
@@ -730,12 +772,26 @@ export class GameScene extends Phaser.Scene {
     this.add.text(w / 2 - 60, markerY + 30, playerName, nameStyle).setOrigin(0.5).setDepth(1002);
     this.add.text(w / 2 + 60, markerY + 30, oppName,    nameStyle).setOrigin(0.5).setDepth(1002);
 
-    // "Next game..." hint
-    this.add.text(w / 2, h / 2 + 110, 'Next game in...', {
+    // "Play Again" button
+    const btnY = h / 2 + 110;
+    const btnBg = this.add.rectangle(w / 2, btnY, 200, 38, C_BUTTON_ACTIVE, 1)
+      .setDepth(1002)
+      .setStrokeStyle(1, C_INK_DARK)
+      .setInteractive({ useHandCursor: true });
+
+    this.add.text(w / 2, btnY, 'PLAY AGAIN', {
       fontFamily: FONT_SERIF,
       fontSize: '13px',
-      color: INK_MID_STR,
-    }).setOrigin(0.5).setDepth(1002);
+      color: WHITE_STR,
+      fontStyle: 'bold',
+      letterSpacing: 1,
+    }).setOrigin(0.5).setDepth(1003);
+
+    btnBg.on('pointerover', () => btnBg.setFillStyle(0x5a3010));
+    btnBg.on('pointerout',  () => btnBg.setFillStyle(C_BUTTON_ACTIVE));
+    btnBg.on('pointerdown', () => {
+      this.game.events.emit('return-to-lobby');
+    });
   }
 
   private updateOpponentMarker(): void {

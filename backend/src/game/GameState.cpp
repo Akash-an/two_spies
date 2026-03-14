@@ -159,7 +159,9 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
         // HIT — striker wins the round
         game_over_ = true;
         winner_ = side;
-        game_over_reason_ = std::string(to_string(side)) + " struck " + target_city + " — HIT!";
+        const auto* city_def = graph_.get_city(target_city);
+        const std::string city_display = city_def ? city_def->name : target_city;
+        game_over_reason_ = std::string(to_string(side)) + " struck " + city_display + " — HIT!";
         result.ok = true;
         result.game_over = true;
         result.winner = side;
