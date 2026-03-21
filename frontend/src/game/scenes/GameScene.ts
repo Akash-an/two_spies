@@ -395,15 +395,28 @@ export class GameScene extends Phaser.Scene {
       this.showStatus('Using Locate ability...', INK_MID_STR);
     });
 
-    // 5: PREP (not yet implemented)
-    this.actionBtns[5] = this.makeButton(x(5), btnY, btnW, btnH, 'PREP', 'btn_prep', () => {
+    // 5: CONTROL — take territorial control of current city
+    this.actionBtns[5] = this.makeButton(x(5), btnY, btnW, btnH, 'CONTROL', 'btn_control', () => {
+      if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
+      if (this.state?.isPlayerStranded) { this.showStatus('You must move out of the disappearing city!', '#c0392b'); return; }
+      const currentCity = this.state?.player.currentCity;
+      if (currentCity && this.state?.controlledCities[currentCity] === this.state?.player.side) {
+        this.showStatus('Already controlling this city', '#c0392b');
+        return;
+      }
+      this.net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.CONTROL });
+      this.showStatus('Taking control of city...', INK_MID_STR);
+    });
+
+    // 6: PREP (not yet implemented)
+    this.actionBtns[6] = this.makeButton(x(6), btnY, btnW, btnH, 'PREP', 'btn_prep', () => {
       if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
       this.showStatus('Not yet available', INK_MID_STR);
     });
 
-    // 6–8: UNLOCK slots (locked)
+    // 7–9: UNLOCK slots (locked)
     for (let i = 0; i < 3; i++) {
-      this.actionBtns[6 + i] = this.makeButton(x(6 + i), btnY, btnW, btnH, 'UNLOCK', 'btn_unlock', () => {
+      this.actionBtns[7 + i] = this.makeButton(x(7 + i), btnY, btnW, btnH, 'UNLOCK', 'btn_unlock', () => {
         this.showStatus('Locked ability slot', INK_MID_STR);
       }, true);
     }
@@ -498,6 +511,10 @@ export class GameScene extends Phaser.Scene {
     const disabled   = !this.areButtonsEnabled();
     const isStranded = this.state?.isPlayerStranded ?? false;
     const locateIntel = this.state?.player.intel ?? 0;
+    
+    // Check if already controlling current city
+    const currentCity = this.state?.player.currentCity;
+    const alreadyControlling = !!(currentCity && this.state?.controlledCities[currentCity] === this.state?.player.side);
 
     const enabledMap = [
       disabled,                                      // 0 MOVE
@@ -505,10 +522,11 @@ export class GameScene extends Phaser.Scene {
       disabled || isStranded,                        // 2 WAIT
       disabled,                                      // 3 GO DEEP (not yet implemented)
       disabled || isStranded || locateIntel < 10,    // 4 LOCATE
-      disabled,                                      // 5 PREP (not yet implemented)
-      true, true, true,                              // 6-8 UNLOCK always off
+      disabled || isStranded || alreadyControlling,  // 5 CONTROL
+      disabled,                                      // 6 PREP (not yet implemented)
+      true, true, true,                              // 7-9 UNLOCK always off
     ];
-    const activeMap = [this.actionMode === 'MOVE', false, false, false, false, false, false, false, false];
+    const activeMap = [this.actionMode === 'MOVE', false, false, false, false, false, false, false, false, false];
 
     for (let i = 0; i < this.actionBtns.length; i++) {
       const btn = this.actionBtns[i];

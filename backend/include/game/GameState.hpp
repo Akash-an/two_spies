@@ -10,7 +10,7 @@
 namespace two_spies::game {
 
 /// Action types the client can send.
-enum class ActionKind { MOVE, STRIKE, ABILITY, WAIT };
+enum class ActionKind { MOVE, STRIKE, ABILITY, WAIT, CONTROL };
 
 inline const char* to_string(ActionKind a) {
     switch (a) {
@@ -18,6 +18,7 @@ inline const char* to_string(ActionKind a) {
         case ActionKind::STRIKE:  return "STRIKE";
         case ActionKind::ABILITY: return "ABILITY";
         case ActionKind::WAIT:    return "WAIT";
+        case ActionKind::CONTROL: return "CONTROL";
     }
     return "UNKNOWN";
 }
@@ -60,6 +61,9 @@ public:
     /// Wait action - consumes an action point without doing anything.
     ActionResult wait(PlayerSide side);
 
+    /// Control action - claim control of the current city.
+    ActionResult control(PlayerSide side);
+
     /// End the current player's turn.
     ActionResult end_turn(PlayerSide side);
 
@@ -74,6 +78,13 @@ public:
     PlayerData& player_mut(PlayerSide side);
 
     const CityGraph& graph() const { return graph_; }
+
+    // ── City Control Feature ──────────────────────────────────
+    /// Get the player who controls a city (if any)
+    PlayerSide get_city_controller(const std::string& city) const;
+    
+    /// Get all controlled cities as a map: city_id -> controlling_player
+    const std::unordered_map<std::string, PlayerSide>& city_controllers() const { return city_controllers_; }
 
     // ── Shrinking Map Feature ─────────────────────────────────
     /// Get the city scheduled to disappear at the end of this action count
@@ -100,6 +111,9 @@ private:
     std::string scheduled_disappear_city_;              // city to disappear at action 6, 12, 18, etc.
     std::unordered_set<std::string> disappeared_cities_; // cities that have already disappeared
     std::mt19937 rng_{};                                // for random city selection
+
+    // ── City Control Tracking ─────────────────────────────────
+    std::unordered_map<std::string, PlayerSide> city_controllers_;  // city_id -> controlling PlayerSide
 
     /// Select a random city to disappear (one that hasn't disappeared yet)
     /// Ensures the remaining graph stays connected

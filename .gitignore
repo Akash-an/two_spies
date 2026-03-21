@@ -8,6 +8,7 @@ frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 frontend/vite.log
+node_modules/
 
 # -----------------------------------------------
 # Backend (CMake / C++)
@@ -29,6 +30,8 @@ compile_commands.json
 .agents/skills/find-skills/
 .agents/skills/phaser-gamedev/
 .agents/skills/screenshot-to-code/
+.agents/skills/resolve-conflicts/
+.agents/skills/playwright-cli/
 
 # Keep custom project skills (rebuild-and-restart, two-spies-gamedesign)
 # These are NOT ignored and will be committed

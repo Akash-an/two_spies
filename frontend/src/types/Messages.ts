@@ -34,6 +34,7 @@ export enum ActionKind {
   STRIKE = 'STRIKE',
   ABILITY = 'ABILITY',
   WAIT = 'WAIT',
+  CONTROL = 'CONTROL',
 }
 
 /** Available abilities. */
@@ -102,6 +103,7 @@ export interface MatchState {
   disappearedCities: string[];   // cities that have disappeared
   isPlayerStranded: boolean;     // true if player is in the disappearing city
   timeElapsedMs: number;         // elapsed time since turn started (ms)
+  controlledCities: Record<string, PlayerSide>;  // city_id -> controlling player (visible to both)
 }
 
 // ─── Messages ────────────────────────────────────────────────────────
@@ -137,4 +139,8 @@ export interface AbilityPayload {
   targetCity?: string;
 }
 
-export type ActionPayload = MovePayload | StrikePayload | AbilityPayload;
+export interface ControlPayload {
+  action: ActionKind.CONTROL;
+}
+
+export type ActionPayload = MovePayload | StrikePayload | AbilityPayload | ControlPayload;

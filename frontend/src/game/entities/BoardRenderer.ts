@@ -7,7 +7,7 @@
  */
 
 import Phaser from 'phaser';
-import { CityDef, EdgeDef, MapDef, MatchState } from '../../types/Messages';
+import { CityDef, EdgeDef, MapDef, MatchState, PlayerSide } from '../../types/Messages';
 
 /** Layout constants — must match GameScene */
 const SIDEBAR_W = 130;
@@ -29,8 +29,10 @@ export interface CitySprite {
   highlight?: Phaser.GameObjects.Image;
   screenX: number;
   screenY: number;
-  disappearedOverlay?: Phaser.GameObjects.Graphics;
-  scheduledPulseRing?: Phaser.GameObjects.Graphics;
+  disappearedOverlay?: Phaser.GameObjects.Graphics;  // Grey X overlay for disappeared cities
+  scheduledPulseRing?: Phaser.GameObjects.Graphics;  // Pulsing gold border for scheduled disappearing
+  controlledOverlay?: Phaser.GameObjects.Graphics;   // Solid color overlay for controlled cities
+  controlledBy?: PlayerSide;  // Track current controller to detect changes
 }
 
 export class BoardRenderer {
@@ -38,6 +40,7 @@ export class BoardRenderer {
   private edgeGraphics!: Phaser.GameObjects.Graphics;
   private citySprites: Map<string, CitySprite> = new Map();
   private spyMarker!: Phaser.GameObjects.Image;
+  private spyMarkerBorder: Phaser.GameObjects.Graphics | null = null;
   private opponentMarker: Phaser.GameObjects.Image | null = null;
   private tooltipText: Phaser.GameObjects.Text | null = null;
   private cityData: Map<string, CityDef> = new Map();
@@ -49,9 +52,55 @@ export class BoardRenderer {
   private mapH = 0;
   private originX = 0;
   private originY = 0;
+  private currentPlayerSide: PlayerSide = 'RED';
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Apply cover styling to the spy marker.
+   * - hasCover=false (visible): solid colored icon
+   * - hasCover=true (hidden): translucent icon with player-color border
+   */
+  private applySpyMarkerStyling(hasCover: boolean, playerSide: PlayerSide): void {
+    if (!this.spyMarker) return;
+
+    if (hasCover) {
+      // Hidden state: translucent with player-color border
+      this.spyMarker.setAlpha(0.45);
+      
+      // Create border graphics if needed
+      if (!this.spyMarkerBorder) {
+        this.spyMarkerBorder = this.scene.add.graphics().setDepth(9);
+      }
+      
+      // Draw border around the player icon
+      this.spyMarkerBorder.clear();
+      const borderColor = playerSide === 'RED' ? 0xff5555 : 0x5555ff;
+      this.spyMarkerBorder.lineStyle(4, borderColor, 1);
+      this.spyMarkerBorder.strokeCircle(this.spyMarker.x, this.spyMarker.y, 16);
+    } else {
+      // Visible state: solid colored icon with no border
+      this.spyMarker.setAlpha(1);
+      
+      // Clear border
+      if (this.spyMarkerBorder) {
+        this.spyMarkerBorder.clear();
+      }
+    }
+  }
+
+  /** Helper to redraw border at marker's current position. */
+  private redrawSpyMarkerBorder(): void {
+    if (!this.spyMarker || !this.spyMarkerBorder) return;
+    
+    this.spyMarkerBorder.clear();
+    if (this.spyMarker.alpha < 0.9) {  // Only draw border if in cover (translucent)
+      const borderColor = this.currentPlayerSide === 'RED' ? 0xff5555 : 0x5555ff;
+      this.spyMarkerBorder.lineStyle(4, borderColor, 1);
+      this.spyMarkerBorder.strokeCircle(this.spyMarker.x, this.spyMarker.y, 16);
+    }
   }
 
   /** Call once in `create()` to draw the full board for the given map. */
@@ -71,13 +120,60 @@ export class BoardRenderer {
       this.drawCity(city, state);
     }
 
+    // Store player side for border styling
+    this.currentPlayerSide = state.player.side;
+
     const playerCity = this.citySprites.get(state.player.currentCity);
     this.spyMarker = this.scene.add
       .image(playerCity?.screenX ?? 0, playerCity?.screenY ?? 0, 'spy_marker')
       .setDepth(10);
+    
+    // Apply cover styling based on visibility state
+    this.applySpyMarkerStyling(state.player.hasCover, state.player.side);
 
-    this.drawStartingMarkers(state);
+    // Show opponent's icon at their starting city (both players know starting positions)
+    // Use opponentStartingCity if available, otherwise try knownOpponentCity
+    let opponentCity: string | undefined = state.player.opponentStartingCity;
+    
+    if (!opponentCity && state.player.knownOpponentCity) {
+      opponentCity = state.player.knownOpponentCity;
+    }
+    
+    if (opponentCity && this.citySprites.has(opponentCity)) {
+      this.drawOpponentMarkerAtStartingCity(opponentCity);
+    }
+
     this.highlightAdjacent(state.player.currentCity, map);
+  }
+
+  /** Draw opponent marker at starting city or known location. */
+  private drawOpponentMarkerAtStartingCity(opponentCityId: string): void {
+    const cs = this.citySprites.get(opponentCityId);
+    
+    if (!cs) {
+      console.warn('[BoardRenderer] No city sprite found for opponent city:', opponentCityId);
+      return;
+    }
+    
+    if (this.opponentMarker) {
+      // Marker already exists; don't recreate
+      return;
+    }
+    
+    // Create opponent marker using the opponent_marker image asset
+    this.opponentMarker = this.scene.add
+      .image(cs.screenX, cs.screenY, 'opponent_marker')
+      .setDepth(200);
+    
+    // Add pulsing animation to show uncertainty
+    this.scene.tweens.add({
+      targets: this.opponentMarker,
+      alpha: { from: 1, to: 0.5 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   /** Move the spy marker and update highlights after state changes. */
@@ -90,8 +186,15 @@ export class BoardRenderer {
         y: target.screenY,
         duration: 300,
         ease: 'Power2',
+        onUpdate: () => {
+          // Keep border synchronized with marker during movement
+          this.redrawSpyMarkerBorder();
+        },
       });
     }
+
+    // Update spy marker styling based on cover state
+    this.applySpyMarkerStyling(state.player.hasCover, state.player.side);
 
     for (const [id, cs] of this.citySprites) {
       cs.label.setColor(
@@ -145,6 +248,35 @@ export class BoardRenderer {
       }
     }
 
+    // Update controlled city overlays
+    for (const [cityId, cs] of this.citySprites) {
+      const controller = state.controlledCities?.[cityId];
+      const oldController = cs.controlledBy;
+      
+      // Check if controller changed (or new/removed)
+      if (controller !== oldController) {
+        // Destroy old overlay if it exists
+        if (cs.controlledOverlay) {
+          cs.controlledOverlay.destroy();
+          cs.controlledOverlay = undefined;
+        }
+        
+        // Create new overlay if city is now controlled
+        if (controller) {
+          const overlay = this.scene.add.graphics().setDepth(5);
+          const color = controller === 'RED' ? 0xff5555 : 0x5555ff;
+          overlay.fillStyle(color, 0.35);
+          overlay.fillCircle(cs.screenX, cs.screenY, 16);
+          
+          cs.controlledOverlay = overlay;
+          cs.controlledBy = controller;
+        } else {
+          cs.controlledBy = undefined;
+        }
+      }
+    }
+
+    // Clear the player's own start marker once they've moved away
     if (this.playerStartMarker && state.player.currentCity !== state.player.startingCity) {
       this.playerStartMarker[0].destroy();
       this.playerStartMarker[1].destroy();
@@ -160,74 +292,45 @@ export class BoardRenderer {
     this.highlightAdjacent(state.player.currentCity, state.map);
   }
 
-  /** Show or hide opponent location marker (red diamond kite). */
+  /** Show or hide opponent location marker. Updates position when location is revealed. */
   updateOpponentLocation(knownOpponentCity: string | null | undefined): void {
-    if (this.opponentMarker) {
-      this.scene.tweens.killTweensOf(this.opponentMarker);
-      this.opponentMarker.destroy();
-      this.opponentMarker = null;
-    }
-
-    if (knownOpponentCity) {
-      const cs = this.citySprites.get(knownOpponentCity);
-      if (cs) {
-        this.opponentMarker = this.scene.add
-          .image(cs.screenX, cs.screenY, 'opponent_marker')
-          .setDepth(15);
-        this.scene.tweens.add({
-          targets: this.opponentMarker,
-          alpha: { from: 1, to: 0.45 },
-          duration: 700,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
+    if (!knownOpponentCity) {
+      // Clear opponent marker if location is unknown
+      if (this.opponentMarker) {
+        this.scene.tweens.killTweensOf(this.opponentMarker);
+        this.opponentMarker.destroy();
+        this.opponentMarker = null;
       }
+      return;
     }
-  }
 
-  /**
-   * Draw start-position rings for both players.
-   * Own start: SPY_GREEN ring.  Opponent start: TARGET_RED ring.
-   */
-  private drawStartingMarkers(state: MatchState): void {
-    const drawRing = (
-      cityId: string,
-      color: number,
-      label: string,
-    ): [Phaser.GameObjects.Graphics, Phaser.GameObjects.Text] | null => {
-      const cs = this.citySprites.get(cityId);
-      if (!cs) return null;
+    const cs = this.citySprites.get(knownOpponentCity);
+    if (!cs) return;
 
-      const gfx = this.scene.add.graphics().setDepth(7);
-      gfx.lineStyle(2.5, color, 0.9);
-      gfx.strokeCircle(cs.screenX, cs.screenY, 22);
-      gfx.lineStyle(1, color, 0.45);
-      gfx.strokeCircle(cs.screenX, cs.screenY, 16);
-
-      const txt = this.scene.add
-        .text(cs.screenX, cs.screenY - 30, label, {
-          fontFamily: "'Georgia', serif",
-          fontSize: '10px',
-          color: Phaser.Display.Color.IntegerToColor(color).rgba,
-        })
-        .setOrigin(0.5, 1)
-        .setDepth(7);
-
+    if (this.opponentMarker) {
+      // Update existing marker position with animation
       this.scene.tweens.add({
-        targets: gfx,
-        alpha: { from: 1, to: 0.45 },
-        duration: 1200,
+        targets: this.opponentMarker,
+        x: cs.screenX,
+        y: cs.screenY,
+        duration: 300,
+        ease: 'Power2',
+      });
+    } else {
+      // Create new opponent marker
+      this.opponentMarker = this.scene.add
+        .image(cs.screenX, cs.screenY, 'opponent_marker')
+        .setDepth(11);
+      // Add pulsing animation to show uncertainty
+      this.scene.tweens.add({
+        targets: this.opponentMarker,
+        alpha: { from: 1, to: 0.5 },
+        duration: 800,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
-
-      return [gfx, txt];
-    };
-
-    this.playerStartMarker   = drawRing(state.player.startingCity,         0x4db84e, 'YOUR START');
-    this.opponentStartMarker = drawRing(state.player.opponentStartingCity, 0xcc3322, 'OPP START');
+    }
   }
 
   /** Returns the city ID that was clicked, or null. */
@@ -333,6 +436,20 @@ export class BoardRenderer {
       citySprite.scheduledPulseRing = ring;
     }
 
+    // Handle controlled cities: solid color overlay
+    const controller = state.controlledCities?.[city.id];
+    if (controller) {
+      const overlay = this.scene.add.graphics().setDepth(5);
+      // Use player colors: RED cities get red overlay, BLUE cities get blue overlay
+      const color = controller === 'RED' ? 0xff5555 : 0x5555ff;
+      // Solid fill with transparency to show the city underneath
+      overlay.fillStyle(color, 0.35);
+      overlay.fillCircle(pos.x, pos.y, 16);
+      
+      citySprite.controlledOverlay = overlay;
+      citySprite.controlledBy = controller;
+    }
+
     this.citySprites.set(city.id, citySprite);
   }
 
@@ -405,14 +522,10 @@ export class BoardRenderer {
       }
     }
 
-    for (const adjId of adjSet) {
-      const cs = this.citySprites.get(adjId);
-      if (!cs) continue;
-      const hl = this.scene.add
-        .image(cs.screenX, cs.screenY, 'city_highlight')
-        .setDepth(4)
-        .setAlpha(0.7);
-      cs.highlight = hl;
+    // Clean up old highlights (if any)
+    for (const cs of this.citySprites.values()) {
+      cs.highlight?.destroy();
+      cs.highlight = undefined;
     }
   }
 }

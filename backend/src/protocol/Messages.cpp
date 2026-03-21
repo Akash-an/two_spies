@@ -143,6 +143,13 @@ json serialize_match_state(const std::string& session_id,
     result["disappearedCities"] = disappeared_arr;
     result["isPlayerStranded"] = state.is_player_stranded(for_player);
     
+    // Controlled cities: visible to both players
+    json controlled_cities_obj = json::object();
+    for (const auto& [city_id, controller] : state.city_controllers()) {
+        controlled_cities_obj[city_id] = game::to_string(controller);
+    }
+    result["controlledCities"] = controlled_cities_obj;
+    
     // Timer information (15 seconds per turn, in milliseconds)
     result["turnStartTime"] = 0;  // server timestamp will be set client-side
     result["turnDuration"] = 15000;  // 15 seconds in ms

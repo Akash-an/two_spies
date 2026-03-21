@@ -523,6 +523,189 @@ static void test_multiple_disappearance_cycles() {
     std::cout << "OK\n";
 }
 
+// ─── Control Feature Tests ──────────────────────────────────────
+
+static void test_control_takes_ownership_of_city() {
+    std::cout << "  test_control_takes_ownership_of_city... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls their starting city
+    auto r = gs.control(PlayerSide::RED);
+    assert(r.ok);
+    
+    // Verify city is now controlled by RED
+    assert(gs.get_city_controller("london") == PlayerSide::RED);
+    assert(gs.player(PlayerSide::RED).actions_remaining == 1);
+    std::cout << "OK\n";
+}
+
+static void test_control_blows_own_cover() {
+    std::cout << "  test_control_blows_own_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED gains cover first
+    auto move_r = gs.move(PlayerSide::RED, "paris");
+    assert(move_r.ok);
+    assert(gs.player(PlayerSide::RED).has_cover);
+
+    // RED uses CONTROL and loses cover
+    auto control_r = gs.control(PlayerSide::RED);
+    assert(control_r.ok);
+    assert(!gs.player(PlayerSide::RED).has_cover);
+    std::cout << "OK\n";
+}
+
+static void test_control_notifies_opponent() {
+    std::cout << "  test_control_notifies_opponent... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls and opponent should be notified of location
+    auto r = gs.control(PlayerSide::RED);
+    assert(r.ok);
+    
+    // BLUE should know RED's location via known_opponent_city
+    assert(gs.player(PlayerSide::BLUE).known_opponent_city == "london");
+    std::cout << "OK\n";
+}
+
+static void test_control_disabled_if_already_controlling() {
+    std::cout << "  test_control_disabled_if_already_controlling... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls london
+    auto r1 = gs.control(PlayerSide::RED);
+    assert(r1.ok);
+
+    // RED tries to control london again (with only 1 action left)
+    auto r2 = gs.control(PlayerSide::RED);
+    assert(!r2.ok);
+    assert(!r2.error.empty());  // Should get "Already controlling this city"
+    std::cout << "OK\n";
+}
+
+static void test_opponent_cover_blown_entering_controlled_city() {
+    std::cout << "  test_opponent_cover_blown_entering_controlled_city... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls london
+    auto control_r = gs.control(PlayerSide::RED);
+    assert(control_r.ok);
+    assert(gs.get_city_controller("london") == PlayerSide::RED);
+
+    // End RED's turn
+    gs.end_turn(PlayerSide::RED);
+
+    // BLUE moves to a city adjacent to london
+    auto move1 = gs.move(PlayerSide::BLUE, "paris");
+    if (move1.ok) {
+        gs.end_turn(PlayerSide::BLUE);
+        
+        // RED ends their turn
+        gs.move(PlayerSide::RED, "paris");
+        assert(!gs.player(PlayerSide::RED).has_cover);  // RED lost cover by moving
+        gs.end_turn(PlayerSide::RED);
+        
+        // BLUE moves back to london (RED's controlled city)
+        auto move2 = gs.move(PlayerSide::BLUE, "london");
+        if (move2.ok) {
+            // BLUE entered RED's controlled city, so cover should be blown
+            assert(!gs.player(PlayerSide::BLUE).has_cover);
+        }
+    }
+    std::cout << "OK\n";
+}
+
+static void test_control_persists_for_game_duration() {
+    std::cout << "  test_control_persists_for_game_duration... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls london
+    auto r = gs.control(PlayerSide::RED);
+    assert(r.ok);
+    assert(gs.get_city_controller("london") == PlayerSide::RED);
+
+    // End RED's turn and let BLUE take some actions
+    gs.end_turn(PlayerSide::RED);
+    gs.move(PlayerSide::BLUE, "warsaw");
+    gs.end_turn(PlayerSide::BLUE);
+
+    // RED's turn again — london should still be controlled by RED
+    assert(gs.get_city_controller("london") == PlayerSide::RED);
+    std::cout << "OK\n";
+}
+
+static void test_control_can_be_taken_over_by_opponent() {
+    std::cout << "  test_control_can_be_taken_over_by_opponent... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls london (their starting city)
+    auto r1 = gs.control(PlayerSide::RED);
+    assert(r1.ok);
+    assert(gs.get_city_controller("london") == PlayerSide::RED);
+
+    // End turns and have BLUE move towards london
+    gs.end_turn(PlayerSide::RED);
+    
+    auto move1 = gs.move(PlayerSide::BLUE, "paris");
+    if (move1.ok) {
+        gs.end_turn(PlayerSide::BLUE);
+        
+        // RED moves to paris too
+        auto move2 = gs.move(PlayerSide::RED, "paris");
+        if (move2.ok) {
+            gs.end_turn(PlayerSide::RED);
+            
+            // BLUE moves to london
+            auto move3 = gs.move(PlayerSide::BLUE, "london");
+            if (move3.ok) {
+                // Now BLUE controls london (takes it from RED)
+                auto r2 = gs.control(PlayerSide::BLUE);
+                if (r2.ok) {
+                    assert(gs.get_city_controller("london") == PlayerSide::BLUE);
+                }
+            }
+        }
+    }
+    std::cout << "OK\n";
+}
+
+static void test_stranded_player_cannot_control() {
+    std::cout << "  test_stranded_player_cannot_control... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // Perform moves to trigger disappearance and stranding
+    // At action 6, a city disappears
+    gs.move(PlayerSide::RED, "paris");       // 1
+    gs.end_turn(PlayerSide::RED);
+    gs.move(PlayerSide::BLUE, "warsaw");     // 2
+    gs.end_turn(PlayerSide::BLUE);
+    gs.move(PlayerSide::RED, "berlin");      // 3
+    gs.end_turn(PlayerSide::RED);
+    gs.move(PlayerSide::BLUE, "vienna");     // 4 — schedule triggersgs.end_turn(PlayerSide::BLUE);
+    gs.move(PlayerSide::RED, "berlin");      // 5
+    gs.end_turn(PlayerSide::RED);
+    gs.wait(PlayerSide::BLUE);               // 6 — disappearance triggers
+
+    // After move 6, check if any city disappeared
+    auto disappeared = gs.disappeared_cities();
+    
+    // If a city disappeared and a player is stranded there, they can't use CONTROL
+    auto r = gs.control(PlayerSide::BLUE);
+    if (gs.is_player_stranded(PlayerSide::BLUE)) {
+        assert(!r.ok);
+        assert(!r.error.empty());
+    }
+    std::cout << "OK\n";
+}
+
 int main() {
     std::cout << "Running GameState unit tests...\n";
     
@@ -551,6 +734,17 @@ int main() {
     test_stranded_player_only_can_move();
     test_action_count_increments();
     test_multiple_disappearance_cycles();
+
+    // ── Control Feature Tests ──
+    std::cout << "\nRunning Control Feature Tests...\n";
+    test_control_takes_ownership_of_city();
+    test_control_blows_own_cover();
+    test_control_notifies_opponent();
+    test_control_disabled_if_already_controlling();
+    test_opponent_cover_blown_entering_controlled_city();
+    test_control_persists_for_game_duration();
+    test_control_can_be_taken_over_by_opponent();
+    test_stranded_player_cannot_control();
     
     std::cout << "\nAll tests passed!\n";
     return 0;

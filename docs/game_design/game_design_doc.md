@@ -112,16 +112,47 @@ All abilities cost Intel and modify information visibility or mobility.
 
 | Ability        | Cost | Effect                                                                 |
 | -------------- | ---- | ---------------------------------------------------------------------- |
-| Deep Cover     | TBD  | Reduces visibility to opponent tracking temporarily.                   |
+| Deep Cover     | TBD  | Grants temporary cover — your position becomes hidden from the opponent. |
 | Encryption     | TBD  | Masks what Intel was spent on, limiting opponent deduction.            |
-| Locate         | 10   | Reveals the opponent's current location with a prominent pulsing yellow marker. The marker disappears after the opponent takes any action. **The opponent is notified** that the Locate ability was used against them. |
+| Locate         | 10   | Reveals the opponent's current location with a prominent pulsing yellow marker. Forces opponent into visible state (removes opponent's cover). **The opponent is notified** that the Locate ability was used against them. |
 | Strike Report  | TBD  | Provides enhanced information after a strike attempt.                  |
 | Rapid Recon    | TBD  | Grants additional movement options or reveals potential move paths.    |
 | Prep Mission   | TBD  | Grants an extra action or sets up a future positional advantage.       |
 
 ---
 
-## 7. Victory Conditions
+## 7. Cover and Visibility
+
+Players are **visible** or **hidden** based on their cover state. The opponent can only strike a visible player; they must guess the position of a hidden player.
+
+### Initial State
+* Both players **start visible** to each other at the beginning of a match.
+* Cover = false (opponent can see your position)
+* Your icon appears **solid colored**.
+
+### Cover Mechanics
+
+**Actions that grant cover (player becomes hidden):**
+| Action | Effect |
+|--------|--------|
+| MOVE | Moving to an adjacent city grants cover — your opponent loses sight of you. |
+| WAIT | Waiting in place grants cover — your opponent loses sight of you. |
+| Deep Cover (Ability) | Strategic ability to gain cover. |
+
+**Actions that remove cover (opponent becomes visible):**
+| Event | Effect |
+|-------|--------|
+| CONTROL | Taking territorial control of a city reveals your location to the opponent. |
+| LOCATE (Opponent uses) | If opponent uses Locate against you, your cover is blown — you become visible. |
+| STRIKE | Attempting to strike reveals your location to the opponent. |
+
+### Visual Indicators
+* **Solid colored icon**: Opponent can see your current position. You are visible.
+* **Translucent icon with solid border**: Opponent cannot see your current position. You are in cover.
+
+---
+
+## 8. Victory Conditions
 
 A player wins a round when:
 
@@ -134,16 +165,16 @@ A player loses a round when:
 
 ---
 
-## 8. Stealth and Fog of War
+## 9. Stealth and Fog of War
 
 * Player positions are **private** — opponents only learn location through deduction and abilities.
+* Cover state determines visibility: players with cover are hidden from opponent vision.
 * Ending a turn in the same city as the opponent without cover results in an immediate loss.
-* Cover status, city control, and intel spending create a hidden information layer the opponent must reason about.
 * Actions and Intel spending can leak positional information — Encryption counters this.
 
 ---
 
-## 9. Strategy and Player Goals
+## 10. Strategy and Player Goals
 
 Players must balance competing priorities each turn:
 
@@ -160,7 +191,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 10. Game Modes
+## 11. Game Modes
 
 | Mode         | Description                              |
 | ------------ | ---------------------------------------- |
@@ -170,7 +201,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 11. Game Loop Summary
+## 12. Game Loop Summary
 
 ```
 1. Initialization
@@ -192,7 +223,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 12. Implementation Notes
+## 13. Implementation Notes
 
 * Player positions must **never be sent to the wrong client**. The server must filter state per player before broadcasting.
 * Map data (city nodes + edges) must be **external config**, not hardcoded in game logic.
