@@ -11,6 +11,16 @@
       "sourceType": "github",
       "computedHash": "784c91cd1cd227a46500435d24a5e7dd157c2cc61ff37e4683ebdc0a6ed21b1a"
     },
+    "playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "computedHash": "7075ab30f588019197a2f1518bb4c9d33d69d33352af079b5f9c60303ad3886e"
+    },
+    "resolve-conflicts": {
+      "source": "antinomyhq/forge",
+      "sourceType": "github",
+      "computedHash": "cd6fc9a9a33abb17333a7d35d689677746e27d40d54fade8b42f0e13850c7aee"
+    },
     "screenshot-to-code": {
       "source": "onewave-ai/claude-skills",
       "sourceType": "github",
