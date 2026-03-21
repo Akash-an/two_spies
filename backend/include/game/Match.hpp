@@ -43,8 +43,16 @@ public:
     /// Handle END_TURN from a client.
     void handle_end_turn(const std::string& player_id);
 
+    /// Handle turn timeout: forfeits remaining actions and transfers control to opponent.
+    /// Sends TURN_CHANGE message to both players and broadcasts new state.
+    void handle_turn_timeout();
+
     /// Remove a player (disconnect).
     void remove_player(const std::string& player_id);
+
+    /// Called periodically to check for timeouts and broadcast state.
+    /// This ensures timeout detection even when players are idle.
+    void periodic_broadcast();
 
     bool is_started() const { return started_; }
     bool is_game_over() const;
@@ -53,7 +61,7 @@ public:
     long long time_since_turn_start() const;
 
     /// Returns true if current turn has exceeded time limit (15 seconds).
-    /// If true, automatically forfeits remaining actions and ends turn.
+    /// Does NOT modify state — just checks if timeout occurred.
     bool check_turn_timeout();
 
 private:

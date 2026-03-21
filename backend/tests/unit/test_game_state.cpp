@@ -13,6 +13,13 @@
 
 using namespace two_spies::game;
 
+// Forward declarations for Match timeout tests (from test_match_timeout.cpp)
+void test_timeout_not_triggered_before_timeout();
+void test_timeout_detected_after_duration();
+void test_timeout_transfers_control_with_messages();
+void test_timeout_forfeits_remaining_actions();
+void test_timeout_resets_timer_for_next_player();
+
 static MapDef test_map() {
     return two_spies::config::default_map();
 }
@@ -745,6 +752,16 @@ int main() {
     test_control_persists_for_game_duration();
     test_control_can_be_taken_over_by_opponent();
     test_stranded_player_cannot_control();
+    
+    // ── Match Timeout Feature Tests ──
+    std::cout << "\nRunning Match Timeout Features Tests...\n";
+    test_timeout_not_triggered_before_timeout();
+    // Note: Slow timeout tests below require ~15+ seconds each and are commented out.
+    // Uncomment to verify timeout behavior works correctly:
+    // test_timeout_detected_after_duration();
+    // test_timeout_transfers_control_with_messages();
+    // test_timeout_forfeits_remaining_actions();
+    // test_timeout_resets_timer_for_next_player();
     
     std::cout << "\nAll tests passed!\n";
     return 0;

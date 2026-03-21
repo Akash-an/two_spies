@@ -5,6 +5,7 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
+#include <boost/asio/deadline_timer.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -55,10 +56,19 @@ private:
     std::mutex sessions_mutex_;
     std::unordered_map<std::string, std::weak_ptr<Session>> sessions_;
 
+    // Timeout polling
+    std::unique_ptr<net::deadline_timer> timeout_timer_;
+
     /// Count live (non-expired) sessions.
     std::size_t active_session_count() const;
 
     void do_accept();
+
+    /// Start the periodic timeout checker.
+    void start_timeout_checker();
+    
+    /// Periodically check all matches for timeouts and broadcast state.
+    void on_timeout_check(const boost::system::error_code& ec);
 };
 
 } // namespace two_spies::network

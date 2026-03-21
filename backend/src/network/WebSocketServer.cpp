@@ -11,6 +11,7 @@ WebSocketServer::WebSocketServer(net::io_context& ioc, unsigned short port,
     , acceptor_(ioc, tcp::endpoint(tcp::v4(), port))
     , match_mgr_(std::move(match_mgr))
     , max_connections_(max_connections)
+    , timeout_timer_(std::make_unique<net::deadline_timer>(ioc))
 {
     beast::error_code ec;
     acceptor_.set_option(net::socket_base::reuse_address(true), ec);
@@ -20,6 +21,7 @@ void WebSocketServer::run() {
     std::cout << "[Server] Listening on port "
               << acceptor_.local_endpoint().port() << "\n";
     do_accept();
+    start_timeout_checker();  // Start periodic timeout checks
 }
 
 void WebSocketServer::send_to_player(const std::string& player_id, const std::string& message) {
@@ -82,6 +84,35 @@ void WebSocketServer::do_accept() {
             }
             self->do_accept();
         });
+}
+
+void WebSocketServer::start_timeout_checker() {
+    if (!timeout_timer_) {
+        return;
+    }
+    
+    // Set timer to fire every 1 second
+    timeout_timer_->expires_from_now(boost::posix_time::seconds(1));
+    timeout_timer_->async_wait([this](const boost::system::error_code& ec) {
+        on_timeout_check(ec);
+    });
+}
+
+void WebSocketServer::on_timeout_check(const boost::system::error_code& ec) {
+    if (ec == net::error::operation_aborted) {
+        return;  // Timer was cancelled
+    }
+    
+    if (ec) {
+        std::cerr << "[Server] Timeout timer error: " << ec.message() << "\n";
+        return;
+    }
+    
+    // Broadcast state for all active matches (triggers timeout checks)
+    match_mgr_->broadcast_all_matches();
+    
+    // Reschedule the timer
+    start_timeout_checker();
 }
 
 } // namespace two_spies::network
