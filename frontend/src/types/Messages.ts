@@ -81,6 +81,10 @@ export interface PlayerState {
   // Opponent action notifications
   opponentUsedStrike: boolean;   // opponent attempted strike this turn
   opponentUsedLocate: boolean;   // opponent used locate ability this turn
+  opponentUsedDeepCover: boolean;  // opponent used deep cover ability this turn
+  
+  // Player action feedback
+  locateBlockedByDeepCover: boolean;  // this player's Locate was blocked by opponent's Deep Cover
   
   // Starting positions (now shared information)
   startingCity: string;          // this player's starting city

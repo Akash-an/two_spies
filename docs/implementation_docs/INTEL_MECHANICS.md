@@ -38,6 +38,15 @@ When a player **ends their turn in a city they have not previously visited**, th
 | No movement | +4 | 0 | **+4** |
 | Movement to previously visited city | +4 | 0 | **+4** |
 | Movement to new (unvisited) city | +4 | +4 | **+8** |
+| Movement to new city + TIMEOUT | +4 | 0 | **+4** |
+
+### Timeout Clause
+
+When a player's turn ends due to **timeout** (running out of time), the exploration bonus is **NOT awarded**:
+
+- **Reason:** Encourages players to take timely actions rather than camp/delay
+- **Effect:** Timeout exploration bonus is skipped, only base +4 is earned
+- **Implementation:** `end_turn()` has an optional parameter `skip_exploration_bonus` that is set to `true` when called from `handle_turn_timeout()`
 
 ---
 
@@ -88,6 +97,23 @@ Round 4: Move Vienna (new)   → 22 + 4 + 4 = 30
 Round 5: Wait (no move)      → 30 + 4 + 0 = 34
 ```
 
+### Example 4: Timeout Scenario (Exploration Bonus Skipped)
+
+```
+Starting Intel: 2
+
+Turn 1: Move to Paris (new)
+Step 1: Player makes the move
+Step 2: Timer expires before end_turn is called
+Step 3: Timeout triggers - turn auto-ends with skip_exploration_bonus=true
+Result: 2 + 4 (base only) = 6 Intel
+
+vs.
+
+Turn 1: Move to Paris (new) - Normal End
+Result: 2 + 4 (base) + 4 (exploration) = 10 Intel
+```
+
 ---
 
 ## Implementation Details
@@ -119,17 +145,18 @@ The `moved_to_new_city_this_turn` flag is set when:
 
 ## Unit Tests
 
-✅ **All tests passing** (5/5)
+✅ **All tests passing** (6/6)
 
 ### Test Coverage
 
 | Test Name | Purpose |
 |-----------|---------|
-| `test_intel_base_increase_no_movement` | Verify +1 base without movement |
-| `test_intel_with_new_city_movement` | Verify +5 total with new city |
+| `test_intel_base_increase_no_movement` | Verify +4 base without movement |
+| `test_intel_with_new_city_movement` | Verify +8 total with new city |
 | `test_intel_no_bonus_revisiting_city` | Verify no bonus for revisiting |
 | `test_intel_moved_to_new_city_flag_resets` | Verify flag resets each turn |
 | `test_intel_multiple_turns_accumulation` | Verify multi-turn progression |
+| `test_intel_no_bonus_on_timeout` | Verify exploration bonus skipped on timeout |
 
 **Run tests:**
 ```bash
@@ -140,10 +167,10 @@ The `moved_to_new_city_this_turn` flag is set when:
 
 ## Common Questions
 
-### Q: Why do I see "+1" sometimes and "+5" other times?
+### Q: Why do I see "+4" sometimes and "+8" other times?
 **A:** 
-- **+1** = You ended your turn in a city you've already visited (or didn't move)
-- **+5** = You moved to and ended your turn in a city you've never been to before (1 base + 4 bonus)
+- **+4** = You ended your turn in a city you've already visited (or didn't move)
+- **+8** = You moved to and ended your turn in a city you've never been to before (4 base + 4 bonus)
 
 ### Q: Does starting city count toward explored cities?
 **A:**
@@ -151,11 +178,17 @@ No. You begin the game in your starting city, but you don't "move" there. Starti
 
 ### Q: Can I game the system by revisiting an old city?
 **A:**
-No. The exploration bonus is specifically for **new** cities. Once you've visited a city, revisiting it only grants the base +1 Intel, not the +4 bonus.
+No. The exploration bonus is specifically for **new** cities. Once you've visited a city, revisiting it only grants the base +4 Intel, not the +4 bonus.
 
 ### Q: At what point does the bonus get applied?
 **A:**
-The bonus is applied when `end_turn()` is called. If you move to Paris in your first action, then strike in your second action, you **still** get the +4 bonus because the bonus is based on your ending position, not your actions.
+The bonus is applied when `end_turn()` is called. If you move to Paris in your first action, then strike in your second action, you **still** get the +8 total (4 base + 4 bonus) because the bonus is based on your ending position, not your actions.
+
+### Q: What if my turn times out? Do I still get the exploration bonus?
+**A:**
+No. If your turn times out (you run out of time), the exploration bonus is **skipped**. You only receive the base +4 Intel, not the +4 bonus. This encourages timely action-taking.
+- Example: Move to new city → Timeout = 4 Intel (base only)
+- Example: Move to new city → Normal end_turn() = 8 Intel (4 base + 4 bonus)
 
 ---
 

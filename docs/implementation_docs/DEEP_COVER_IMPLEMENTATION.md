@@ -104,8 +104,8 @@ All tests pass successfully (pre-existing test_city_scheduling_at_action_4 failu
 
 ### End-to-End Tests
 **Status:** ✓ Created
-- `test-deep-cover-ws.js`: WebSocket test for backend API
-- `test-deep-cover.js`: Playwright browser test (requires UI implementation)
+- `../../tests/test-deep-cover-ws.js`: WebSocket test for backend API
+- `../../tests/test-deep-cover.js`: Playwright browser test (requires UI implementation)
 - Both scripts verify Deep Cover ability availability and usage
 
 ---
@@ -149,8 +149,8 @@ The frontend UI buttons for Deep Cover need to be added to the game scene to ful
 
 ## Files Created
 
-- `test-deep-cover-ws.js` - WebSocket-based test
-- `test-deep-cover.js` - Playwright browser test
+- `../../tests/test-deep-cover-ws.js` - WebSocket-based test
+- `../../tests/test-deep-cover.js` - Playwright browser test
 
 ## Frontend UI - Deep Cover Button
 

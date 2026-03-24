@@ -54,9 +54,14 @@ struct PlayerData {
     // Opponent action notifications - cleared each turn
     bool opponent_used_strike = false;  // opponent attempted a strike this turn
     bool opponent_used_locate = false;  // opponent used locate ability this turn
+    bool opponent_used_deep_cover = false;  // opponent used deep cover ability this turn
 
-    // Deep Cover ability state - cleared at the end of the player's turn
-    bool deep_cover_active = false;  // active until end of this player's turn
+    // Player action feedback flags
+    bool locate_blocked_by_deep_cover = false;  // this player's Locate was blocked by opponent's Deep Cover
+
+    // Deep Cover ability state - cleared at the beginning of the player's next turn
+    bool deep_cover_active = false;  // active until beginning of this player's next turn
+    int deep_cover_used_on_turn = -1;  // tracks which turn Deep Cover was used for expiration logic
 
     // Tracks whether this player has ever moved away from their starting city
     bool has_moved_from_start = false;

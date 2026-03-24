@@ -99,12 +99,15 @@ Each turn grants Intel based on player actions:
 * **Exploration Bonus:** +4 Intel if you move to a city you have not previously visited
   - This bonus is applied **at the end of your turn** when your current city is one you haven't been to before
   - **Clarification:** Starting cities do not grant the bonus (you start there, you don't "move" to it)
-  - **Example:** Starting with 2 Intel → Move to Paris (new) → End turn = 2 + 4 (base) + 4 (exploration) = **10 Intel**
+  - **Timeout Clause:** If a turn ends due to timeout (player runs out of time), the exploration bonus is **NOT awarded** — only the base +4 Intel is earned
+  - **Example:** Starting with 2 Intel → Move to Paris (new) → End turn normally = 2 + 4 (base) + 4 (exploration) = **10 Intel**
+  - **Example:** Starting with 2 Intel → Move to Paris (new) → TIMEOUT = 2 + 4 (base only) = **6 Intel**
   - **Example:** 10 Intel → Stay in Paris (visited) → End turn = 10 + 4 (base) = **14 Intel**
 
 **Total Intel per Turn:**
 * No movement to new city: **+4 Intel**
 * Movement to new city: **+8 Intel** (4 base + 4 exploration bonus)
+* Movement to new city but TIMEOUT: **+4 Intel** (4 base only, no bonus)
 
 **Intel Spending:**
 * Spent to activate strategic abilities.

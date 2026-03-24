@@ -142,6 +142,8 @@ export class MockNetworkClient extends EventEmitter {
       // New fields for opponent notifications and starting cities
       opponentUsedStrike: false,
       opponentUsedLocate: false,
+      opponentUsedDeepCover: false,
+      locateBlockedByDeepCover: false,
       startingCity: startCity,
       opponentStartingCity: cities[(startIdx + 3) % cities.length].id, // Different city for opponent
     };

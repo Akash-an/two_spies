@@ -65,7 +65,9 @@ public:
     ActionResult control(PlayerSide side);
 
     /// End the current player's turn.
-    ActionResult end_turn(PlayerSide side);
+    /// @param side The player whose turn is ending
+    /// @param skip_exploration_bonus If true (e.g., on timeout), skip the +4 exploration bonus
+    ActionResult end_turn(PlayerSide side, bool skip_exploration_bonus = false);
 
     // ── Queries ──────────────────────────────────────────────────
     PlayerSide current_turn() const { return current_turn_; }

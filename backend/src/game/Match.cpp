@@ -273,8 +273,8 @@ void Match::handle_turn_timeout() {
     auto& player_data = state_->player_mut(expired_player);
     player_data.actions_remaining = 0;
     
-    // Force end the turn
-    state_->end_turn(expired_player);
+    // Force end the turn (skip exploration bonus on timeout)
+    state_->end_turn(expired_player, true);
     
     // Reset timer for next player's turn
     turn_start_time_ = std::chrono::steady_clock::now();

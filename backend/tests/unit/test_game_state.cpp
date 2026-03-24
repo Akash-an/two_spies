@@ -167,6 +167,30 @@ static void test_intel_base_increase_no_movement() {
     std::cout << "OK\n";
 }
 
+static void test_intel_no_bonus_on_timeout() {
+    std::cout << "  test_intel_no_bonus_on_timeout... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    int initial_intel = gs.player(PlayerSide::RED).intel;
+    assert(initial_intel == 2);
+
+    // RED moves to a new city
+    auto move_r = gs.move(PlayerSide::RED, "paris");
+    assert(move_r.ok);
+    assert(gs.player(PlayerSide::RED).moved_to_new_city_this_turn == true);
+
+    // RED's turn times out (skip_exploration_bonus = true)
+    auto timeout_end = gs.end_turn(PlayerSide::RED, true);
+    assert(timeout_end.ok);
+
+    int final_intel = gs.player(PlayerSide::RED).intel;
+    // Should be: initial 2 + base 4 only (NO bonus because skip_exploration_bonus=true)
+    assert(final_intel == initial_intel + 4);
+    assert(final_intel == 6);
+    std::cout << "OK\n";
+}
+
 static void test_intel_with_new_city_movement() {
     std::cout << "  test_intel_with_new_city_movement... ";
     GameState gs(test_map());
@@ -917,9 +941,18 @@ static void test_deep_cover_persists_until_end_of_turn() {
     assert(move_r.ok);
     assert(red.deep_cover_active);  // Still active
     
-    // End turn
+    // End RED's turn (Deep Cover persists through opponent's turn)
     gs.end_turn(PlayerSide::RED);
-    assert(!red.deep_cover_active);  // Should be cleared after turn ends
+    assert(red.deep_cover_active);  // Still active after RED ends turn
+    
+    // BLUE takes action
+    auto blue_move = gs.move(PlayerSide::BLUE, "warsaw");
+    assert(blue_move.ok);
+    assert(red.deep_cover_active);  // RED's deep cover persists during BLUE's turn
+    
+    // BLUE ends turn - NOW Deep Cover clears for RED (at start of RED's next turn)
+    gs.end_turn(PlayerSide::BLUE);
+    assert(!red.deep_cover_active);  // Deep Cover cleared at beginning of RED's next turn
     std::cout << "OK\n";
 }
 
@@ -957,34 +990,37 @@ static void test_locate_succeeds_after_deep_cover_expires() {
     auto& blue = gs.player_mut(PlayerSide::BLUE);
     
     red.intel = 30;
-    blue.intel = 10;
+    blue.intel = 20;  // Need 10 for two locate attempts
     
-    // RED uses deep cover
+    // Turn 1: RED uses deep cover
     auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(r_dc.ok);
+    assert(red.deep_cover_active);
     
     gs.end_turn(PlayerSide::RED);
     
-    // BLUE waits
-    gs.wait(PlayerSide::BLUE);
+    // Turn 2: BLUE tries to locate (should fail - RED has deep cover)
+    auto r_loc_fail = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    assert(r_loc_fail.ok);  // Ability succeeds (costs Intel, uses action)
+    assert(blue.known_opponent_city == "");  // But doesn't reveal RED
+    
+    // Red's deep cover persists through BLUE's turn
+    assert(red.deep_cover_active);
+    
     gs.end_turn(PlayerSide::BLUE);
     
-    // RED ends turn (deep_cover should expire because it's end of turn processing)
-    // At this point RED's deep cover is still active from the previous turn
-    // Let me check: deep_cover should be cleared at end of RED's turn
-    // So after RED ends turn: deep_cover is cleared
-    // BLUE's turn: BLUE uses locate now
+    // Turn 3: RED's new turn starts - deep_cover is cleared at beginning
+    assert(!red.deep_cover_active);
     
-    // Actually let's verify: after end_turn of RED, deep_cover should be gone
-    auto& red_check = gs.player(PlayerSide::RED);
-    assert(!red_check.deep_cover_active);  // Should be cleared
+    // RED ends turn (just empty turn to advance to BLUE's turn)
+    gs.end_turn(PlayerSide::RED);
     
-    // Now BLUE tries to locate (should succeed)
-    blue.intel = 10;
-    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
-    assert(r_loc.ok);
-    assert(blue.known_opponent_city == "london");  // Should reveal RED
+    // Turn 4: BLUE tries to locate again (now should succeed - deep cover expired)
+    auto r_loc_success = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    assert(r_loc_success.ok);
+    assert(blue.known_opponent_city == "london");  // Should reveal RED now
     assert(red.opponent_used_locate);  // RED is notified
+    
     std::cout << "OK\n";
 }
 
@@ -1052,6 +1088,7 @@ int main() {
     test_intel_no_bonus_revisiting_city();
     test_intel_moved_to_new_city_flag_resets();
     test_intel_multiple_turns_accumulation();
+    test_intel_no_bonus_on_timeout();
     
     test_no_actions_remaining();
     test_city_graph_adjacency();

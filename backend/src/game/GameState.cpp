@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <chrono>
+#include <iostream>
 
 namespace two_spies::game {
 
@@ -240,11 +241,14 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     // Per-ability effects
     switch (ability) {
         case AbilityId::DEEP_COVER:
-            // Deep Cover grants cover (player becomes hidden) until end of this turn
+            // Deep Cover grants cover (player becomes hidden) until beginning of their next turn
             p.deep_cover_active = true;
+            p.deep_cover_used_on_turn = turn_number_;  // Track which turn it was used
             p.has_cover = true;
             // Clear opponent's knowledge of this player's location
             opponent.known_opponent_city = "";
+            // Notify opponent that player used Deep Cover
+            opponent.opponent_used_deep_cover = true;
             break;
         case AbilityId::LOCATE:
             // Locate reveals opponent's current location to the current player
@@ -258,6 +262,9 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     // Still costs Intel and action, but fails to reveal
                     p.known_opponent_city = "";
                     opp_mut.opponent_used_locate = false;  // They don't get notified
+                    p.locate_blocked_by_deep_cover = true;  // Notify THIS player that their Locate failed
+                    fprintf(stderr, "[!!!] SET locate_blocked_by_deep_cover=TRUE for player %s\n", 
+                            side == PlayerSide::RED ? "RED" : "BLUE");
                     // Both players stay in their current visibility state
                 } else {
                     // Normal locate behavior
@@ -266,6 +273,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     // Opponent becomes visible to me
                     opp_mut.has_cover = false;  // Locate ability reveals opponent
                     opp_mut.opponent_used_locate = true;  // Notify opponent
+                    p.locate_blocked_by_deep_cover = false;  // Locate succeeded, did not fail
                     // Note: Current player does NOT become visible by using Locate
                     // Only the opponent's location is revealed one-way
                 }
@@ -397,7 +405,7 @@ ActionResult GameState::control(PlayerSide side) {
 
 // ── END TURN ─────────────────────────────────────────────────────────
 
-ActionResult GameState::end_turn(PlayerSide side) {
+ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     ActionResult result;
 
     if (game_over_) {
@@ -416,13 +424,11 @@ ActionResult GameState::end_turn(PlayerSide side) {
     p.intel += income;
 
     // Exploration bonus: +4 Intel if player moved to a new city this turn
-    if (p.moved_to_new_city_this_turn) {
+    // (unless skipped due to timeout)
+    if (!skip_exploration_bonus && p.moved_to_new_city_this_turn) {
         p.intel += 4;
-        p.moved_to_new_city_this_turn = false;  // Reset flag for next turn
     }
-
-    // Clear deep cover status at end of turn
-    p.deep_cover_active = false;
+    p.moved_to_new_city_this_turn = false;  // Reset flag for next turn
 
     // NOTE: Cover state persists based on player actions. Do NOT reset at turn end.
     // Cover changes only when actions are taken (move, wait, strike, control, locate, deep_cover).
@@ -435,9 +441,26 @@ ActionResult GameState::end_turn(PlayerSide side) {
     auto& next = player_mut(current_turn_);
     next.actions_remaining = 2;
     
+    // Clear Deep Cover if it's been used for at least 2 turns (protecting through opponent's full turn)
+    // Deep Cover is used on turn N, expires at beginning of turn N+2 (after opponent's full turn)
+    if (next.deep_cover_active && next.deep_cover_used_on_turn >= 0) {
+        int turns_since_use = turn_number_ - next.deep_cover_used_on_turn;
+        std::cerr << "[DC-CHECK] turn_number_=" << turn_number_ 
+                  << " next_player=" << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE")
+                  << " deep_cover_  used_on_turn=" << next.deep_cover_used_on_turn
+                  << " turns_since=" << turns_since_use << "\n";
+        if (turns_since_use >= 2) {
+            next.deep_cover_active = false;
+            next.deep_cover_used_on_turn = -1;
+            std::cerr << "[DC-CLEAR] Deep Cover cleared for " << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE") << "\n";
+        }
+    }
+    
     // Clear opponent action notifications for the new turn
     next.opponent_used_strike = false;
     next.opponent_used_locate = false;
+    next.opponent_used_deep_cover = false;
+    next.locate_blocked_by_deep_cover = false;  // Clear Locate feedback flag
 
     result.ok = true;
     return result;
