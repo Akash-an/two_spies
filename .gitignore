@@ -13,6 +13,7 @@ node_modules/
 # -----------------------------------------------
 # Backend (CMake / C++)
 # -----------------------------------------------
+build/
 backend/build/
 backend/.cache/
 backend/server.log

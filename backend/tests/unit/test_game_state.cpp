@@ -147,6 +147,130 @@ static void test_end_turn() {
     std::cout << "OK\n";
 }
 
+// ── Intel Increase Tests ──
+// Verify that players receive correct Intel based on their actions each turn.
+
+static void test_intel_base_increase_no_movement() {
+    std::cout << "  test_intel_base_increase_no_movement... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    int initial_intel = gs.player(PlayerSide::RED).intel;
+    assert(initial_intel == 2);  // Starting Intel is 2
+
+    // RED ends turn WITHOUT moving
+    auto r = gs.end_turn(PlayerSide::RED);
+    assert(r.ok);
+
+    int final_intel = gs.player(PlayerSide::RED).intel;
+    assert(final_intel == initial_intel + 4);  // Should be 2 + 4 = 6
+    std::cout << "OK\n";
+}
+
+static void test_intel_with_new_city_movement() {
+    std::cout << "  test_intel_with_new_city_movement... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    int initial_intel = gs.player(PlayerSide::RED).intel;
+    assert(initial_intel == 2);
+
+    // RED moves to a NEW city (Paris is adjacent to London and not visited yet)
+    auto move_r = gs.move(PlayerSide::RED, "paris");
+    assert(move_r.ok);
+
+    // RED ends turn
+    auto end_r = gs.end_turn(PlayerSide::RED);
+    assert(end_r.ok);
+
+    int final_intel = gs.player(PlayerSide::RED).intel;
+    // Should be: initial 2 + base 4 (end_turn) + exploration bonus 4 = 10
+    assert(final_intel == initial_intel + 4 + 4);
+    assert(final_intel == 10);
+    std::cout << "OK\n";
+}
+
+static void test_intel_no_bonus_revisiting_city() {
+    std::cout << "  test_intel_no_bonus_revisiting_city... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED: Move to a new city (Paris)
+    gs.move(PlayerSide::RED, "paris");
+    gs.end_turn(PlayerSide::RED);  // 2 + 4 + 4 = 10
+
+    // BLUE: Do something
+    gs.end_turn(PlayerSide::BLUE);  // 2 + 4 = 6
+
+    // RED: Move back to starting city (London) — but we already know it
+    int red_intel_before_revisit = gs.player(PlayerSide::RED).intel;
+    gs.move(PlayerSide::RED, "london");
+    gs.end_turn(PlayerSide::RED);
+
+    int red_intel_after_revisit = gs.player(PlayerSide::RED).intel;
+    // Should be: red_intel_before_revisit + 4 (base only, no bonus because London was already visited)
+    assert(red_intel_after_revisit == red_intel_before_revisit + 4);
+    std::cout << "OK\n";
+}
+
+static void test_intel_moved_to_new_city_flag_resets() {
+    std::cout << "  test_intel_moved_to_new_city_flag_resets... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED moves to a new city
+    gs.move(PlayerSide::RED, "paris");
+    gs.end_turn(PlayerSide::RED);  // Bonus awarded and flag reset
+
+    // BLUE takes a turn
+    gs.end_turn(PlayerSide::BLUE);
+
+    // RED stays in same city and ends turn
+    int intel_before = gs.player(PlayerSide::RED).intel;
+    auto r = gs.end_turn(PlayerSide::RED);  // Should NOT grant bonus again
+    assert(r.ok);
+
+    int intel_after = gs.player(PlayerSide::RED).intel;
+    // Should be only base +4 (no bonus, because flag was reset)
+    assert(intel_after == intel_before + 4);
+    std::cout << "OK\n";
+}
+
+static void test_intel_multiple_turns_accumulation() {
+    std::cout << "  test_intel_multiple_turns_accumulation... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // Track total and expected
+    int red_intel = gs.player(PlayerSide::RED).intel;  // Start: 2
+    assert(red_intel == 2);
+
+    // Turn 1: RED moves to new city (Paris)
+    gs.move(PlayerSide::RED, "paris");
+    gs.end_turn(PlayerSide::RED);
+    red_intel = gs.player(PlayerSide::RED).intel;
+    assert(red_intel == 10);  // 2 + 4 (base) + 4 (bonus)
+
+    // Turn 1: BLUE moves to new city (Warsaw)
+    gs.move(PlayerSide::BLUE, "warsaw");
+    gs.end_turn(PlayerSide::BLUE);
+    int blue_intel = gs.player(PlayerSide::BLUE).intel;
+    assert(blue_intel == 10);  // Same logic
+
+    // Turn 2: RED stays in Paris (no new city)
+    gs.move(PlayerSide::RED, "amsterdam");  // Move to another new city
+    gs.end_turn(PlayerSide::RED);
+    red_intel = gs.player(PlayerSide::RED).intel;
+
+    // Previous red_intel = 10.
+    // RED moves to Amsterdam (new city), then ends turn.
+    // Intel gain: 4 (base) + 4 (exploration) = 8
+    // New total: 10 + 8 = 18
+    assert(red_intel == 18);
+    
+    std::cout << "OK\n";
+}
+
 static void test_no_actions_remaining() {
     std::cout << "  test_no_actions_remaining... ";
     GameState gs(test_map());
@@ -713,6 +837,200 @@ static void test_stranded_player_cannot_control() {
     std::cout << "OK\n";
 }
 
+// ── Deep Cover Ability Tests ──────────────────────────────────────
+
+static void test_deep_cover_costs_30_intel() {
+    std::cout << "  test_deep_cover_costs_30_intel... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 30;  // Set exactly to the cost
+    
+    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(r.ok);
+    assert(red.intel == 0);  // Should have exactly 0 intel left
+    std::cout << "OK\n";
+}
+
+static void test_deep_cover_insufficient_intel() {
+    std::cout << "  test_deep_cover_insufficient_intel... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 29;  // One less than required
+    
+    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(!r.ok);
+    assert(red.intel == 29);  // Should not be deducted
+    std::cout << "OK\n";
+}
+
+static void test_deep_cover_grants_cover() {
+    std::cout << "  test_deep_cover_grants_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 30;
+    red.has_cover = false;  // Start visible
+    
+    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(r.ok);
+    assert(red.has_cover);  // Should now have cover
+    assert(red.deep_cover_active);  // Deep cover should be active
+    std::cout << "OK\n";
+}
+
+static void test_deep_cover_clears_opponent_knowledge() {
+    std::cout << "  test_deep_cover_clears_opponent_knowledge... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    
+    red.intel = 30;
+    blue.known_opponent_city = "london";  // Blue thinks RED is at london
+    
+    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(r.ok);
+    assert(blue.known_opponent_city == "");  // Should be cleared
+    std::cout << "OK\n";
+}
+
+static void test_deep_cover_persists_until_end_of_turn() {
+    std::cout << "  test_deep_cover_persists_until_end_of_turn... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 30;
+    
+    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(r.ok);
+    assert(red.deep_cover_active);
+    
+    // Move (should not clear deep_cover yet, it's still RED's turn)
+    auto move_r = gs.move(PlayerSide::RED, "paris");
+    assert(move_r.ok);
+    assert(red.deep_cover_active);  // Still active
+    
+    // End turn
+    gs.end_turn(PlayerSide::RED);
+    assert(!red.deep_cover_active);  // Should be cleared after turn ends
+    std::cout << "OK\n";
+}
+
+static void test_locate_fails_against_deep_cover() {
+    std::cout << "  test_locate_fails_against_deep_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    
+    red.intel = 30;
+    blue.intel = 10;
+    
+    // RED uses deep cover
+    auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(r_dc.ok);
+    
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE tries to locate RED (should fail)
+    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    assert(r_loc.ok);  // Ability succeeds (costs Intel, uses action)
+    assert(blue.known_opponent_city == "");  // But doesn't reveal RED
+    assert(!red.opponent_used_locate);  // RED is not notified
+    std::cout << "OK\n";
+}
+
+static void test_locate_succeeds_after_deep_cover_expires() {
+    std::cout << "  test_locate_succeeds_after_deep_cover_expires... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    
+    red.intel = 30;
+    blue.intel = 10;
+    
+    // RED uses deep cover
+    auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    assert(r_dc.ok);
+    
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE waits
+    gs.wait(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // RED ends turn (deep_cover should expire because it's end of turn processing)
+    // At this point RED's deep cover is still active from the previous turn
+    // Let me check: deep_cover should be cleared at end of RED's turn
+    // So after RED ends turn: deep_cover is cleared
+    // BLUE's turn: BLUE uses locate now
+    
+    // Actually let's verify: after end_turn of RED, deep_cover should be gone
+    auto& red_check = gs.player(PlayerSide::RED);
+    assert(!red_check.deep_cover_active);  // Should be cleared
+    
+    // Now BLUE tries to locate (should succeed)
+    blue.intel = 10;
+    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    assert(r_loc.ok);
+    assert(blue.known_opponent_city == "london");  // Should reveal RED
+    assert(red.opponent_used_locate);  // RED is notified
+    std::cout << "OK\n";
+}
+
+static void test_locate_one_way_reveal_only() {
+    std::cout << "  test_locate_one_way_reveal_only... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    
+    red.intel = 20;
+    blue.intel = 30;
+    
+    // Move both players to known positions
+    auto r_move = gs.move(PlayerSide::RED, "paris");
+    assert(r_move.ok);
+    assert(red.current_city == "paris");
+    
+    gs.end_turn(PlayerSide::RED);
+    
+    auto b_move = gs.move(PlayerSide::BLUE, "berlin");
+    assert(b_move.ok);
+    assert(blue.current_city == "berlin");
+    
+    // BLUE uses LOCATE on RED
+    blue.intel = 30;  // Ensure enough intel
+    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    assert(r_loc.ok);  // Ability succeeds
+    
+    // Verify BLUE learns RED's location
+    assert(blue.known_opponent_city == "paris");  // BLUE knows RED's location
+    
+    // Verify RED is notified
+    assert(red.opponent_used_locate);  // RED is notified that LOCATE was used
+    
+    // Verify RED does NOT learn BLUE's location (one-way reveal)
+    assert(red.known_opponent_city == "");  // RED should not know BLUE's location
+    
+    // Verify BLUE does not become visible to RED (only opponent becomes visible)
+    // This is checked via: RED doesn't learn the city, and BLUE's cover status
+    // should not affect RED's view of BLUE negatively
+    
+    std::cout << "OK\n";
+}
+
 int main() {
     std::cout << "Running GameState unit tests...\n";
     
@@ -726,6 +1044,15 @@ int main() {
     test_strike_miss_no_location_reveal();
     test_strike_hit_no_spurious_notification();
     test_end_turn();
+    
+    // ── Intel Increase Tests ──
+    std::cout << "\nRunning Intel Increase Tests...\n";
+    test_intel_base_increase_no_movement();
+    test_intel_with_new_city_movement();
+    test_intel_no_bonus_revisiting_city();
+    test_intel_moved_to_new_city_flag_resets();
+    test_intel_multiple_turns_accumulation();
+    
     test_no_actions_remaining();
     test_city_graph_adjacency();
     test_turn_alternation();
@@ -752,6 +1079,17 @@ int main() {
     test_control_persists_for_game_duration();
     test_control_can_be_taken_over_by_opponent();
     test_stranded_player_cannot_control();
+    
+    // ── Deep Cover Ability Tests ──
+    std::cout << "\nRunning Deep Cover Ability Tests...\n";
+    test_deep_cover_costs_30_intel();
+    test_deep_cover_insufficient_intel();
+    test_deep_cover_grants_cover();
+    test_deep_cover_clears_opponent_knowledge();
+    test_deep_cover_persists_until_end_of_turn();
+    test_locate_fails_against_deep_cover();
+    test_locate_succeeds_after_deep_cover_expires();
+    test_locate_one_way_reveal_only();  // New test for one-way reveal behavior
     
     // ── Match Timeout Feature Tests ──
     std::cout << "\nRunning Match Timeout Features Tests...\n";

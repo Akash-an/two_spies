@@ -55,6 +55,9 @@ struct PlayerData {
     bool opponent_used_strike = false;  // opponent attempted a strike this turn
     bool opponent_used_locate = false;  // opponent used locate ability this turn
 
+    // Deep Cover ability state - cleared at the end of the player's turn
+    bool deep_cover_active = false;  // active until end of this player's turn
+
     // Tracks whether this player has ever moved away from their starting city
     bool has_moved_from_start = false;
 

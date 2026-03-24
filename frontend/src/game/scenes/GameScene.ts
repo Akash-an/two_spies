@@ -376,10 +376,17 @@ export class GameScene extends Phaser.Scene {
       this.showStatus('Waiting...', INK_MID_STR);
     });
 
-    // 3: GO DEEP (not yet implemented)
-    this.actionBtns[3] = this.makeButton(x(3), btnY, btnW, btnH, 'GO DEEP', 'btn_go_deep', () => {
+    // 3: DEEP COVER
+    this.actionBtns[3] = this.makeButton(x(3), btnY, btnW, btnH, 'DEEP COVER', 'btn_go_deep', () => {
       if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
-      this.showStatus('Not yet available', INK_MID_STR);
+      if (this.state?.isPlayerStranded) { this.showStatus('You must move out of the disappearing city!', '#c0392b'); return; }
+      const DEEP_COVER_COST = 30;
+      if (!this.state || this.state.player.intel < DEEP_COVER_COST) {
+        this.showStatus(`Deep Cover costs ${DEEP_COVER_COST} Intel. You have ${this.state?.player.intel || 0}.`, '#c0392b');
+        return;
+      }
+      this.net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.ABILITY, abilityId: AbilityId.DEEP_COVER });
+      this.showStatus('Using Deep Cover ability... You are now invisible!', INK_MID_STR);
     });
 
     // 4: LOCATE

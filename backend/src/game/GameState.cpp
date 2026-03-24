@@ -93,16 +93,21 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
     }
 
     // Check if opponent controls this city — if so, cover is blown
+    // UNLESS the player has deep_cover_active
     bool entered_controlled_city = false;
     auto it = city_controllers_.find(target_city);
     if (it != city_controllers_.end() && it->second == opposite(side)) {
-        // Opponent controls this city — automatically blow this player's cover
-        p.has_cover = false;
-        entered_controlled_city = true;
+        // Opponent controls this city
+        if (!p.deep_cover_active) {
+            // No deep cover — automatically blow this player's cover
+            p.has_cover = false;
+            entered_controlled_city = true;
+        }
+        // With deep_cover_active, the player remains hidden despite controlled city
     }
 
     // Clear opponent's knowledge of this player's location (Locate effect wears off)
-    // UNLESS we just entered their controlled city (then they gain sight of us)
+    // UNLESS we just entered their controlled city AND don't have deep_cover (then they gain sight of us)
     auto& opponent = player_mut(opposite(side));
     if (!entered_controlled_city) {
         opponent.known_opponent_city = "";  // player took action, clear their known location
@@ -235,25 +240,35 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     // Per-ability effects
     switch (ability) {
         case AbilityId::DEEP_COVER:
-            // Deep Cover grants cover (player becomes hidden)
+            // Deep Cover grants cover (player becomes hidden) until end of this turn
+            p.deep_cover_active = true;
             p.has_cover = true;
             // Clear opponent's knowledge of this player's location
             opponent.known_opponent_city = "";
             break;
         case AbilityId::LOCATE:
-            // Locate reveals opponent's current location and makes both players visible
+            // Locate reveals opponent's current location to the current player
+            // UNLESS opponent has deep_cover_active — in that case, it fails
             {
                 const auto& opp = player(opposite(side));
-                // I learn opponent's location
-                p.known_opponent_city = opp.current_city;
-                // Opponent becomes visible to me
                 auto& opp_mut = player_mut(opposite(side));
-                opp_mut.has_cover = false;  // Locate ability reveals opponent
-                opp_mut.opponent_used_locate = true;  // Notify opponent
-                // I also become visible by using Locate
-                p.has_cover = false;
-                // Opponent learns my location
-                opponent.known_opponent_city = p.current_city;
+                
+                if (opp_mut.deep_cover_active) {
+                    // Cannot locate a player in deep cover
+                    // Still costs Intel and action, but fails to reveal
+                    p.known_opponent_city = "";
+                    opp_mut.opponent_used_locate = false;  // They don't get notified
+                    // Both players stay in their current visibility state
+                } else {
+                    // Normal locate behavior
+                    // I learn opponent's location
+                    p.known_opponent_city = opp.current_city;
+                    // Opponent becomes visible to me
+                    opp_mut.has_cover = false;  // Locate ability reveals opponent
+                    opp_mut.opponent_used_locate = true;  // Notify opponent
+                    // Note: Current player does NOT become visible by using Locate
+                    // Only the opponent's location is revealed one-way
+                }
             }
             break;
         default:
@@ -396,8 +411,8 @@ ActionResult GameState::end_turn(PlayerSide side) {
 
     auto& p = player_mut(side);
 
-    // Intel income: base 1 per turn
-    int income = 1;
+    // Intel income: base 4 per turn
+    int income = 4;
     p.intel += income;
 
     // Exploration bonus: +4 Intel if player moved to a new city this turn
@@ -405,6 +420,9 @@ ActionResult GameState::end_turn(PlayerSide side) {
         p.intel += 4;
         p.moved_to_new_city_this_turn = false;  // Reset flag for next turn
     }
+
+    // Clear deep cover status at end of turn
+    p.deep_cover_active = false;
 
     // NOTE: Cover state persists based on player actions. Do NOT reset at turn end.
     // Cover changes only when actions are taken (move, wait, strike, control, locate, deep_cover).

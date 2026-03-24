@@ -93,12 +93,22 @@ If a player is currently in a city when it disappears, they become **stranded**:
 Intel is the primary resource in *Two Spies*. It serves as both currency and a measure of player progress.
 
 **Intel Income:**
-* Base: **1 Intel per turn** (earned at end of turn).
-* **Exploration bonus:** **+4 Intel if you move to a city you have not previously visited** (bonus applied at end of turn when you end your turn in a new city).
+
+Each turn grants Intel based on player actions:
+* **Base:** +4 Intel per turn (always earned at end of turn)
+* **Exploration Bonus:** +4 Intel if you move to a city you have not previously visited
+  - This bonus is applied **at the end of your turn** when your current city is one you haven't been to before
+  - **Clarification:** Starting cities do not grant the bonus (you start there, you don't "move" to it)
+  - **Example:** Starting with 2 Intel → Move to Paris (new) → End turn = 2 + 4 (base) + 4 (exploration) = **10 Intel**
+  - **Example:** 10 Intel → Stay in Paris (visited) → End turn = 10 + 4 (base) = **14 Intel**
+
+**Total Intel per Turn:**
+* No movement to new city: **+4 Intel**
+* Movement to new city: **+8 Intel** (4 base + 4 exploration bonus)
 
 **Intel Spending:**
 * Spent to activate strategic abilities.
-* Examples: Locate costs 10 Intel, other abilities have their own costs (defined in Section 5).
+* Examples: Locate costs 10 Intel, other abilities have their own costs (defined in Section 6).
 
 **Button Disabling:**
 * If a player has fewer Intel points than an ability requires, that ability button is **disabled** and cannot be used.
@@ -112,12 +122,24 @@ All abilities cost Intel and modify information visibility or mobility.
 
 | Ability        | Cost | Effect                                                                 |
 | -------------- | ---- | ---------------------------------------------------------------------- |
-| Deep Cover     | TBD  | Grants temporary cover — your position becomes hidden from the opponent. |
+| Deep Cover     | 30   | Grants temporary invisibility until the end of your current turn. You may enter the opponent's controlled city without being discovered. The opponent's Locate ability cannot reveal your position while Deep Cover is active. |
 | Encryption     | TBD  | Masks what Intel was spent on, limiting opponent deduction.            |
-| Locate         | 10   | Reveals the opponent's current location with a prominent pulsing yellow marker. Forces opponent into visible state (removes opponent's cover). **The opponent is notified** that the Locate ability was used against them. |
+| Locate         | 10   | Reveals the opponent's current location with a prominent pulsing yellow marker. Forces opponent into visible state (removes opponent's cover) **UNLESS the opponent has Deep Cover active**. **The opponent is notified** that the Locate ability was used against them (unless blocked by Deep Cover). |
 | Strike Report  | TBD  | Provides enhanced information after a strike attempt.                  |
 | Rapid Recon    | TBD  | Grants additional movement options or reveals potential move paths.    |
 | Prep Mission   | TBD  | Grants an extra action or sets up a future positional advantage.       |
+
+### Deep Cover Mechanics
+
+**Deep Cover** is a strategic ability that grants powerful defensive capabilities:
+
+* **Cost**: 30 Intel
+* **Duration**: Effective until the end of your current turn (expires at end_turn)
+* **Protection**: While active, the opponent cannot use Locate to reveal your position
+* **City Control Bypass**: You may enter opponent-controlled cities without your cover being blown
+* **Strategic Use**: Use Deep Cover when you expect the opponent to use Locate, or to safely traverse opponent-controlled territory
+
+When Deep Cover expires at the end of your turn, your cover status is determined by your last action (normal movement grants cover, striking removes it, etc.).
 
 ---
 
@@ -137,13 +159,13 @@ Players are **visible** or **hidden** based on their cover state. The opponent c
 |--------|--------|
 | MOVE | Moving to an adjacent city grants cover — your opponent loses sight of you. |
 | WAIT | Waiting in place grants cover — your opponent loses sight of you. |
-| Deep Cover (Ability) | Strategic ability to gain cover. |
+| Deep Cover (Ability) | Strategic ability to gain cover that persists until the end of your current turn. Grants immunity to Locate ability while active and allows entering opponent-controlled cities without being discovered. |
 
 **Actions that remove cover (opponent becomes visible):**
 | Event | Effect |
 |-------|--------|
 | CONTROL | Taking territorial control of a city reveals your location to the opponent. |
-| LOCATE (Opponent uses) | If opponent uses Locate against you, your cover is blown — you become visible. |
+| LOCATE (Opponent uses) | If opponent uses Locate against you, your cover is blown — you become visible **UNLESS you have Deep Cover active**. If blocked by Deep Cover, you are not revealed or notified. |
 | STRIKE | Attempting to strike reveals your location to the opponent. |
 
 ### Visual Indicators
