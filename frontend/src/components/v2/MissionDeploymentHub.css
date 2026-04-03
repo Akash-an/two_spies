@@ -1,0 +1,14 @@
+.mission-deployment { background-color: rgba(6,8,14,0.6); }
+.panel { background: linear-gradient(180deg, rgba(6,8,14,0.6), rgba(10,12,22,0.9)); border-radius: 12px; padding: 16px; }
+.headline { color: #e6fff7; font-weight: 700; letter-spacing: 1px; }
+.subtle { color: rgba(200,240,230,0.7); font-size: 13px; text-transform: uppercase; }
+.unit-list { list-style: none; margin: 0; padding: 0; }
+.unit-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px dashed rgba(255,255,255,0.03); }
+.unit-name { color: #dff7f0; font-weight: 600; }
+.unit-type { color: rgba(200,240,230,0.45); font-size: 12px; }
+.unit-empty { color: rgba(200,240,230,0.45); padding: 12px; }
+.target-box { background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; color: #bfffdc; }
+.terminal-log { background: rgba(0,0,0,0.25); padding: 8px; border-radius: 8px; max-height: 240px; overflow:auto; }
+.terminal-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace; color: #c8fff0; font-size: 13px; padding: 2px 0; }
+.text-muted { color: rgba(200,240,230,0.45); }
+.primary-cta { background: linear-gradient(90deg,#ffd54f,#ff9e3b); color: #071025; padding: 0.5rem 1rem; border-radius: 9999px; font-weight:700; }

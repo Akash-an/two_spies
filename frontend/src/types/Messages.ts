@@ -66,6 +66,13 @@ export interface MapDef {
   edges: EdgeDef[];
 }
 
+// ─── Intel Pop-up ────────────────────────────────────────────────────
+
+export interface IntelPopup {
+  city: string;     // city_id where Intel appeared
+  amount: number;   // Intel amount (typically 10)
+}
+
 // ─── Player-filtered State (server → client) ────────────────────────
 
 export interface PlayerState {
@@ -85,6 +92,7 @@ export interface PlayerState {
   
   // Player action feedback
   locateBlockedByDeepCover: boolean;  // this player's Locate was blocked by opponent's Deep Cover
+  claimedIntel: boolean;              // true if player claimed Intel at start of this turn
   
   // Starting positions (now shared information)
   startingCity: string;          // this player's starting city
@@ -108,6 +116,7 @@ export interface MatchState {
   isPlayerStranded: boolean;     // true if player is in the disappearing city
   timeElapsedMs: number;         // elapsed time since turn started (ms)
   controlledCities: Record<string, PlayerSide>;  // city_id -> controlling player (visible to both)
+  intelPopups: IntelPopup[];     // Intel pop-ups on the board
 }
 
 // ─── Messages ────────────────────────────────────────────────────────

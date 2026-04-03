@@ -144,6 +144,7 @@ export class MockNetworkClient extends EventEmitter {
       opponentUsedLocate: false,
       opponentUsedDeepCover: false,
       locateBlockedByDeepCover: false,
+      claimedIntel: false,
       startingCity: startCity,
       opponentStartingCity: cities[(startIdx + 3) % cities.length].id, // Different city for opponent
     };
@@ -165,6 +166,7 @@ export class MockNetworkClient extends EventEmitter {
       scheduledDisappearCity: undefined,
       isPlayerStranded: false,
       controlledCities: {},
+      intelPopups: [],
     };
   }
 

@@ -71,6 +71,10 @@ struct PlayerData {
     
     // Tracks if player moved to a new city this turn (for +4 Intel at end of turn)
     bool moved_to_new_city_this_turn = false;
+
+    // Intel pop-up claiming
+    bool claimed_intel_this_turn = false;  // true if player claimed Intel at start of this turn
+    std::string intel_claimed_from_city;    // city where Intel was claimed (blows cover)
 };
 
 } // namespace two_spies::game

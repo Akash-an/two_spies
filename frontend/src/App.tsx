@@ -4,8 +4,12 @@ import { GAME_CONFIG } from '@game/config/GameConfig';
 import { WebSocketClient } from './network/WebSocketClient';
 import { MockNetworkClient } from './network/MockNetworkClient';
 import type { INetworkClient } from './network/NetworkClient';
-import { PlayerNameModal } from './ui/PlayerNameModal';
-import { ClientMessageType, ServerMessageType } from './types/Messages';
+// PlayerNameModal retained in repo for fallback; not imported here to avoid unused import
+import CodenameAuthorizationTerminal from './components/v2/CodenameAuthorizationTerminal';
+import MissionDeploymentHub from './components/v2/MissionDeploymentHub';
+import SecureLinkFrequency from './components/v2/SecureLinkFrequency';
+import SurveillanceCommandCenterGlobalMap from './components/v2/SurveillanceCommandCenterGlobalMap';
+import { ClientMessageType, ServerMessageType, MatchState, ActionKind } from './types/Messages';
 
 /**
  * Set to true to connect to the real C++ backend on ws://localhost:8080.
@@ -34,6 +38,13 @@ export default function App() {
   const [roomCode, setRoomCode] = useState<string>('');       // code shown to host
   const [joinCode, setJoinCode] = useState<string>('');       // code typed by joiner
   const [errorMsg, setErrorMsg] = useState<string>('');       // inline error display
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const [previewPanel, setPreviewPanel] = useState<'none'|'codename'|'mission'|'securelink'|'surveillance'>('none');
+
+  const pushLog = useCallback((msg: string) => {
+    setTerminalLogs((s) => [...s, `${new Date().toLocaleTimeString()}: ${msg}`]);
+  }, []);
 
   // ── Name submitted → go to lobby ──────────────────────────────
   const handleNameSubmit = useCallback((name: string) => {
@@ -51,6 +62,11 @@ export default function App() {
       net.send(ClientMessageType.SET_PLAYER_NAME, { name: name });
     }
   }, []);
+
+  const onTerminalEstablish = useCallback((codename: string) => {
+    handleNameSubmit(codename);
+    pushLog(`Player name set: ${codename}`);
+  }, [handleNameSubmit, pushLog]);
 
   // ── "Start Game" button → CREATE_MATCH ────────────────────────
   const handleStartGame = useCallback(() => {
@@ -96,10 +112,12 @@ export default function App() {
       const code: string = data?.payload?.code ?? '';
       setRoomCode(code);
       // Phase is already 'creating'; we just need to display the code.
+      pushLog(`Match created: ${code}`);
     };
 
     const onMatchStart = () => {
       setPhase('playing');
+      pushLog('Match started');
     };
 
     // Store MATCH_STATE in registry so GameScene can access it
@@ -110,6 +128,7 @@ export default function App() {
         gameRef.current.registry.set('latestMatchState', data.payload);
         // Notify GameScene if it's already active
         gameRef.current.events.emit('match-state-updated', data.payload);
+        pushLog('MATCH_STATE received');
       }
     };
 
@@ -117,6 +136,7 @@ export default function App() {
     const onError = (data: any) => {
       const msg: string = data?.payload?.message ?? 'Unknown error';
       setErrorMsg(msg);
+      pushLog(`ERROR: ${msg}`);
       // If we were waiting/joining, go back to lobby so the user can retry
       setPhase((prev) => (prev === 'waiting' ? 'lobby' : prev));
     };
@@ -124,6 +144,7 @@ export default function App() {
     let finalClient: INetworkClient;
 
     const initClient = async () => {
+      setIsConnecting(true);
       if (USE_REAL_SERVER) {
         console.info('[App] USE_REAL_SERVER=true, creating WebSocketClient for', WS_URL);
         const ws = new WebSocketClient(WS_URL);
@@ -153,6 +174,8 @@ export default function App() {
       }
 
       // Store the FINAL client that succeeded
+      setIsConnecting(false);
+      pushLog(`Active client: ${finalClient.constructor.name}`);
       netRef.current = finalClient;
       console.info('[App] Active client:', finalClient.constructor.name);
 
@@ -247,11 +270,125 @@ export default function App() {
     </p>
   );
 
+  // Derived values for the Stitch terminal
+  const latest = gameRef.current?.registry.get('latestMatchState') as MatchState | undefined;
+  const cityDef = latest?.map?.cities?.find(c => c.id === latest?.player?.currentCity);
+  const sector = cityDef?.name ?? '—';
+  const latitude = cityDef ? (cityDef.y * 100).toFixed(1) : '—';
+  const longitude = cityDef ? (cityDef.x * 100).toFixed(1) : '—';
+  const threatLevel = latest
+    ? latest.isPlayerStranded ? 'STRANDED'
+    : latest.player.opponentUsedStrike ? 'HIGH'
+    : latest.player.hasCover ? 'LOW'
+    : 'NORMAL'
+    : 'UNKNOWN';
+
+  // Compute loading flag separately to avoid TS control-flow narrowing inside JSX
+  const terminalLoading = isConnecting || phase === 'creating' || phase === 'waiting';
+
+  // --- Derived props for other Stitch components (preview / wiring) ---
+  const missionName = latest?.sessionId ?? 'Local Mission';
+  const missionAvailableUnits = latest?.map?.cities?.slice(0, 4).map((c) => ({ id: c.id, name: c.name, type: 'INF' })) ?? [
+    { id: 'unit-alpha', name: 'Alpha Squad', type: 'INF' },
+  ];
+  const missionTargetCity = latest?.player?.currentCity ?? undefined;
+
+  const handleDeploy = useCallback((unitId: string) => {
+    pushLog(`Deploy request: ${unitId} → ${missionTargetCity ?? 'unknown'}`);
+    const net = netRef.current;
+    if (net) {
+      // Map deploy UI to CONTROL action for now (game logic may evolve)
+      net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.CONTROL });
+    }
+    setPreviewPanel('none');
+  }, [pushLog, missionTargetCity]);
+
+  const secureFrequency = latest?.player?.intel ? `${latest.player.intel}.0` : '000.0';
+  const handleTune = useCallback((value: number | string) => {
+    pushLog(`Tuned secure frequency → ${value}`);
+    setPreviewPanel('none');
+  }, [pushLog]);
+
+  const mapCities = latest?.map?.cities?.map((c) => ({ id: c.id, name: c.name, x: c.x * 100, y: c.y * 100 })) ?? [];
+  const handleSelectCity = useCallback((id: string) => {
+    pushLog(`Selected city: ${id}`);
+    const net = netRef.current;
+    if (net) {
+      net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.MOVE, targetCity: id });
+    }
+    setPreviewPanel('none');
+  }, [pushLog]);
+
   // ── Render ─────────────────────────────────────────────────────
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#6db5ae' }}>
-      {/* Phase 1: Enter your codename */}
-      {phase === 'entering-name' && <PlayerNameModal onSubmit={handleNameSubmit} />}
+      {/* Phase 1: Enter your codename (Stitch terminal replaces the old modal) */}
+      {phase === 'entering-name' && (
+        <CodenameAuthorizationTerminal
+          operativeCodename={playerName}
+          onEstablish={onTerminalEstablish}
+          onInputChange={(v) => setPlayerName(v)}
+          loading={terminalLoading}
+          initializingText={isConnecting ? 'Connecting to server…' : 'INITIALIZING LINK...'}
+          terminalLog={terminalLogs}
+          sector={sector}
+          latitude={latitude}
+          longitude={longitude}
+          threatLevel={threatLevel}
+          backgroundImageUrl={undefined}
+        />
+      )}
+
+      {/* Dev preview toolbar (bottom-right) */}
+      <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 2000, display: 'flex', gap: 8 }}>
+        <button onClick={() => setPreviewPanel((p) => (p === 'codename' ? 'none' : 'codename'))}>Preview: Codename</button>
+        <button onClick={() => setPreviewPanel((p) => (p === 'mission' ? 'none' : 'mission'))}>Preview: Mission</button>
+        <button onClick={() => setPreviewPanel((p) => (p === 'securelink' ? 'none' : 'securelink'))}>Preview: SecureLink</button>
+        <button onClick={() => setPreviewPanel((p) => (p === 'surveillance' ? 'none' : 'surveillance'))}>Preview: Surveillance</button>
+      </div>
+
+      {/* Preview overlays for the additional Stitch components */}
+      {previewPanel !== 'none' && (
+        <Overlay>
+          {previewPanel === 'codename' && (
+            <CodenameAuthorizationTerminal
+              operativeCodename={playerName}
+              onEstablish={onTerminalEstablish}
+              onInputChange={(v) => setPlayerName(v)}
+              loading={terminalLoading}
+              initializingText={isConnecting ? 'Connecting to server…' : 'INITIALIZING LINK...'}
+              terminalLog={terminalLogs}
+              sector={sector}
+              latitude={latitude}
+              longitude={longitude}
+              threatLevel={threatLevel}
+            />
+          )}
+
+          {previewPanel === 'mission' && (
+            <MissionDeploymentHub
+              missionName={missionName}
+              availableUnits={missionAvailableUnits}
+              onDeploy={handleDeploy}
+              targetCity={missionTargetCity}
+              logs={terminalLogs}
+              loading={isConnecting}
+            />
+          )}
+
+          {previewPanel === 'securelink' && (
+            <SecureLinkFrequency frequency={secureFrequency} onTune={handleTune} logs={terminalLogs} loading={isConnecting} />
+          )}
+
+          {previewPanel === 'surveillance' && (
+            <SurveillanceCommandCenterGlobalMap mapImageUrl={undefined} cities={mapCities} onSelectCity={handleSelectCity} logs={terminalLogs} />
+          )}
+
+          <div style={{ marginTop: 12, textAlign: 'center' }}>
+            <button onClick={() => setPreviewPanel('none')}>Close Preview</button>
+          </div>
+        </Overlay>
+      )}
 
       {/* Phase 2: Lobby — Start Game / Join Game */}
       {phase === 'lobby' && (

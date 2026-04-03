@@ -12,6 +12,10 @@ GameState::GameState(const MapDef& map)
 {
     red_.side = PlayerSide::RED;
     blue_.side = PlayerSide::BLUE;
+
+    // Initialize Intel pop-up threshold (3-5 actions)
+    std::uniform_int_distribution<> dist(3, 5);
+    next_intel_popup_threshold_ = dist(rng_);
 }
 
 void GameState::set_starting_cities(const std::string& red_city, const std::string& blue_city) {
@@ -419,6 +423,9 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
 
     auto& p = player_mut(side);
 
+    // Check if player ends turn at a city with Intel pop-up
+    try_claim_intel(side);
+
     // Intel income: base 4 per turn
     int income = 4;
     p.intel += income;
@@ -440,6 +447,19 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     // Reset the next player's actions
     auto& next = player_mut(current_turn_);
     next.actions_remaining = 2;
+    
+    // Apply any claimed Intel at the start of the new turn (blows cover)
+    apply_claimed_intel(current_turn_);
+    
+    // Clear Intel pop-ups from disappeared cities
+    auto it = intel_popups_.begin();
+    while (it != intel_popups_.end()) {
+        if (disappeared_cities_.find(it->city_id) != disappeared_cities_.end()) {
+            it = intel_popups_.erase(it);
+        } else {
+            ++it;
+        }
+    }
     
     // Clear Deep Cover if it's been used for at least 2 turns (protecting through opponent's full turn)
     // Deep Cover is used on turn N, expires at beginning of turn N+2 (after opponent's full turn)
@@ -623,6 +643,9 @@ std::string GameState::select_random_city_to_disappear() {
 void GameState::increment_action_count() {
     action_count_++;
     
+    // Try to spawn Intel pop-up (3-5 action threshold)
+    try_spawn_intel_popup();
+    
     // At action 4, 10, 16, 22, etc. (4, 4+6, 4+12, ...) schedule next disappearance
     // This means at actions 6, 12, 18, 24, ... we execute the disappearance
     if (action_count_ % 6 == 4) {
@@ -651,6 +674,96 @@ PlayerSide GameState::get_city_controller(const std::string& city) const {
     // Return a default PlayerSide value (RED) if no controller found
     // Caller should check if city is actually controlled using city_controllers() map
     return PlayerSide::RED;  // This value indicates "not controlled" when used with the map check
+}
+
+// ── Intel Pop-up Management ──────────────────────────────────────────
+
+void GameState::try_spawn_intel_popup() {
+    actions_since_last_intel_popup_++;
+    
+    std::cerr << "[INTEL-DEBUG] actions_since_last_popup=" << actions_since_last_intel_popup_ 
+              << " threshold=" << next_intel_popup_threshold_ << "\n";
+    
+    if (actions_since_last_intel_popup_ >= next_intel_popup_threshold_) {
+        // Select a random city that hasn't disappeared
+        auto all_cities = graph_.all_city_ids();
+        std::vector<std::string> valid_cities;
+        
+        for (const auto& city : all_cities) {
+            if (disappeared_cities_.find(city) == disappeared_cities_.end()) {
+                valid_cities.push_back(city);
+            }
+        }
+        
+        if (!valid_cities.empty()) {
+            std::uniform_int_distribution<> dist(0, valid_cities.size() - 1);
+            std::string popup_city = valid_cities[dist(rng_)];
+            
+            // Create new Intel pop-up
+            IntelPopup popup;
+            popup.city_id = popup_city;
+            popup.amount = 10;
+            popup.turn_created = turn_number_;
+            intel_popups_.push_back(popup);
+            
+            std::cerr << "[INTEL] Spawned Intel pop-up of " << popup.amount << " at city " 
+                      << popup_city << " on turn " << turn_number_ << "\n";
+        }
+        
+        // Reset counter and pick new threshold
+        actions_since_last_intel_popup_ = 0;
+        std::uniform_int_distribution<> threshold_dist(3, 5);
+        next_intel_popup_threshold_ = threshold_dist(rng_);
+        
+        std::cerr << "[INTEL] Next threshold set to: " << next_intel_popup_threshold_ << "\n";
+    }
+}
+
+void GameState::try_claim_intel(PlayerSide side) {
+    auto& p = player_mut(side);
+    
+    // Check if there's an Intel pop-up at player's current city
+    auto it = std::find_if(intel_popups_.begin(), intel_popups_.end(),
+                          [&p](const IntelPopup& popup) {
+                              return popup.city_id == p.current_city;
+                          });
+    
+    if (it != intel_popups_.end()) {
+        // Mark that Intel should be claimed
+        p.claimed_intel_this_turn = true;
+        p.intel_claimed_from_city = it->city_id;
+        
+        std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                  << " will claim " << it->amount << " Intel at city " << it->city_id << "\n";
+        
+        // Remove the pop-up
+        intel_popups_.erase(it);
+    }
+}
+
+void GameState::apply_claimed_intel(PlayerSide side) {
+    auto& p = player_mut(side);
+    
+    if (p.claimed_intel_this_turn) {
+        // Add 10 Intel
+        p.intel += 10;
+        
+        // Blow cover - player becomes visible
+        p.has_cover = false;
+        
+        // Opponent can now see this player's location (stays visible until they move/wait)
+        auto& opp = player_mut(opposite(side));
+        opp.known_opponent_city = p.current_city;
+        
+        std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                  << " claimed Intel at " << p.intel_claimed_from_city 
+                  << ". New Intel: " << p.intel << ". Cover blown."
+                  << " Opponent now sees at: " << p.current_city << "\n";
+        
+        // Reset flags
+        p.claimed_intel_this_turn = false;
+        p.intel_claimed_from_city = "";
+    }
 }
 
 } // namespace two_spies::game

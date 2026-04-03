@@ -84,6 +84,7 @@ export class GameScene extends Phaser.Scene {
   private lastLocateBannerTurn = -1;
   private lastDeepCoverBannerTurn = -1;
   private lastLocateBlockedBannerTurn = -1;
+  private lastIntelClaimedBannerTurn = -1;
   private lastTurnOwner: string | null = null;
 
   // Active notification banner objects
@@ -669,6 +670,14 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (p.claimedIntel) {
+      if (this.state.turnNumber !== this.lastIntelClaimedBannerTurn) {
+        this.lastIntelClaimedBannerTurn = this.state.turnNumber;
+        console.log('[GameScene] Showing Intel claimed banner');
+        this.showIntelClaimedBanner();
+      }
+    }
+
     this.updateDeepCoverIndicator();
     this.updateOpponentMarker();
   }
@@ -924,6 +933,14 @@ export class GameScene extends Phaser.Scene {
       'LOCATE FAILED',
       'Opponent protected by Deep Cover.',
       0xc85a3a,
+    );
+  }
+
+  private showIntelClaimedBanner(): void {
+    this.showNotificationBanner(
+      'INTEL ACQUIRED!',
+      '+10 Intel claimed, but your cover is blown.',
+      0xffd700,  // Gold
     );
   }
 }

@@ -33,6 +33,9 @@ compile_commands.json
 .agents/skills/screenshot-to-code/
 .agents/skills/resolve-conflicts/
 .agents/skills/playwright-cli/
+.agents/skills/design-md/
+.agents/skills/react-components/
+.agents/skills/stitch-design/
 
 # Keep custom project skills (rebuild-and-restart, two-spies-gamedesign)
 # These are NOT ignored and will be committed

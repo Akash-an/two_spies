@@ -33,6 +33,8 @@ export interface CitySprite {
   scheduledPulseRing?: Phaser.GameObjects.Graphics;  // Pulsing gold border for scheduled disappearing
   controlledOverlay?: Phaser.GameObjects.Graphics;   // Solid color overlay for controlled cities
   controlledBy?: PlayerSide;  // Track current controller to detect changes
+  intelText?: Phaser.GameObjects.Text;  // Intel amount display (e.g., "10")
+  intelGlow?: Phaser.GameObjects.Graphics;  // Glow effect behind Intel text
 }
 
 export class BoardRenderer {
@@ -289,6 +291,9 @@ export class BoardRenderer {
       this.opponentStartMarker = null;
     }
 
+    // Update Intel pop-ups on the board
+    this.updateIntelPopups(state.intelPopups ?? []);
+
     this.highlightAdjacent(state.player.currentCity, state.map);
   }
 
@@ -330,6 +335,64 @@ export class BoardRenderer {
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
+    }
+  }
+
+  /** Update Intel pop-up visual rendering on cities. */
+  private updateIntelPopups(popups: Array<{ city: string; amount: number }>): void {
+    // Update each city sprite
+    for (const [cityId, cs] of this.citySprites) {
+      const popup = popups.find(p => p.city === cityId);
+
+      if (popup) {
+        // City has Intel - create/update display if not already present
+        if (!cs.intelText) {
+          // Create glow effect background
+          if (!cs.intelGlow) {
+            cs.intelGlow = this.scene.add.graphics().setDepth(7);
+          }
+
+          // Create Intel amount text
+          cs.intelText = this.scene.add
+            .text(cs.screenX, cs.screenY - 20, popup.amount.toString(), {
+              fontFamily: "'Georgia', serif",
+              fontSize: '28px',
+              fontStyle: 'bold',
+              color: '#ffd700',  // Gold
+              align: 'center',
+              stroke: '#8b6914',  // Darker gold
+              strokeThickness: 2,
+            })
+            .setOrigin(0.5, 0.5)
+            .setDepth(8);
+
+          // Add pulsing animation to Intel text
+          this.scene.tweens.add({
+            targets: cs.intelText,
+            scale: { from: 1, to: 1.2 },
+            duration: 600,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          });
+
+          // Update glow
+          cs.intelGlow.clear();
+          cs.intelGlow.fillStyle(0xffd700, 0.3);
+          cs.intelGlow.fillCircle(cs.screenX, cs.screenY - 20, 25);
+        }
+      } else {
+        // City doesn't have Intel - clean up display if present
+        if (cs.intelText) {
+          this.scene.tweens.killTweensOf(cs.intelText);
+          cs.intelText.destroy();
+          cs.intelText = undefined;
+        }
+        if (cs.intelGlow) {
+          cs.intelGlow.destroy();
+          cs.intelGlow = undefined;
+        }
+      }
     }
   }
 
