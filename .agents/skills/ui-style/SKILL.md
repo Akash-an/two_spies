@@ -1,6 +1,11 @@
 ---
 name: ui-style
-description: "Visual design reference for Two Spies UI. Use this skill whenever implementing or restyling any Phaser scene, HUD element, button, banner, modal, or city node. Trigger: style, color, theme, art style, UI, button, HUD, banner, modal, map, city node, marker, parchment, vintage, action bar, lobby, game over screen, responsive layout, font, typography, visual, look and feel."
+description: >-
+  Visual design reference for Two Spies UI. Use this skill whenever implementing
+  or restyling any Phaser scene, HUD element, button, banner, modal, or city
+  node. Trigger: style, color, theme, art style, UI, button, HUD, banner, modal,
+  map, city node, marker, parchment, vintage, action bar, lobby, game over
+  screen, responsive layout, font, typography, visual, look and feel.
 ---
 
 

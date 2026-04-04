@@ -48,17 +48,17 @@ function App() {
           setLogs((p) => [...p, 'CONNECTION LOST']);
         });
 
-        client.on(ServerMessageType.MATCH_CREATED, (msg) => {
+        client.on(ServerMessageType.MATCH_CREATED, (msg: any) => {
           console.log('[App] Match created:', msg);
           setLogs((p) => [...p, `MATCH CREATED: Code ${(msg.payload as any)?.code}`]);
         });
 
-        client.on(ServerMessageType.WAITING_FOR_OPPONENT, (msg) => {
+        client.on(ServerMessageType.WAITING_FOR_OPPONENT, (msg: any) => {
           console.log('[App] Waiting for opponent:', msg);
           setLogs((p) => [...p, 'WAITING FOR OPPONENT...']);
         });
 
-        client.on(ServerMessageType.ERROR, (msg) => {
+        client.on(ServerMessageType.ERROR, (msg: any) => {
           console.error('[App] Server error:', msg);
           setLogs((p) => [...p, `SERVER ERROR: ${(msg.payload as any)?.message}`]);
           setIsLoading(false);
@@ -105,10 +105,10 @@ function App() {
     setPlayerName(value);
   };
 
-  const handleDeploy = (unitId: string) => {
-    console.log('[App] Deploy unit:', unitId);
-    setLogs((p) => [...p, `DEPLOYING UNIT: ${unitId}`]);
-  };
+  // const handleDeploy = (unitId: string) => {
+  //   console.log('[App] Deploy unit:', unitId);
+  //   setLogs((p) => [...p, `DEPLOYING UNIT: ${unitId}`]);
+  // };
 
   const handleInitiateOperation = (frequency: string) => {
     console.log('[App] Frequency generated:', frequency);

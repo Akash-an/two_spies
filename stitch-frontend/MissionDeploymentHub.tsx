@@ -35,7 +35,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   onTerminateLink,
   latitude = '52.5200° N',
   longitude = '13.4050° E',
-  logs = [],
+  // logs = [],
   className = '',
   loading = false,
 }) => {

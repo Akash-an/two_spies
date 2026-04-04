@@ -1,7 +1,10 @@
 ---
 name: debug-and-logs
-description: Systematic debugging workflow focusing on log examination and error diagnosis
-allowed-tools: Bash(*), View(*)
+description: >-
+  Systematic debugging workflow focusing on log examination and error diagnosis
+allowed-tools:
+  - "Bash(*)"
+  - "View(*)"
 ---
 
 # Debug and Logs Skill

@@ -1,6 +1,10 @@
 ---
 name: rebuild-and-restart
-description: "Instructions and scripts for recompiling and restarting the Two Spies backend (C++) and/or frontend (Vite/TypeScript) after code changes. Trigger: rebuild, recompile, restart server, restart frontend, apply backend changes, hot reload, build failed, compile error, restart dev server."
+description: >-
+  Instructions and scripts for recompiling and restarting the Two Spies backend
+  (C++) and/or frontend (Vite/TypeScript) after code changes. Trigger: rebuild,
+  recompile, restart server, restart frontend, apply backend changes, hot reload,
+  build failed, compile error, restart dev server.
 ---
 
 

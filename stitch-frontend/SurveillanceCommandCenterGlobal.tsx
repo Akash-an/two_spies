@@ -35,7 +35,7 @@ const SurveillanceCommandCenterGlobal: React.FC<SurveillanceCommandCenterGlobalP
   location = 'Berlin',
   coverLevel = 92,
   turnCycle = '05/12',
-  operativeStatus = 'Standby',
+  // operativeStatus = 'Standby',
   cities = [
     { id: 'nyc', name: 'NEW YORK CITY', x: 25, y: 35 },
     { id: 'berlin', name: 'BERLIN_VOID', x: 48, y: 30, isActive: true, isAlly: true },
