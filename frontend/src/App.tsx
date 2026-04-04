@@ -9,7 +9,7 @@ import CodenameAuthorizationTerminal from './components/v2/CodenameAuthorization
 import MissionDeploymentHub from './components/v2/MissionDeploymentHub';
 import SecureLinkFrequency from './components/v2/SecureLinkFrequency';
 import SurveillanceCommandCenterGlobalMap from './components/v2/SurveillanceCommandCenterGlobalMap';
-import { ClientMessageType, ServerMessageType, MatchState, ActionKind } from './types/Messages';
+import { ClientMessageType, ServerMessageType, MatchState, ActionKind, AbilityId } from './types/Messages';
 
 /**
  * Set to true to connect to the real C++ backend on ws://localhost:8080.
@@ -223,7 +223,7 @@ export default function App() {
       backgroundColor: '#6db5ae',  // OCEAN_TEAL
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000,
+      zIndex: 2000,
     }}>
       {children}
       <style>{`
@@ -286,6 +286,9 @@ export default function App() {
   // Compute loading flag separately to avoid TS control-flow narrowing inside JSX
   const terminalLoading = isConnecting || phase === 'creating' || phase === 'waiting';
 
+  // whether it's the player's turn (used to enable/disable in-game UI)
+  const isMyTurn = !!latest && latest.currentTurn === latest.player.side && !latest.gameOver;
+
   // --- Derived props for other Stitch components (preview / wiring) ---
   const missionName = latest?.sessionId ?? 'Local Mission';
   const missionAvailableUnits = latest?.map?.cities?.slice(0, 4).map((c) => ({ id: c.id, name: c.name, type: 'INF' })) ?? [
@@ -297,8 +300,13 @@ export default function App() {
     pushLog(`Deploy request: ${unitId} → ${missionTargetCity ?? 'unknown'}`);
     const net = netRef.current;
     if (net) {
-      // Map deploy UI to CONTROL action for now (game logic may evolve)
-      net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.CONTROL });
+      // Send a semantic PREP_MISSION ability payload to the server
+      net.send(ClientMessageType.PLAYER_ACTION, {
+        action: ActionKind.ABILITY,
+        abilityId: AbilityId.PREP_MISSION,
+        unitId,
+        targetCity: missionTargetCity,
+      });
     }
     setPreviewPanel('none');
   }, [pushLog, missionTargetCity]);
@@ -306,6 +314,10 @@ export default function App() {
   const secureFrequency = latest?.player?.intel ? `${latest.player.intel}.0` : '000.0';
   const handleTune = useCallback((value: number | string) => {
     pushLog(`Tuned secure frequency → ${value}`);
+    const net = netRef.current;
+    if (net) {
+      net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.ABILITY, abilityId: AbilityId.ENCRYPTION, frequency: value });
+    }
     setPreviewPanel('none');
   }, [pushLog]);
 
@@ -322,30 +334,34 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', background: '#6db5ae' }}>
+      {/* Phaser container (behind overlays) */}
+      <div id="phaser-container" ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }} />
+
       {/* Phase 1: Enter your codename (Stitch terminal replaces the old modal) */}
       {phase === 'entering-name' && (
-        <CodenameAuthorizationTerminal
-          operativeCodename={playerName}
-          onEstablish={onTerminalEstablish}
-          onInputChange={(v) => setPlayerName(v)}
-          loading={terminalLoading}
-          initializingText={isConnecting ? 'Connecting to server…' : 'INITIALIZING LINK...'}
-          terminalLog={terminalLogs}
-          sector={sector}
-          latitude={latitude}
-          longitude={longitude}
-          threatLevel={threatLevel}
-          backgroundImageUrl={undefined}
-        />
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2000 }}>
+          <CodenameAuthorizationTerminal
+            operativeCodename={playerName}
+            onEstablish={onTerminalEstablish}
+            onInputChange={(v) => setPlayerName(v)}
+            loading={terminalLoading}
+            terminalLog={terminalLogs}
+            sector={sector}
+            latitude={latitude}
+            longitude={longitude}
+            threatLevel={threatLevel}
+          />
+        </div>
       )}
 
-      {/* Dev preview toolbar (bottom-right) */}
-      <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 2000, display: 'flex', gap: 8 }}>
-        <button onClick={() => setPreviewPanel((p) => (p === 'codename' ? 'none' : 'codename'))}>Preview: Codename</button>
-        <button onClick={() => setPreviewPanel((p) => (p === 'mission' ? 'none' : 'mission'))}>Preview: Mission</button>
-        <button onClick={() => setPreviewPanel((p) => (p === 'securelink' ? 'none' : 'securelink'))}>Preview: SecureLink</button>
-        <button onClick={() => setPreviewPanel((p) => (p === 'surveillance' ? 'none' : 'surveillance'))}>Preview: Surveillance</button>
-      </div>
+      {/* Permanent in-game HUD (visible during `playing`) */}
+      {phase === 'playing' && (
+        <div style={{ position: 'fixed', left: 12, top: 12, zIndex: 2100, display: 'flex', gap: 8 }}>
+          <button disabled={!isMyTurn || isConnecting} onClick={() => setPreviewPanel((p) => (p === 'mission' ? 'none' : 'mission'))}>Deploy</button>
+          <button disabled={!isMyTurn || isConnecting} onClick={() => setPreviewPanel((p) => (p === 'securelink' ? 'none' : 'securelink'))}>Frequency</button>
+          <button disabled={!isMyTurn || isConnecting} onClick={() => setPreviewPanel((p) => (p === 'surveillance' ? 'none' : 'surveillance'))}>Surveillance</button>
+        </div>
+      )}
 
       {/* Preview overlays for the additional Stitch components */}
       {previewPanel !== 'none' && (
@@ -356,7 +372,6 @@ export default function App() {
               onEstablish={onTerminalEstablish}
               onInputChange={(v) => setPlayerName(v)}
               loading={terminalLoading}
-              initializingText={isConnecting ? 'Connecting to server…' : 'INITIALIZING LINK...'}
               terminalLog={terminalLogs}
               sector={sector}
               latitude={latitude}

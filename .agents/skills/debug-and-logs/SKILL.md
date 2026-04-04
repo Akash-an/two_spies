@@ -1,3 +1,9 @@
+---
+name: debug-and-logs
+description: Systematic debugging workflow focusing on log examination and error diagnosis
+allowed-tools: Bash(*), View(*)
+---
+
 # Debug and Logs Skill
 
 ## Purpose
@@ -229,9 +235,9 @@ tail -f frontend/vite.log
 ## Agent Implementation Notes
 
 When implementing this skill:
-1. Always read the relevant log file using `read_file` tool
-2. If log is large (>1000 lines), read the last 100-200 lines first
-3. Use `grep_search` to find specific error patterns
+1. Always read the relevant log file using `view` tool or `bash` (tail/grep)
+2. If log is large (>1000 lines), use `bash` with `tail` to read the last 100-200 lines first
+3. Use `grep` tool to find specific error patterns
 4. Parse error messages carefully before proposing solutions
 5. After implementing a fix, re-read logs to verify success
 6. Explain to the user what you found in the logs and why it matters
@@ -249,12 +255,12 @@ Agent thinks:
 3. Then check if server is already running
 
 Agent actions:
-- read_file backend/server.log (last 100 lines)
+- bash: tail -n 100 backend/server.log
 - Identify error: "Address already in use"
-- run_in_terminal: cat backend/build/server.pid
-- run_in_terminal: kill <pid>
-- run_in_terminal: ./scripts/rebuild-backend.sh
-- read_file backend/server.log to confirm successful start
+- bash: cat backend/build/server.pid
+- bash: kill <pid>
+- bash: ./scripts/rebuild-backend.sh
+- bash: tail -n 50 backend/server.log (to confirm successful start)
 - Report to user: "Server was already running. I killed the old process and restarted it."
 ```
 
