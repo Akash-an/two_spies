@@ -436,3 +436,5 @@ When changes are significant (behavioral changes, public APIs, message formats, 
 - **Setup or Deployment Changes**: Update `README.md`
 - **New Features or Abilities**: Update `docs/game_design/game_design_doc.md` and `README.md`
 
+- **Repository layout**: Place all automated tests under the top-level tests/ directory and all project documentation under the docs/ directory to keep tests and docs discoverable and consistent.
+
