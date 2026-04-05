@@ -10,7 +10,7 @@ Scope & Assumptions
 -------------------
 - This plan targets the `CodenameAuthorizationTerminal` component in `src/components/v2/`.
 - It assumes `App.tsx` will remain the top-level orchestrator (holds `netRef`, `gameRef`, `phase`, and network event listeners).
-- Match state shape follows `MatchState` and `PlayerState` defined in `frontend/src/types/Messages.ts` (used by the mock client).
+- Match state shape follows `MatchState` and `PlayerState` defined in `stitch-stitch-frontend/src/types/Messages.ts` (used by the mock client).
 
 High-level mapping
 ------------------

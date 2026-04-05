@@ -157,9 +157,9 @@ tail -f backend/server.log
 
 ## Next Steps (Optional)
 
-1. **Playwright Browser Test** - Create end-to-end test for frontend display of intel values (requires browser setup)
+1. **Playwright Browser Test** - Create end-to-end test for stitch-frontend display of intel values (requires browser setup)
 2. **Performance Test** - Verify intel calculations don't impact turn latency
-3. **Visual Override** - Ensure frontend displays intel values correctly
+3. **Visual Override** - Ensure stitch-frontend displays intel values correctly
 
 ---
 

@@ -14,9 +14,9 @@ The system must be:
 * Turn-based
 * Multiplayer over WebSockets
 * Modular and extensible
-* Cleanly separated frontend and backend
+* Cleanly separated stitch-frontend and backend
 
-Frontend: **Phaser 3 + TypeScript**
+stitch-frontend: **Phaser 3 + TypeScript**
 Backend: **C++17 + Boost.Asio/Beast WebSocket server**
 
 This is not a prototype. Code should be production-architected from day one.
@@ -65,37 +65,51 @@ Game logic must never depend on networking code.
 
 # 3. High-Level Architecture
 
-## 3.1 Frontend
+## 3.1 stitch-frontend
+
+**Main stitch-frontend is now `stitch-stitch-frontend/` — a production React + Tailwind + TypeScript project.**
 
 Tech stack:
 
-* Phaser 3
-* TypeScript
-* Vite (or minimal bundler)
+* React 18 + TypeScript
+* Tailwind CSS + Material Design
+* Vite (dev server + build)
+* Cyberpunk/neon aesthetic with Material Symbols
 
 Structure:
 
 ```
-frontend/
+stitch-stitch-frontend/
   src/
-    main.ts
-    network/
-      NetworkClient.ts
-    game/
-      scenes/
-        BootScene.ts
-        GameScene.ts
-      GameState.ts
-    types/
+    components/           # React components (one folder per component)
+      CodenameAuthorizationTerminal/
+      MissionDeploymentHub/
+      SecureLinkFrequency/
+      SurveillanceCommandCenterGlobal/
+      SurveillanceCommandCenterGlobalMap/
+      WorldMapCanvas/
+    network/              # WebSocket client
+      WebSocketClient.ts
+      EventEmitter.ts
+    types/                # Message types
       Messages.ts
+    styles/               # Global styles
+      index.css
+    main.tsx              # React entry point
+  stitch-html/            # Design reference HTMLs
+  screenshots/            # Visual testing assets
+  tests/                  # Test files
+  vite.config.ts
+  index.html
 ```
 
 Rules:
 
-* Phaser scenes must not directly open WebSockets.
-* All networking goes through `NetworkClient`.
-* Scenes react to events emitted by `NetworkClient`.
-* No hardcoded message strings.
+* Components must be self-contained with their own .tsx and .css.
+* All networking goes through `WebSocketClient`.
+* Components emit events or use props callbacks for state changes.
+* No hardcoded message strings — use `ClientMessageType` enums.
+* Styling follows Tailwind utility classes with custom cyberpunk colors.
 
 ---
 
@@ -204,7 +218,7 @@ No string duplication.
 * Two players assigned
 * Dummy GameState
 * Server sends fake state
-* Frontend renders simple board
+* stitch-frontend renders simple board
 
 ---
 
@@ -248,7 +262,7 @@ All agents must:
 * Avoid large God classes
 * Write readable code over clever code
 
-Frontend must:
+stitch-frontend must:
 
 * Use strict TypeScript mode
 * Avoid `any`
@@ -298,7 +312,7 @@ Focus is core multiplayer loop.
 
 ---
 
-# 11. Frontend Rendering Philosophy
+# 11. stitch-frontend Rendering Philosophy
 
 * Phaser handles rendering.
 * UI overlays (menus) may use simple HTML.
@@ -355,10 +369,10 @@ Rebuild scripts live in `scripts/` at the project root. Always use these when co
 | Script | When to use |
 | --- | --- |
 | `scripts/rebuild-backend.sh` | After any C++ source change |
-| `scripts/rebuild-frontend.sh` | After `vite.config.ts`, env vars, or plugin changes (HMR handles the rest) |
+| `scripts/rebuild-stitch-frontend.sh` | After `vite.config.ts`, env vars, or plugin changes (HMR handles the rest) |
 | `scripts/rebuild-all.sh` | Full rebuild of both services |
 
-Logs: `backend/server.log`, `frontend/vite.log`
+Logs: `backend/server.log`, `stitch-stitch-frontend/vite.log`
 
 See **`.agents/skills/rebuild-and-restart/SKILL.md`** for full instructions including common troubleshooting.
 
@@ -370,7 +384,7 @@ See **`.agents/skills/rebuild-and-restart/SKILL.md`** for full instructions incl
 
 Log locations:
 - Backend: `backend/server.log`
-- Frontend: `frontend/vite.log`
+- stitch-frontend: `stitch-stitch-frontend/vite.log`
 
 When a user reports an error or unexpected behavior:
 1. Read the relevant log file immediately

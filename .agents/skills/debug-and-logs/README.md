@@ -6,7 +6,7 @@ Systematic debugging workflow for the Two Spies project focusing on log examinat
 
 **Log Locations:**
 - Backend: `backend/server.log`
-- Frontend: `frontend/vite.log`
+- stitch-frontend: `stitch-stitch-frontend/vite.log`
 
 **Common Commands:**
 ```bash

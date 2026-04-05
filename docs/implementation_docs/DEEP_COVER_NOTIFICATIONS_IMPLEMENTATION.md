@@ -21,13 +21,13 @@
    - File: `backend/src/protocol/Messages.cpp` (line ~116)
    - Includes `"opponentUsedDeepCover"` in player state JSON
 
-#### Frontend (TypeScript/Phaser)
+#### stitch-frontend (TypeScript/Phaser)
 1. **Type Definition** - Added to `PlayerState` interface:
-   - File: `frontend/src/types/Messages.ts`
+   - File: `stitch-stitch-frontend/src/types/Messages.ts`
    - `opponentUsedDeepCover: boolean`
 
 2. **Mock Client Updated**:
-   - File: `frontend/src/network/MockNetworkClient.ts`
+   - File: `stitch-stitch-frontend/src/network/MockNetworkClient.ts`
    - Initialized with `opponentUsedDeepCover: false`
 
 3. **UI Implementation** - In `GameScene.ts`:
@@ -60,7 +60,7 @@ A 2-player match was created and the initial MATCH_STATE correctly includes the 
 
 1. **Start servers:**
    ```bash
-   npm run dev              # Frontend on http://localhost:5174
+   npm run dev              # stitch-frontend on http://localhost:5174
    cd backend/build && ./two_spies_server 8080 4  # Backend
    ```
 
@@ -97,10 +97,10 @@ showOpponentDeepCoverBanner() displays notification toast
 - `backend/src/game/GameState.cpp` - Set/clear flag logic
 - `backend/src/protocol/Messages.cpp` - JSON serialization
 
-**Frontend:**
-- `frontend/src/types/Messages.ts` - Type definition
-- `frontend/src/game/scenes/GameScene.ts` - UI implementation
-- `frontend/src/network/MockNetworkClient.ts` - Mock data
+**stitch-frontend:**
+- `stitch-stitch-frontend/src/types/Messages.ts` - Type definition
+- `stitch-stitch-frontend/src/game/scenes/GameScene.ts` - UI implementation
+- `stitch-stitch-frontend/src/network/MockNetworkClient.ts` - Mock data
 
 ### Current Testing
 
@@ -122,5 +122,5 @@ showOpponentDeepCoverBanner() displays notification toast
 If notifications don't appear:
 - Check browser console (F12) for JavaScript errors
 - Check server logs: `tail /tmp/server.log`
-- Check frontend logs: `tail /tmp/vite.log`
+- Check stitch-frontend logs: `tail /tmp/vite.log`
 - Verify WebSocket messages are being received (DevTools Network tab, WS filter)

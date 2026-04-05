@@ -172,7 +172,7 @@ void Match::handle_action(...) {
 ### New `TURN_CHANGE` Message Format
 
 ```typescript
-// Frontend type definition
+// stitch-frontend type definition
 interface TurnChangeMessage {
   type: 'TURN_CHANGE',
   sessionId: string,
@@ -246,7 +246,7 @@ make
 
 ## Rebuild Instructions
 
-Backend changes only (no database, no frontend messaging changes yet):
+Backend changes only (no database, no stitch-frontend messaging changes yet):
 
 ```bash
 ./scripts/rebuild-backend.sh

@@ -38,9 +38,9 @@ Client                          Server
 
 | Path | Purpose |
 |---|---|
-| `frontend/src/game/` | Phaser scenes, entities, game config |
-| `frontend/src/ui/` | React components, pages, hooks |
-| `frontend/src/network/` | WebSocket client wrapper |
+| `stitch-frontend/src/game/` | Phaser scenes, entities, game config |
+| `stitch-frontend/src/ui/` | React components, pages, hooks |
+| `stitch-frontend/src/network/` | WebSocket client wrapper |
 | `backend/src/game/` | Rules engine, state machine |
 | `backend/src/network/` | WebSocket server, session handling |
 | `backend/src/protocol/` | Message parsing and serialization |

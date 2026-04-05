@@ -31,7 +31,7 @@
 - Server message types: `MATCH_START`, `MATCH_STATE`, `GAME_OVER`, `ERROR`
 
 **Configuration**
-- [DefaultMap.hpp](backend/include/config/DefaultMap.hpp) — Cold War Europe city graph (mirrors frontend)
+- [DefaultMap.hpp](backend/include/config/DefaultMap.hpp) — Cold War Europe city graph (mirrors stitch-frontend)
 - 16 cities, 25 edges, bonus/pickup cities
 
 **Testing**
@@ -42,26 +42,26 @@
 - CMake 3.16+ with nlohmann-json and Boost dependency management
 - Static library target for code reuse in tests
 
-### Frontend (TypeScript + Phaser 3)
+### stitch-frontend (TypeScript + Phaser 3)
 
 **Networking Layer**
-- [WebSocketClient](frontend/src/network/WebSocketClient.ts) — real server connection (extends EventEmitter)
+- [WebSocketClient](stitch-frontend/src/network/WebSocketClient.ts) — real server connection (extends EventEmitter)
 - Automatic fallback to MockNetworkClient if server unavailable
-- Factory pattern in [NetworkClient.ts](frontend/src/network/NetworkClient.ts)
+- Factory pattern in [NetworkClient.ts](stitch-frontend/src/network/NetworkClient.ts)
 
 **UI/Scenes**
-- [GameScene](frontend/src/game/scenes/GameScene.ts) — main gameplay with HUD
-- [LobbyScene](frontend/src/game/scenes/LobbyScene.ts) — matchmaking UI
-- [BootScene](frontend/src/game/scenes/BootScene.ts) — asset preload
+- [GameScene](stitch-frontend/src/game/scenes/GameScene.ts) — main gameplay with HUD
+- [LobbyScene](stitch-frontend/src/game/scenes/LobbyScene.ts) — matchmaking UI
+- [BootScene](stitch-frontend/src/game/scenes/BootScene.ts) — asset preload
 - Action buttons: MOVE, STRIKE, END TURN
 
 **Rendering**
-- [BoardRenderer](frontend/src/game/entities/BoardRenderer.ts) — city graph visualization
+- [BoardRenderer](stitch-frontend/src/game/entities/BoardRenderer.ts) — city graph visualization
 - City nodes, edges, player marker, adjacency highlighting
 - Normalized 0–1 coordinates scaled to canvas
 
 **Message Types**
-- [Messages.ts](frontend/src/types/Messages.ts) — shared enums and interfaces
+- [Messages.ts](stitch-frontend/src/types/Messages.ts) — shared enums and interfaces
 - Type-safe player state, map definitions, action payloads
 
 ---
@@ -94,9 +94,9 @@
 ```bash
 ✅ Backend builds cleanly (no warnings/errors)
 ✅ All 9 unit tests pass
-✅ Frontend TypeScript compiles (strict mode)
+✅ stitch-frontend TypeScript compiles (strict mode)
 ✅ WebSocket server starts and listens on port 8080
-✅ Frontend connects to backend via WebSocket
+✅ stitch-frontend connects to backend via WebSocket
 ✅ Two browsers can pair and start a match
 ```
 
@@ -129,10 +129,10 @@
 - [backend/include/network/WebSocketServer.hpp](backend/include/network/WebSocketServer.hpp) — 50 lines, server skeleton
 - [backend/src/protocol/Messages.cpp](backend/src/protocol/Messages.cpp) — 100 lines, JSON serialization
 
-### Key Frontend Files
-- [frontend/src/network/WebSocketClient.ts](frontend/src/network/WebSocketClient.ts) — 70 lines, real client
-- [frontend/src/App.tsx](frontend/src/App.tsx) — network client factory
-- [frontend/src/game/scenes/GameScene.ts](frontend/src/game/scenes/GameScene.ts) — main UI
+### Key stitch-frontend Files
+- [stitch-frontend/src/network/WebSocketClient.ts](stitch-frontend/src/network/WebSocketClient.ts) — 70 lines, real client
+- [stitch-frontend/src/App.tsx](stitch-frontend/src/App.tsx) — network client factory
+- [stitch-frontend/src/game/scenes/GameScene.ts](stitch-frontend/src/game/scenes/GameScene.ts) — main UI
 
 ### Documentation
 - [README.md](README.md) — full setup guide

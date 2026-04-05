@@ -129,10 +129,10 @@ Container (fixed inset-0, with background)
 
 ```bash
 # Start dev server in one terminal
-cd frontend && npm run dev
+cd stitch-frontend && npm run dev
 
 # Run tests in another terminal
-cd frontend && npx playwright test e2e/codename-authorization-terminal.spec.ts
+cd stitch-frontend && npx playwright test e2e/codename-authorization-terminal.spec.ts
 
 # Run with UI
 npx playwright test --ui

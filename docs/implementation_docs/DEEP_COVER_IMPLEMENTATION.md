@@ -110,9 +110,9 @@ All tests pass successfully (pre-existing test_city_scheduling_at_action_4 failu
 
 ---
 
-## Frontend Notes
+## stitch-frontend Notes
 
-The frontend UI buttons for Deep Cover need to be added to the game scene to fully test the feature. The backend is ready and properly implements:
+The stitch-frontend UI buttons for Deep Cover need to be added to the game scene to fully test the feature. The backend is ready and properly implements:
 
 - Deep Cover ability button detection
 - Ability cost checking and deduction
@@ -132,7 +132,7 @@ The frontend UI buttons for Deep Cover need to be added to the game scene to ful
 
 ## Next Steps
 
-1. **Frontend UI**: Add Deep Cover and other ability buttons to GameScene
+1. **stitch-frontend UI**: Add Deep Cover and other ability buttons to GameScene
 2. **Playwright Tests**: Enhance browser test as UI components are added
 3. **Other Abilities**: Implement remaining TBD abilities (Encryption, Strike Report, Rapid Recon, Prep Mission)
 4. **Playtesting**: Validate Deep Cover balance (30 Intel cost appears reasonable)
@@ -152,7 +152,7 @@ The frontend UI buttons for Deep Cover need to be added to the game scene to ful
 - `../../tests/test-deep-cover-ws.js` - WebSocket-based test
 - `../../tests/test-deep-cover.js` - Playwright browser test
 
-## Frontend UI - Deep Cover Button
+## stitch-frontend UI - Deep Cover Button
 
 ### Update
 Button index 3 in the action bar now properly implements Deep Cover:
@@ -162,11 +162,11 @@ Button index 3 in the action bar now properly implements Deep Cover:
 - **Feedback:** Shows "Using Deep Cover ability... You are now invisible!" message
 
 ### Code Changes
-- **File:** `frontend/src/game/scenes/GameScene.ts` (lines 380-391)
+- **File:** `stitch-stitch-frontend/src/game/scenes/GameScene.ts` (lines 380-391)
 - **Action:** Replaced stub implementation with full Deep Cover logic
 - **Integration:** Uses existing button system, AbilityId enum, and network client
 
-### Frontend Type Support
+### stitch-frontend Type Support
 - `AbilityId.DEEP_COVER` enum already defined in Messages.ts
 - `ActionKind.ABILITY` already supported for ability actions
 - `ClientMessageType.PLAYER_ACTION` already handles ability dispatch

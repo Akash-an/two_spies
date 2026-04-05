@@ -30,11 +30,11 @@ cmake --build .
 
 ---
 
-## Run Frontend
+## Run stitch-frontend
 
 **New terminal:**
 ```bash
-cd frontend
+cd stitch-frontend
 npm install
 npm run dev
 ```

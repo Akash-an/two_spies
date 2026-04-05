@@ -38,13 +38,14 @@ Trigger this skill when:
   - Error messages and exceptions
   - Validation failures
 
-### Frontend (Vite Dev Server)
-- **Path**: `frontend/vite.log`
+### stitch-frontend (stitch-stitch-frontend Vite Dev Server)
+- **Path**: `stitch-stitch-frontend/vite.log`
 - **Contains**:
-  - Vite dev server startup
+  - Vite dev server startup (port 5173)
   - TypeScript compilation errors
+  - React component hot reload activity
   - Module resolution issues
-  - Hot module replacement (HMR) activity
+  - Tailwind CSS build warnings
   - Build errors
 
 ### Process IDs
@@ -58,16 +59,16 @@ Trigger this skill when:
 
 Ask yourself:
 - Is it a connection issue? → Check both logs
-- Is it a compilation issue? → Check frontend log
+- Is it a compilation issue? → Check stitch-frontend log
 - Is it a game logic issue? → Check backend log
-- Is it a UI rendering issue? → Check browser console + frontend log
+- Is it a UI rendering issue? → Check browser console + stitch-frontend log
 
 ### Step 2: Read the Relevant Log
 
 ```bash
 # View full log
 cat backend/server.log
-cat frontend/vite.log
+cat stitch-stitch-frontend/vite.log
 
 # View last N lines
 tail -n 50 backend/server.log
@@ -96,7 +97,7 @@ Common error patterns:
 - `Validation failed` → Client sent invalid game action
 - `Match not found` → Session/match lifecycle issue
 
-**Frontend**:
+**stitch-frontend**:
 - `ECONNREFUSED` → Backend server not running
 - `Module not found` → Missing dependency or wrong import path
 - `Type error` → TypeScript compilation failure
@@ -137,7 +138,7 @@ lsof -i :8080
 tail -n 100 backend/server.log
 ```
 
-### Scenario: Frontend Can't Connect
+### Scenario: stitch-frontend Can't Connect
 
 ```bash
 # Verify backend is running
@@ -146,11 +147,11 @@ ps aux | grep two_spies_server
 # Check backend log for connection attempts
 tail -f backend/server.log
 
-# Check frontend log for connection errors
-tail -f frontend/vite.log
+# Check stitch-frontend log for connection errors
+tail -f stitch-stitch-frontend/vite.log
 
 # Verify WebSocket URL is correct
-grep -r "ws://" frontend/src/
+grep -r "ws://" stitch-stitch-frontend/src/
 ```
 
 ### Scenario: Game State Desync
@@ -170,13 +171,13 @@ grep "PLAYER_ACTION" backend/server.log
 
 ```bash
 # Check compilation errors
-cat frontend/vite.log
+cat stitch-stitch-frontend/vite.log
 
 # Check C++ build errors
 cat backend/server.log
 
 # Verify dependencies
-cd frontend && npm list
+cd stitch-stitch-frontend && npm list
 ```
 
 ---
@@ -197,7 +198,7 @@ For long debugging sessions:
 ```bash
 # Archive old logs
 mv backend/server.log backend/server.log.old
-mv frontend/vite.log frontend/vite.log.old
+mv stitch-stitch-frontend/vite.log stitch-stitch-frontend/vite.log.old
 
 # Restart services to create fresh logs
 ./scripts/rebuild-all.sh
@@ -208,7 +209,7 @@ mv frontend/vite.log frontend/vite.log.old
 ```bash
 # Monitor both logs simultaneously (in separate terminals)
 tail -f backend/server.log
-tail -f frontend/vite.log
+tail -f stitch-stitch-frontend/vite.log
 
 # Or use split terminal with tmux/screen
 ```
@@ -228,7 +229,7 @@ tail -f frontend/vite.log
 1. **Check logs before asking for help** - The answer is often in the logs
 2. **Read recent entries first** - Use `tail` instead of `cat` for large logs
 3. **Search systematically** - Use grep with relevant keywords
-4. **Correlate timestamps** - Match frontend and backend log entries by time
+4. **Correlate timestamps** - Match stitch-frontend and backend log entries by time
 5. **Clear logs when confused** - Start fresh if logs are too cluttered
 6. **Add logging during development** - Log important state transitions
 7. **Keep logs during debugging** - Don't delete until issue is resolved

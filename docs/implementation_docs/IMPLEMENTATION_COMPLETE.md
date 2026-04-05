@@ -36,7 +36,7 @@ If a player is in a city when it disappears:
 
 ### Visual Indicators
 
-**Frontend Rendering:**
+**stitch-frontend Rendering:**
 - **Disappeared cities:** Greyed out (30% opacity) with red X overlay
 - **Scheduled disappearing city:** Pulsing gold border that pulses every 600ms
 - **Edges:** Automatically hidden if connected to any disappeared city
@@ -81,9 +81,9 @@ result["disappearedCities"] = [array of disappeared city IDs];
 result["isPlayerStranded"] = state.is_player_stranded(for_player);
 ```
 
-### Frontend Changes (TypeScript + Phaser 3)
+### stitch-frontend Changes (TypeScript + Phaser 3)
 
-**File: `frontend/src/types/Messages.ts`**
+**File: `stitch-frontend/src/types/Messages.ts`**
 ```typescript
 interface MatchState {
   // ...existing fields...
@@ -93,14 +93,14 @@ interface MatchState {
 }
 ```
 
-**File: `frontend/src/game/scenes/GameScene.ts`**
+**File: `stitch-frontend/src/game/scenes/GameScene.ts`**
 - **`updateActionButtons()`:** Now checks `isPlayerStranded` flag
   - Strike, Locate, Wait buttons disabled when stranded
   - Move button remains enabled
   - Visual feedback: buttons are dimmed with `#555566` label color
 - **Button Click Handlers:** Added early return with error message if stranded
 
-**File: `frontend/src/game/entities/BoardRenderer.ts`**
+**File: `stitch-frontend/src/game/entities/BoardRenderer.ts`**
 - **`CitySprite` Interface:** Added optional fields for visual overlays
   ```typescript
   disappearedOverlay?: Phaser.GameObjects.Graphics;    // red X overlay
@@ -115,7 +115,7 @@ interface MatchState {
   - Adds/removes scheduled city pulse rings as scheduling changes
   - Uses tweens for smooth pulsing animation
 
-**File: `frontend/src/network/MockNetworkClient.ts`**
+**File: `stitch-frontend/src/network/MockNetworkClient.ts`**
 - Updated mock state initialization to include new fields:
   ```typescript
   disappearedCities: [];
@@ -147,7 +147,7 @@ Server started (PID 60299).
 Listening on ws://localhost:8080
 ```
 
-**Frontend:**
+**stitch-frontend:**
 ```
 VITE v5.4.21  ready in 171 ms
 Local:   http://localhost:5173/
@@ -161,7 +161,7 @@ Local:   http://localhost:5173/
 ### System Status ✅
 
 - **Backend Server:** Running on `ws://localhost:8080`
-- **Frontend Dev Server:** Running on `http://localhost:5173`
+- **stitch-frontend Dev Server:** Running on `http://localhost:5173`
 - **Both Services:** Successfully communicating
 - **Logs:** No errors or warnings
 
@@ -241,10 +241,10 @@ To test the disappearing cities mechanic:
 | `backend/include/game/GameState.hpp` | Header | Added action counter, disappeared cities tracking |
 | `backend/src/game/GameState.cpp` | Source | Implemented counter logic, stranded validation |
 | `backend/src/protocol/Messages.cpp` | Source | Serialized new state fields |
-| `frontend/src/types/Messages.ts` | Types | Extended MatchState interface |
-| `frontend/src/game/scenes/GameScene.ts` | Scene | Updated button disable logic |
-| `frontend/src/game/entities/BoardRenderer.ts` | Renderer | Added visual overlays, edge filtering |
-| `frontend/src/network/MockNetworkClient.ts` | Mock | Updated mock state initialization |
+| `stitch-frontend/src/types/Messages.ts` | Types | Extended MatchState interface |
+| `stitch-frontend/src/game/scenes/GameScene.ts` | Scene | Updated button disable logic |
+| `stitch-frontend/src/game/entities/BoardRenderer.ts` | Renderer | Added visual overlays, edge filtering |
+| `stitch-frontend/src/network/MockNetworkClient.ts` | Mock | Updated mock state initialization |
 | `docs/game_design/game_design_doc.md` | Docs | Added Section 4, renumbered sections |
 
 ---
@@ -277,7 +277,7 @@ To test the disappearing cities mechanic:
 - [x] Code compiles cleanly (no warnings)
 - [x] TypeScript type-checks cleanly
 - [x] All services running without errors
-- [x] Frontend renders disappeared cities correctly
+- [x] stitch-frontend renders disappeared cities correctly
 - [x] Backend validates stranded players
 - [x] Documentation updated
 - [x] Protocol messages updated

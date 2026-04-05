@@ -5,7 +5,7 @@
 A browser-based multiplayer strategy game of espionage. Two players move secretly between connected cities, gather intelligence, and try to locate and eliminate the opponent's spy.
 
 **Tech Stack:**
-- **Frontend:** Phaser 3 + TypeScript + React
+- **stitch-frontend:** React 18 + TypeScript + Tailwind CSS (stitch-stitch-frontend/)
 - **Backend:** C++17 + Boost.Asio/Beast WebSocket server
 - **Protocol:** JSON over WebSocket
 - **Architecture:** Server-authoritative, turn-based, deterministic
@@ -14,11 +14,14 @@ A browser-based multiplayer strategy game of espionage. Two players move secretl
 
 ```
 two_spies/
-├── frontend/              # Phaser 3 game client (TypeScript)
+├── stitch-stitch-frontend/       # React + Tailwind game client (main stitch-frontend)
 │   ├── src/
-│   │   ├── game/          # Game scenes, entities, config
-│   │   ├── network/       # WebSocket client (real + mock)
-│   │   └── types/         # Message types
+│   │   ├── components/    # React components (organized by feature)
+│   │   ├── network/       # WebSocket client
+│   │   ├── types/         # Message types
+│   │   └── styles/        # Global styles
+│   ├── stitch-html/       # Design reference
+│   ├── screenshots/       # Testing assets
 │   ├── package.json
 │   └── vite.config.ts
 ├── backend/               # C++ WebSocket server
@@ -46,7 +49,7 @@ two_spies/
 # C++ build tools
 brew install cmake boost nlohmann-json openssl
 
-# Node.js for frontend
+# Node.js for stitch-frontend
 brew install node
 ```
 
@@ -122,16 +125,16 @@ Server is now listening at `ws://localhost:8080`
 
 ---
 
-## Frontend Setup & Run
+## stitch-frontend Setup & Run
 
 ### 1. Install Dependencies
 ```bash
-cd frontend
+cd stitch-stitch-frontend
 npm install
 ```
 
 ### 2. Configure Backend URL (optional)
-Edit [frontend/src/App.tsx](frontend/src/App.tsx):
+Edit [stitch-stitch-frontend/src/main.tsx](stitch-stitch-frontend/src/main.tsx):
 ```typescript
 const USE_REAL_SERVER = true;        // true = connect to C++ backend
 const WS_URL = 'ws://localhost:8080'; // backend URL
@@ -172,9 +175,9 @@ cd backend/build
 ./two_spies_server 8080
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2 — stitch-frontend:**
 ```bash
-cd frontend
+cd stitch-stitch-frontend
 npm run dev
 ```
 
@@ -192,10 +195,10 @@ cd backend/build
 ./two_spies_server 0.0.0.0 8080  # listen on all interfaces
 ```
 
-**On Machine B (Frontend):**
+**On Machine B (stitch-frontend):**
 ```bash
-cd frontend
-# Edit src/App.tsx to use Machine A's IP:
+cd stitch-stitch-frontend
+# Edit src/main.tsx to use Machine A's IP:
 # const WS_URL = 'ws://machine-a-ip:8080';
 npm run dev
 ```
@@ -217,11 +220,10 @@ npm run dev
 - [Session.hpp](backend/include/network/Session.hpp) — per-connection handler
 - [Messages.hpp](backend/include/protocol/Messages.hpp) — JSON serialization
 
-**Frontend UI** (TypeScript)
-- [GameScene.ts](frontend/src/game/scenes/GameScene.ts) — main gameplay
-- [BoardRenderer.ts](frontend/src/game/entities/BoardRenderer.ts) — city graph rendering
-- [WebSocketClient.ts](frontend/src/network/WebSocketClient.ts) — real server connection
-- [MockNetworkClient.ts](frontend/src/network/MockNetworkClient.ts) — offline testing
+**stitch-frontend UI** (TypeScript + React)
+- [SurveillanceCommandCenterGlobal.tsx](stitch-stitch-frontend/src/components/SurveillanceCommandCenterGlobal/SurveillanceCommandCenterGlobal.tsx) — main game interface
+- [CodenameAuthorizationTerminal.tsx](stitch-stitch-frontend/src/components/CodenameAuthorizationTerminal/CodenameAuthorizationTerminal.tsx) — name entry
+- [WebSocketClient.ts](stitch-stitch-frontend/src/network/WebSocketClient.ts) — real server connection
 
 ### Making Changes
 
@@ -234,13 +236,13 @@ npm run dev
    cmake --build . && ctest --output-on-failure
    ```
 
-**UI/Scenes (Frontend):**
-1. Edit TypeScript files in [frontend/src/](frontend/src/)
+**UI/Scenes (stitch-frontend):**
+1. Edit TypeScript/React files in [stitch-stitch-frontend/src/](stitch-stitch-frontend/src/)
 2. Changes hot-reload automatically in dev mode
 3. Check for type errors: `npm run build`
 
 **Message Protocol:**
-1. Update enum/struct in [Messages.ts](frontend/src/types/Messages.ts) (frontend)
+1. Update enum/struct in [Messages.ts](stitch-stitch-frontend/src/types/Messages.ts) (stitch-frontend)
 2. Update enum/struct in [Messages.hpp](backend/include/protocol/Messages.hpp) (backend)
 3. Update parser in [Messages.cpp](backend/src/protocol/Messages.cpp)
 
@@ -257,10 +259,10 @@ brew upgrade boost
 cmake .. -CMAKE_PREFIX_PATH=/opt/homebrew/opt/boost
 ```
 
-### Frontend won't connect to backend
+### stitch-frontend won't connect to backend
 - Ensure backend is running: `ps aux | grep two_spies_server`
 - Check port 8080 is listening: `lsof -i :8080`
-- Verify `WS_URL` in [App.tsx](frontend/src/App.tsx) is correct
+- Verify `WS_URL` in [main.tsx](stitch-stitch-frontend/src/main.tsx) is correct
 - Check browser console for errors (F12 → Console tab)
 
 ### "Match not full" / "Not in a match" errors
@@ -277,10 +279,17 @@ lsof -i :8080 | grep LISTEN | awk '{print $2}' | xargs kill -9
 
 ## Documentation
 
+### Architecture & Design
 - [AGENTS.md](AGENTS.md) — architecture rules for AI agents
 - [Architecture](docs/architecture.md) — system design (WIP)
 - [Game Design Doc](docs/game_design/game_design_doc.md) — rules, abilities, turn structure
 - [Requirements](Requirements.md) — feature specification
+
+### Protocol & Integration (Backend ↔ stitch-frontend)
+- **[Protocol Documentation Index](docs/protocol/README.md)** — choose the right reference for your task
+- [Backend ↔ stitch-frontend Interactions](docs/protocol/backend-stitch-frontend-interactions.md) — complete message reference
+- [Quick Reference](docs/protocol/QUICK_REFERENCE.md) — message tables, quick lookup
+- [Integration Guide](docs/protocol/INTEGRATION_GUIDE.md) — detailed flows and code examples
 
 ---
 
@@ -291,8 +300,8 @@ lsof -i :8080 | grep LISTEN | awk '{print $2}' | xargs kill -9
 - `backend/build/tests/unit_tests` — unit tests
 - `backend/build/libtwo_spies_lib.a` — game logic library
 
-**Frontend:**
-- `frontend/dist/` — production build (run `npm run build`)
+**stitch-frontend:**
+- `stitch-frontend/dist/` — production build (run `npm run build`)
 
 ---
 

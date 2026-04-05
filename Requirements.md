@@ -9,7 +9,7 @@
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [Frontend Requirements](#2-frontend-requirements)
+2. [stitch-frontend Requirements](#2-stitch-frontend-requirements)
 3. [Backend Requirements](#3-backend-requirements)
 4. [Game Architecture](#4-game-architecture)
 5. [Development Environment](#5-development-environment)
@@ -23,7 +23,7 @@
 
 ## 1. Overview
 
-This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D frontend rendered with Phaser and a real-time multiplayer backend written in C++ communicating over WebSockets.
+This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D stitch-frontend rendered with Phaser and a real-time multiplayer backend written in C++ communicating over WebSockets.
 
 **Goals:**
 
@@ -33,13 +33,13 @@ This document defines the technical requirements for porting the Two Spies board
 
 ---
 
-## 2. Frontend Requirements
+## 2. stitch-frontend Requirements
 
 ### 2.1 Game Engine
 
 - **Phaser 3** (TypeScript) is the required rendering engine.
 - Must handle rendering, animations, user input, and audio.
-- The Phaser canvas must be embeddable within a component-based frontend framework view.
+- The Phaser canvas must be embeddable within a component-based stitch-frontend framework view.
 
 ### 2.2 Networking
 
@@ -106,7 +106,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 ### 4.1 Authoritative Backend
 
 - The backend is the single source of truth for all game state.
-- The frontend sends player actions; the backend validates them and computes state transitions.
+- The stitch-frontend sends player actions; the backend validates them and computes state transitions.
 - Clients must not be trusted to self-report game outcomes.
 
 ### 4.2 Turn-Based Session Model
@@ -121,7 +121,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 ### 5.1 Local Setup
 
 - The WebSocket server must be runnable locally on a configurable port.
-- The frontend must support hot reload during development.
+- The stitch-frontend must support hot reload during development.
 - The browser client must connect to a local WebSocket endpoint specified via environment configuration.
 
 ### 5.2 Tools and Libraries Summary
@@ -129,7 +129,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 | Category | Tool / Library |
 |---|---|
 | Rendering | Phaser 3 |
-| Frontend Framework | Angular or React |
+| stitch-frontend Framework | Angular or React |
 | Client Networking | Browser WebSocket API |
 | Backend Server | Boost.Beast or uWebSockets |
 | Build System | CMake 3.x |
@@ -154,7 +154,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 
 ## 7. Deployment
 
-- **Frontend:** Static assets (HTML, JS, CSS) served via CDN or static hosting (e.g., Netlify, Vercel).
+- **stitch-frontend:** Static assets (HTML, JS, CSS) served via CDN or static hosting (e.g., Netlify, Vercel).
 - **Backend:** C++ WebSocket server deployed on a cloud VM or container service (e.g., AWS, DigitalOcean).
 - All traffic must use **HTTPS** and **WSS** in production.
 
@@ -181,7 +181,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 
 ## 9. Deliverables
 
-- Frontend game client built with Phaser (TypeScript)
+- stitch-frontend game client built with Phaser (TypeScript)
 - C++ WebSocket server implementing the rules engine and match handling
 - Formal protocol specification defining all message schemas
 - CI/CD pipeline for automated testing and deployment
