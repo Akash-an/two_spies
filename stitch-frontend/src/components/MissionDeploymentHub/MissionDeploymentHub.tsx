@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface MissionDeploymentHubProps {
   operativeName?: string;
@@ -10,12 +10,13 @@ export interface MissionDeploymentHubProps {
   intelUpdate?: string;
   threatLevel?: string;
   environment?: string;
-  onInitiateOperation?: (frequency: string) => void;
+  onInitiateOperation?: () => void;
   onLinkToNetwork?: (frequency: string) => void;
   onTerminateLink?: () => void;
   latitude?: string;
   longitude?: string;
   logs?: string[];
+  matchCode?: string | null;
   className?: string;
   loading?: boolean;
 }
@@ -35,20 +36,30 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   onTerminateLink,
   latitude = '52.5200° N',
   longitude = '13.4050° E',
+  matchCode = null,
   // logs = [],
   className = '',
   loading = false,
 }) => {
-  const [generatedFrequency, setGeneratedFrequency] = useState<string | null>(null);
   const [showGeneratedFrequencyModal, setShowGeneratedFrequencyModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkedFrequency, setLinkedFrequency] = useState('');
 
-  const generateFrequency = () => {
-    const freq = String(Math.floor(1000 + Math.random() * 9000));
-    setGeneratedFrequency(freq);
-    setShowGeneratedFrequencyModal(true);
-    onInitiateOperation?.(freq);
+  // Show modal when matchCode is received from backend
+  useEffect(() => {
+    console.log('[MissionDeploymentHub] useEffect triggered');
+    console.log('[MissionDeploymentHub] matchCode prop:', matchCode, '(type:', typeof matchCode, ')');
+    if (matchCode) {
+      console.log('[MissionDeploymentHub] ✓ Match code received:', matchCode);
+      console.log('[MissionDeploymentHub] Setting showGeneratedFrequencyModal to true');
+      setShowGeneratedFrequencyModal(true);
+    } else {
+      console.log('[MissionDeploymentHub] ✗ No matchCode, not showing modal');
+    }
+  }, [matchCode]);
+
+  const handleInitiateOperation = () => {
+    onInitiateOperation?.();
   };
 
   const handleLinkSubmit = () => {
@@ -153,7 +164,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
             <div className="group relative">
               <div className="absolute -inset-1 bg-primary/20 blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
               <button
-                onClick={generateFrequency}
+                onClick={handleInitiateOperation}
                 disabled={loading}
                 className="relative w-full aspect-video bg-surface-container-high/40 backdrop-blur-xl border border-primary/20 hover:border-primary/60 transition-all group active:scale-95 p-8 flex flex-col items-center justify-center gap-6 disabled:opacity-50 rounded-lg"
               >
@@ -318,7 +329,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       )}
 
       {/* Generated Frequency Modal */}
-      {showGeneratedFrequencyModal && generatedFrequency && (
+      {showGeneratedFrequencyModal && matchCode && (
         <div className="fixed inset-0 z-[1001] flex items-center justify-center">
           {/* Backdrop */}
           <div
@@ -350,7 +361,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
                 </h3>
                 <div className="my-4 h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto" />
                 <div className="text-8xl font-['Space_Grotesk'] font-black text-primary tracking-tighter drop-shadow-[0_0_15px_rgba(0,255,255,0.8)] mb-4">
-                  {generatedFrequency}
+                  {matchCode}
                 </div>
                 <div className="my-4 h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto" />
                 <p className="text-[10px] font-['JetBrains_Mono'] text-primary/50 uppercase tracking-widest">

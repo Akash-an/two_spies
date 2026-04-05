@@ -1,6 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import './SurveillanceCommandCenterGlobalMap.css';
-const SurveillanceCommandCenterGlobalMap = ({ mapImageUrl, cities = [], selectedCityId, onSelectCity, logs = [], className = '', }) => {
-    return (_jsxs("div", { className: `surv-map p-6 ${className}`, children: [_jsx("h3", { className: "text-lg font-headline mb-3", children: "SURVEILLANCE COMMAND CENTER \u2014 GLOBAL MAP" }), _jsx("div", { className: "map-wrapper", children: mapImageUrl ? (_jsx("div", { className: "map", style: { backgroundImage: `url(${mapImageUrl})` }, children: cities.map((c) => (_jsx("button", { className: `city-marker ${selectedCityId === c.id ? 'selected' : ''}`, style: { left: `${c.x}%`, top: `${c.y}%` }, onClick: () => onSelectCity?.(c.id), title: c.name }, c.id))) })) : (_jsx("div", { className: "map placeholder", children: "Map not available" })) }), _jsx("div", { className: "mt-4 terminal-log", children: logs.length === 0 ? (_jsx("div", { className: "text-muted", children: "No surveillance updates" })) : (logs.map((l, i) => (_jsx("div", { className: "terminal-line", children: l }, i)))) })] }));
-};
-export default SurveillanceCommandCenterGlobalMap;

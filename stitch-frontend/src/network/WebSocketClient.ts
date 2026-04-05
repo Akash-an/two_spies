@@ -35,11 +35,11 @@ export class WebSocketClient extends EventEmitter {
       this.ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data as string) as ServerMessage;
-          console.info('[WS] ← Received:', msg.type, msg);
+          console.info('[WS] ← Received:', msg.type, JSON.stringify(msg));
           this.emit(msg.type, msg);
           this.emit('message', msg);
         } catch (err) {
-          console.error('[WS] Failed to parse message:', err);
+          console.error('[WS] Failed to parse message:', err, 'Raw data:', event.data);
         }
       };
 

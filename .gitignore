@@ -1,13 +1,18 @@
 # -----------------------------------------------
 # Frontend (Node / Vite)
 # -----------------------------------------------
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/.env
-frontend/.env.local
-frontend/.env.*.local
-frontend/vite.log
+stitch-frontend/node_modules/
+stitch-frontend/dist/
+stitch-frontend/.vite/
+stitch-frontend/.env
+stitch-frontend/.env.local
+stitch-frontend/.env.*.local
+stitch-frontend/vite.log
+
+# Block compiled JS artifacts from being committed alongside TypeScript source.
+# The tsconfig has noEmit:true so these should never appear in src/, but guard anyway.
+stitch-frontend/src/**/*.js
+stitch-frontend/vite.config.js
 node_modules/
 
 # -----------------------------------------------

@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import CodenameAuthorizationTerminal from './CodenameAuthorizationTerminal';
-import MissionDeploymentHub from './MissionDeploymentHub';
-import SurveillanceCommandCenterGlobal from './SurveillanceCommandCenterGlobal';
+import CodenameAuthorizationTerminal from './components/CodenameAuthorizationTerminal/CodenameAuthorizationTerminal';
+import MissionDeploymentHub from './components/MissionDeploymentHub/MissionDeploymentHub';
+import PhaserGame from './components/PhaserGame/PhaserGame';
 import { WebSocketClient } from './network/WebSocketClient';
 import { ClientMessageType, ServerMessageType } from './types/Messages';
-import './index.css';
+import './styles/index.css';
 
 type GamePhase = 'entering-name' | 'deployment' | 'playing';
 
@@ -15,6 +15,7 @@ function App() {
   const [playerName, setPlayerName] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [matchCode, setMatchCode] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
     'SCRUBBING METADATA...',
@@ -48,9 +49,30 @@ function App() {
           setLogs((p) => [...p, 'CONNECTION LOST']);
         });
 
+        // Generic message listener to debug all messages
+        client.on('message', (msg: any) => {
+          console.log('[App] Generic message handler - type:', msg.type);
+        });
+
         client.on(ServerMessageType.MATCH_CREATED, (msg: any) => {
-          console.log('[App] Match created:', msg);
-          setLogs((p) => [...p, `MATCH CREATED: Code ${(msg.payload as any)?.code}`]);
+          console.log('[App] *** MATCH_CREATED EVENT RECEIVED ***');
+          console.log('[App] Full message:', JSON.stringify(msg, null, 2));
+          console.log('[App] msg.payload:', msg.payload);
+          console.log('[App] msg.payload?.code:', msg.payload?.code);
+          
+          const code = (msg.payload as any)?.code;
+          console.log('[App] Extracted code:', code, '(type:', typeof code, ')');
+          
+          if (code) {
+            console.log('[App] Setting matchCode to:', code);
+            setMatchCode(code);
+            setLogs((p) => [...p, `MATCH CREATED: Code ${code}`]);
+          } else {
+            console.warn('[App] ⚠️  NO CODE FOUND IN PAYLOAD');
+          }
+          setIsLoading(false);
+          // Initiating player stays on deployment screen, waits for opponent
+          setLogs((p) => [...p, 'WAITING FOR OPPONENT TO JOIN...']);
         });
 
         client.on(ServerMessageType.WAITING_FOR_OPPONENT, (msg: any) => {
@@ -58,9 +80,20 @@ function App() {
           setLogs((p) => [...p, 'WAITING FOR OPPONENT...']);
         });
 
+        client.on(ServerMessageType.MATCH_START, (msg: any) => {
+          console.log('[App] Match started - both players ready:', msg);
+          setLogs((p) => [...p, 'MATCH STARTED - BOTH PLAYERS CONNECTED']);
+          setIsLoading(false);
+          // Both initiating and joining players transition to game
+          setTimeout(() => {
+            setPhase('playing');
+          }, 500);
+        });
+
         client.on(ServerMessageType.ERROR, (msg: any) => {
           console.error('[App] Server error:', msg);
-          setLogs((p) => [...p, `SERVER ERROR: ${(msg.payload as any)?.message}`]);
+          const errorMessage = (msg.payload as any)?.message || 'Unknown error';
+          setLogs((p) => [...p, `SERVER ERROR: ${errorMessage}`]);
           setIsLoading(false);
         });
 
@@ -110,12 +143,13 @@ function App() {
   //   setLogs((p) => [...p, `DEPLOYING UNIT: ${unitId}`]);
   // };
 
-  const handleInitiateOperation = (frequency: string) => {
-    console.log('[App] Frequency generated:', frequency);
-    setLogs((p) => [...p, `FREQUENCY GENERATED: ${frequency}`]);
-    // Send CREATE_MATCH to backend if needed
+  const handleInitiateOperation = () => {
+    console.log('[App] Initiating operation...');
+    setLogs((p) => [...p, 'INITIATING OPERATION...']);
+    setIsLoading(true);
+    // Send CREATE_MATCH to backend (backend will generate the code)
     if (netRef.current && netRef.current.isConnected()) {
-      netRef.current.send(ClientMessageType.CREATE_MATCH, { roomCode: frequency });
+      netRef.current.send(ClientMessageType.CREATE_MATCH, {});
     }
   };
 
@@ -125,13 +159,9 @@ function App() {
     setIsLoading(true);
     // Send JOIN_MATCH to backend
     if (netRef.current && netRef.current.isConnected()) {
-      netRef.current.send(ClientMessageType.JOIN_MATCH, { roomCode: frequency });
-      setTimeout(() => {
-        setIsLoading(false);
-        setLogs((p) => [...p, `CONNECTED TO FREQUENCY: ${frequency}`]);
-        // Transition to playing phase
-        setPhase('playing');
-      }, 1000);
+      netRef.current.send(ClientMessageType.JOIN_MATCH, { code: frequency });
+      setLogs((p) => [...p, `SEARCHING FOR FREQUENCY: ${frequency}`]);
+      // Wait for MATCH_START event from backend to transition to game
     } else {
       setLogs((p) => [...p, `ERROR: Not connected to server`]);
       setIsLoading(false);
@@ -168,52 +198,35 @@ function App() {
           latitude="52.5200° N"
           longitude="13.4050° E"
           logs={logs}
+          matchCode={matchCode}
           onInitiateOperation={handleInitiateOperation}
           onLinkToNetwork={handleLinkToNetwork}
           onTerminateLink={() => {
             console.log('[App] Terminate link');
             setPhase('entering-name');
             setPlayerName('');
+            setMatchCode(null);
             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
           }}
           loading={isLoading}
         />
       )}
 
-      {phase === 'playing' && (
-        <SurveillanceCommandCenterGlobal
+      {phase === 'playing' && netRef.current && (
+        <PhaserGame
           operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
-          sector="BERLIN_VOID"
-          location="Berlin"
-          coverLevel={92}
-          turnCycle="05/12"
-          latitude="52.5200° N"
-          longitude="13.4050° E"
-          cities={[
-            { id: 'nyc', name: 'NEW YORK CITY', x: 25, y: 35 },
-            { id: 'berlin', name: 'BERLIN_VOID', x: 48, y: 30, isActive: true, isAlly: true },
-            { id: 'london', name: 'LONDON', x: 44, y: 28 },
-            { id: 'tokyo', name: 'TOKYO', x: 85, y: 38 },
-            { id: 'moscow', name: 'MOSCOW', x: 58, y: 25 },
-            { id: 'cairo', name: 'CAIRO', x: 52, y: 45 },
-            { id: 'buenos-aires', name: 'BUENOS AIRES', x: 30, y: 80 },
-          ]}
-          logs={logs}
-          onSelectCity={(cityId) => {
-            console.log('[App] Selected city:', cityId);
-            setLogs((p) => [...p, `CITY SELECTED: ${cityId}`]);
-          }}
-          onInfiltrate={() => {
-            console.log('[App] Infiltrate');
-            setLogs((p) => [...p, 'INFILTRATING TARGET LOCATION...']);
+          playerName={playerName}
+          webSocketClient={netRef.current}
+          onGameEnd={() => {
+            console.log('[App] Game ended');
+            setPhase('deployment');
           }}
           onTerminateLink={() => {
-            console.log('[App] Terminate link');
+            console.log('[App] Terminate link from game');
             setPhase('entering-name');
             setPlayerName('');
             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
           }}
-          loading={isLoading}
         />
       )}
     </div>
