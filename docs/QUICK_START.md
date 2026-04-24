@@ -2,6 +2,8 @@
 
 Get the game running in 5 minutes.
 
+> **⚠️ IMPORTANT: Use `stitch-frontend/` not `frontend/`. The old `frontend/` directory is deprecated.**
+
 ## One-Time Setup
 
 ### macOS

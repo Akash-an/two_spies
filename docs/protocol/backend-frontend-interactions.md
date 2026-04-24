@@ -1,6 +1,8 @@
 # Backend ↔ stitch-frontend Interactions
 
-This document maps all protocol interactions between the **C++ backend** and the **stitch-frontend (Phaser/TypeScript)** for the Two Spies multiplayer game. It serves as a reference for migrating the old stitch-frontend to the new Stitch stitch-frontend.
+> **⚠️ TERMINOLOGY: "stitch-frontend" is the canonical client codebase (`stitch-frontend/`). The older `frontend/` directory is deprecated and no longer used. References to "frontend" in this document mean `stitch-frontend/`.**
+
+This document maps all protocol interactions between the **C++ backend** and the **stitch-frontend (React/TypeScript)** for the Two Spies multiplayer game.
 
 **Table of Contents:**
 1. [Connection Lifecycle](#connection-lifecycle)

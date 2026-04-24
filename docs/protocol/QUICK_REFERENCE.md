@@ -1,6 +1,8 @@
 # Backend ↔ stitch-frontend Protocol Quick Reference
 
-**For rapid lookup during Stitch stitch-frontend integration.**
+> **⚠️ TERMINOLOGY: "stitch-frontend" is the canonical client (`stitch-frontend/`). The older `frontend/` is deprecated and must not be used.**
+
+**For rapid lookup during stitch-frontend integration.**
 
 ---
 

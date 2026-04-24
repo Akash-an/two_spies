@@ -67,19 +67,21 @@ Game logic must never depend on networking code.
 
 ## 3.1 stitch-frontend
 
-**Main stitch-frontend is now `stitch-stitch-frontend/` — a production React + Tailwind + TypeScript project.**
+⚠️ **CANONICAL CLIENT:** As of 2026-04, **`stitch-frontend/` is the only frontend in active development. The old `frontend/` directory is DEPRECATED and must not be used.**
+
+**Main client is at `stitch-frontend/` — a production React + Tailwind + TypeScript project.**
 
 Tech stack:
 
 * React 18 + TypeScript
-* Tailwind CSS + Material Design
+* Tailwind CSS + Material Design + Cyberpunk styling
 * Vite (dev server + build)
-* Cyberpunk/neon aesthetic with Material Symbols
+* Phaser 3 (embedded for game canvas rendering)
 
 Structure:
 
 ```
-stitch-stitch-frontend/
+stitch-frontend/
   src/
     components/           # React components (one folder per component)
       CodenameAuthorizationTerminal/
@@ -88,6 +90,7 @@ stitch-stitch-frontend/
       SurveillanceCommandCenterGlobal/
       SurveillanceCommandCenterGlobalMap/
       WorldMapCanvas/
+      PhaserGame/         # Phaser canvas wrapper
     network/              # WebSocket client
       WebSocketClient.ts
       EventEmitter.ts
@@ -96,20 +99,26 @@ stitch-stitch-frontend/
     styles/               # Global styles
       index.css
     main.tsx              # React entry point
-  stitch-html/            # Design reference HTMLs
-  screenshots/            # Visual testing assets
-  tests/                  # Test files
+  screenshots/            # Testing assets
   vite.config.ts
   index.html
 ```
 
-Rules:
+**Key Rules:**
 
 * Components must be self-contained with their own .tsx and .css.
-* All networking goes through `WebSocketClient`.
+* All networking goes through `WebSocketClient.ts`.
 * Components emit events or use props callbacks for state changes.
 * No hardcoded message strings — use `ClientMessageType` enums.
-* Styling follows Tailwind utility classes with custom cyberpunk colors.
+* Styling follows Tailwind utility classes with cyberpunk colors.
+* **No compiled .js files in src/ (tsconfig has noEmit: true). Always edit .tsx/.ts source files.**
+
+**Old `frontend/` directory:**
+- ⚠️ Deprecated since 2026-04
+- Do NOT use for new development
+- Will be removed in a future release
+- Tests moved to `tests/stitch-frontend/`
+- Docs moved to `docs/stitch-frontend/`
 
 ---
 

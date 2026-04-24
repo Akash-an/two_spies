@@ -1,5 +1,7 @@
 # Protocol Documentation Index
 
+> **⚠️ TERMINOLOGY: "stitch-frontend" and "client" are used interchangeably. References to "frontend" always mean `stitch-frontend/`. The old `frontend/` directory is deprecated.**
+
 **Quick guide to finding the right protocol documentation for your task.**
 
 ---

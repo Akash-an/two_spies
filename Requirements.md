@@ -23,11 +23,13 @@
 
 ## 1. Overview
 
-This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D stitch-frontend rendered with Phaser and a real-time multiplayer backend written in C++ communicating over WebSockets.
+This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D frontend rendered with React and Phaser, and a real-time multiplayer backend written in C++ communicating over WebSockets.
+
+> **⚠️ IMPORTANT: As of 2026-04, "frontend" refers to `stitch-frontend/` exclusively. The older `frontend/` directory is deprecated and should not be used.**
 
 **Goals:**
 
-- Deliver a dynamic 2D game UI rendered in the browser using Phaser (TypeScript).
+- Deliver a dynamic 2D game UI rendered in the browser using React + TypeScript + stitch-frontend/src (Phaser for game scenes).
 - Support turn-based multiplayer gameplay via persistent WebSocket connections.
 - Implement an authoritative C++ backend responsible for game logic, session management, and state broadcast.
 
@@ -35,22 +37,19 @@ This document defines the technical requirements for porting the Two Spies board
 
 ## 2. stitch-frontend Requirements
 
-### 2.1 Game Engine
+### 2.1 Game Engine & UI Framework
 
-- **Phaser 3** (TypeScript) is the required rendering engine.
-- Must handle rendering, animations, user input, and audio.
-- The Phaser canvas must be embeddable within a component-based stitch-frontend framework view.
+- **React 18** + **TypeScript** is the primary framework (located at `stitch-frontend/`).
+- **Phaser 3** (TypeScript) is embedded for 2D game rendering and canvas control.
+- Must handle rendering, animations, user input, and interactions.
+- The Phaser canvas must be embeddable within React components.
 
 ### 2.2 Networking
 
 - Use the browser's native **WebSocket API** for server communication.
 - Connections must be persistent for the duration of a game session.
-- Messages must be encoded in **JSON** or a defined binary protocol.
-
-### 2.3 UI Framework (Optional)
-
-- **Angular** or **React** may be used for non-game UI surfaces (menus, lobby, settings, match lists).
-- The Phaser canvas must integrate cleanly as an embedded component within the chosen framework.
+- Messages must be encoded in **JSON**.
+- All networking logic centralized in `stitch-frontend/src/network/WebSocketClient.ts`
 
 ---
 

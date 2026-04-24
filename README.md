@@ -14,16 +14,16 @@ A browser-based multiplayer strategy game of espionage. Two players move secretl
 
 ```
 two_spies/
-├── stitch-stitch-frontend/       # React + Tailwind game client (main stitch-frontend)
+├── stitch-frontend/              # React + Tailwind game client (main client, replaces old frontend/)
 │   ├── src/
 │   │   ├── components/    # React components (organized by feature)
 │   │   ├── network/       # WebSocket client
 │   │   ├── types/         # Message types
 │   │   └── styles/        # Global styles
-│   ├── stitch-html/       # Design reference
 │   ├── screenshots/       # Testing assets
 │   ├── package.json
 │   └── vite.config.ts
+├── frontend/              # ⚠️ DEPRECATED — do not use. Use stitch-frontend instead.
 ├── backend/               # C++ WebSocket server
 │   ├── include/
 │   │   ├── game/          # GameState, Match, CityGraph
@@ -129,12 +129,12 @@ Server is now listening at `ws://localhost:8080`
 
 ### 1. Install Dependencies
 ```bash
-cd stitch-stitch-frontend
+cd stitch-frontend
 npm install
 ```
 
 ### 2. Configure Backend URL (optional)
-Edit [stitch-stitch-frontend/src/main.tsx](stitch-stitch-frontend/src/main.tsx):
+Edit [stitch-frontend/src/main.tsx](stitch-frontend/src/main.tsx):
 ```typescript
 const USE_REAL_SERVER = true;        // true = connect to C++ backend
 const WS_URL = 'ws://localhost:8080'; // backend URL
@@ -177,7 +177,7 @@ cd backend/build
 
 **Terminal 2 — stitch-frontend:**
 ```bash
-cd stitch-stitch-frontend
+cd stitch-frontend
 npm run dev
 ```
 
@@ -197,7 +197,7 @@ cd backend/build
 
 **On Machine B (stitch-frontend):**
 ```bash
-cd stitch-stitch-frontend
+cd stitch-frontend
 # Edit src/main.tsx to use Machine A's IP:
 # const WS_URL = 'ws://machine-a-ip:8080';
 npm run dev
@@ -221,9 +221,9 @@ npm run dev
 - [Messages.hpp](backend/include/protocol/Messages.hpp) — JSON serialization
 
 **stitch-frontend UI** (TypeScript + React)
-- [SurveillanceCommandCenterGlobal.tsx](stitch-stitch-frontend/src/components/SurveillanceCommandCenterGlobal/SurveillanceCommandCenterGlobal.tsx) — main game interface
-- [CodenameAuthorizationTerminal.tsx](stitch-stitch-frontend/src/components/CodenameAuthorizationTerminal/CodenameAuthorizationTerminal.tsx) — name entry
-- [WebSocketClient.ts](stitch-stitch-frontend/src/network/WebSocketClient.ts) — real server connection
+- [SurveillanceCommandCenterGlobal.tsx](stitch-frontend/src/components/SurveillanceCommandCenterGlobal/SurveillanceCommandCenterGlobal.tsx) — main game interface
+- [CodenameAuthorizationTerminal.tsx](stitch-frontend/src/components/CodenameAuthorizationTerminal/CodenameAuthorizationTerminal.tsx) — name entry
+- [WebSocketClient.ts](stitch-frontend/src/network/WebSocketClient.ts) — real server connection
 
 ### Making Changes
 
@@ -237,12 +237,12 @@ npm run dev
    ```
 
 **UI/Scenes (stitch-frontend):**
-1. Edit TypeScript/React files in [stitch-stitch-frontend/src/](stitch-stitch-frontend/src/)
+1. Edit TypeScript/React files in [stitch-frontend/src/](stitch-frontend/src/)
 2. Changes hot-reload automatically in dev mode
 3. Check for type errors: `npm run build`
 
 **Message Protocol:**
-1. Update enum/struct in [Messages.ts](stitch-stitch-frontend/src/types/Messages.ts) (stitch-frontend)
+1. Update enum/struct in [Messages.ts](stitch-frontend/src/types/Messages.ts) (stitch-frontend)
 2. Update enum/struct in [Messages.hpp](backend/include/protocol/Messages.hpp) (backend)
 3. Update parser in [Messages.cpp](backend/src/protocol/Messages.cpp)
 
@@ -262,7 +262,7 @@ cmake .. -CMAKE_PREFIX_PATH=/opt/homebrew/opt/boost
 ### stitch-frontend won't connect to backend
 - Ensure backend is running: `ps aux | grep two_spies_server`
 - Check port 8080 is listening: `lsof -i :8080`
-- Verify `WS_URL` in [main.tsx](stitch-stitch-frontend/src/main.tsx) is correct
+- Verify `WS_URL` in [main.tsx](stitch-frontend/src/main.tsx) is correct
 - Check browser console for errors (F12 → Console tab)
 
 ### "Match not full" / "Not in a match" errors
@@ -300,8 +300,12 @@ lsof -i :8080 | grep LISTEN | awk '{print $2}' | xargs kill -9
 - `backend/build/tests/unit_tests` — unit tests
 - `backend/build/libtwo_spies_lib.a` — game logic library
 
-**stitch-frontend:**
+**stitch-frontend (the one to use):**
 - `stitch-frontend/dist/` — production build (run `npm run build`)
+
+**frontend/ (DEPRECATED):**
+- ⚠️ Do NOT use. This old directory is kept for reference only and will be removed in a future release.
+- All active development uses `stitch-frontend/`.
 
 ---
 
