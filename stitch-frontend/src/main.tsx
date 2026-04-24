@@ -5,6 +5,7 @@ import MissionDeploymentHub from './components/MissionDeploymentHub/MissionDeplo
 import PhaserGame from './components/PhaserGame/PhaserGame';
 import { WebSocketClient } from './network/WebSocketClient';
 import { ClientMessageType, ServerMessageType } from './types/Messages';
+import type { PlayerSide } from './types/Messages';
 import './styles/index.css';
 
 type GamePhase = 'entering-name' | 'deployment' | 'playing';
@@ -16,6 +17,7 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [matchCode, setMatchCode] = useState<string | null>(null);
+  const [, setPlayerSide] = useState<PlayerSide | null>(null);
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
     'SCRUBBING METADATA...',
@@ -82,7 +84,9 @@ function App() {
 
         client.on(ServerMessageType.MATCH_START, (msg: any) => {
           console.log('[App] Match started - both players ready:', msg);
-          setLogs((p) => [...p, 'MATCH STARTED - BOTH PLAYERS CONNECTED']);
+          const side = (msg.payload as any)?.side as PlayerSide;
+          if (side) setPlayerSide(side);
+          setLogs((p) => [...p, `MATCH STARTED — You are ${side || 'assigned'}`]);
           setIsLoading(false);
           // Both initiating and joining players transition to game
           setTimeout(() => {
@@ -220,6 +224,8 @@ function App() {
           onGameEnd={() => {
             console.log('[App] Game ended');
             setPhase('deployment');
+            setMatchCode(null);
+            setPlayerSide(null);
           }}
           onTerminateLink={() => {
             console.log('[App] Terminate link from game');

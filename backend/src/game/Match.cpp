@@ -82,6 +82,8 @@ void Match::start(unsigned int seed) {
             session_id_,
             {{"side", "RED"}}
         );
+        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to RED (" 
+                  << red_player_id_ << "): " << msg << "\n";
         send_to(red_player_id_, msg);
     }
     {
@@ -90,6 +92,8 @@ void Match::start(unsigned int seed) {
             session_id_,
             {{"side", "BLUE"}}
         );
+        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BLUE (" 
+                  << blue_player_id_ << "): " << msg << "\n";
         send_to(blue_player_id_, msg);
     }
 
