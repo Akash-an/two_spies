@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> **⚠️ NOTE: As of 2026-04, all references to "frontend" in this document mean `stitch-frontend/`. The older `frontend/` directory is deprecated and no longer used.**
+> ⚠️ **TERMINOLOGY: "frontend" now always refers to `stitch-frontend/` — the canonical browser client. The older `frontend/` directory is **DEPRECATED** and must not be used.**
 
 ## System Components
 

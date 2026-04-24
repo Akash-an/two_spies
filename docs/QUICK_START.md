@@ -1,5 +1,7 @@
 # Quick Start — Two Spies
 
+> ⚠️ **IMPORTANT: "stitch-frontend" refers to `stitch-frontend/` directory. The older `frontend/` is **DEPRECATED**.**
+
 Get the game running in 5 minutes.
 
 > **⚠️ IMPORTANT: Use `stitch-frontend/` not `frontend/`. The old `frontend/` directory is deprecated.**

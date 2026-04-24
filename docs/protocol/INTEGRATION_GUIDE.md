@@ -1,6 +1,6 @@
 # Backend ↔ stitch-frontend Integration Guide
 
-> **⚠️ TERMINOLOGY: "stitch-frontend" is the canonical client (`stitch-frontend/`). The older `frontend/` is deprecated and must not be used.**
+> **⚠️ TERMINOLOGY (Critical): "frontend" now ALWAYS refers to `stitch-frontend/` — the canonical client. The older `frontend/` directory is **DEPRECATED** and must NOT be used.**
 
 **Detailed flow examples and integration patterns for stitch-frontend developers.**
 

@@ -5,10 +5,12 @@
 A browser-based multiplayer strategy game of espionage. Two players move secretly between connected cities, gather intelligence, and try to locate and eliminate the opponent's spy.
 
 **Tech Stack:**
-- **stitch-frontend:** React 18 + TypeScript + Tailwind CSS (stitch-stitch-frontend/)
+- **stitch-frontend:** React 18 + TypeScript + Tailwind CSS (stitch-frontend/) — **canonical client**
 - **Backend:** C++17 + Boost.Asio/Beast WebSocket server
 - **Protocol:** JSON over WebSocket
 - **Architecture:** Server-authoritative, turn-based, deterministic
+
+> ⚠️ **IMPORTANT: "frontend" now always refers to `stitch-frontend/`. The older `frontend/` directory is **DEPRECATED** and must not be used.**
 
 ## Monorepo Structure
 
@@ -39,8 +41,9 @@ two_spies/
 │   ├── architecture.md
 │   └── game_design/
 │       └── game_design_doc.md
-└── AGENTS.md              # AI agent behavior rules
-```
+├── tests/                 # Canonical test location (per AGENTS.md policy)
+├── AGENTS.md              # AI agent behavior rules
+└── Requirements.md        # Technical specification
 
 ## Prerequisites
 

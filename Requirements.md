@@ -25,7 +25,7 @@
 
 This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D frontend rendered with React and Phaser, and a real-time multiplayer backend written in C++ communicating over WebSockets.
 
-> **⚠️ IMPORTANT: As of 2026-04, "frontend" refers to `stitch-frontend/` exclusively. The older `frontend/` directory is deprecated and should not be used.**
+> **⚠️ TERMINOLOGY (Critical): "frontend" now ALWAYS refers to `stitch-frontend/` exclusively. The older `frontend/` directory is **DEPRECATED** and must NOT be used for any new development or implementation work.**
 
 **Goals:**
 
