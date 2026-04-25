@@ -53,9 +53,9 @@ public:
     /// Remove a player (disconnect).
     void remove_player(const std::string& player_id);
 
-    /// Called periodically to check for timeouts and broadcast state.
+    /// Called periodically to check for timeouts.
     /// This ensures timeout detection even when players are idle.
-    void periodic_broadcast();
+    void check_for_timeout();
 
     bool is_started() const { return started_; }
     bool is_game_over() const;

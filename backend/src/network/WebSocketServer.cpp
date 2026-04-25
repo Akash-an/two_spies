@@ -108,8 +108,8 @@ void WebSocketServer::on_timeout_check(const boost::system::error_code& ec) {
         return;
     }
     
-    // Broadcast state for all active matches (triggers timeout checks)
-    match_mgr_->broadcast_all_matches();
+    // Check for timeouts in all active matches
+    match_mgr_->check_all_timeouts();
     
     // Reschedule the timer
     start_timeout_checker();

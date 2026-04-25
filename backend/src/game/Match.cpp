@@ -230,10 +230,12 @@ void Match::remove_player(const std::string& player_id) {
     if (player_id == blue_player_id_) blue_player_id_.clear();
 }
 
-void Match::periodic_broadcast() {
+void Match::check_for_timeout() {
     std::lock_guard lock(mutex_);
     if (started_ && !state_->is_game_over()) {
-        broadcast_state();
+        if (check_turn_timeout()) {
+            handle_turn_timeout();
+        }
     }
 }
 

@@ -192,8 +192,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const timerUrgent = timerSeconds <= 5;
 
   // SVG viewport setup
-  const SVG_W = 1280;
-  const SVG_H = 720;
+  const SVG_W = 1376;
+  const SVG_H = 768;
   const PAD = 0; // Map directly to image pixels (normalized 0-1)
 
   if (!matchState) {
@@ -206,7 +206,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
   const mySide = matchState.player.side;
   const playerCity = matchState.player.currentCity;
-  const knownOpp = matchState.player.knownOpponentCity;
+  let knownOpp = matchState.player.knownOpponentCity;
+  if (!knownOpp && !matchState.opponentMovedFromStart) {
+    knownOpp = matchState.player.opponentStartingCity;
+  }
   
   // Safe access to map (either from state or props)
   const map = matchState.map || initialMap;
@@ -256,7 +259,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           )}
           <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet">
             {/* Aegis Terminal Background Map */}
-            <image href="/assets/global-map-bg.png" width={SVG_W} height={SVG_H} preserveAspectRatio="xMidYMid slice" opacity="0.8" />
+            <image href="/assets/plain-map.png" width={SVG_W} height={SVG_H} opacity="0.8" />
             
             {/* Grid dots background overlay */}
             <defs>
@@ -298,7 +301,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const isStartOwn = city.id === matchState.player.startingCity;
               const isStartOpp = city.id === matchState.player.opponentStartingCity;
               const controller = matchState.controlledCities[city.id];
-              const hasIntel = intelCitySet.has(city.id);
+              const intelPopup = matchState.intelPopups.find(p => p.city === city.id);
+              const hasIntel = !!intelPopup;
               const scheduledDisappear = city.id === matchState.scheduledDisappearCity;
 
               let circleClass = 'city-circle';
@@ -312,13 +316,17 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
               if (!isDis && isStartOwn) circleClass += ' starting-own';
               if (!isDis && isStartOpp) circleClass += ' starting-opp';
-              if (!isDis && controller === 'RED') circleClass += ' controlled-red';
-              if (!isDis && controller === 'BLUE') circleClass += ' controlled-blue';
+              
+              const isMyControl = controller === mySide;
+              const isOppControl = controller && controller !== mySide;
+              if (!isDis && isMyControl) circleClass += ' controlled-mine';
+              if (!isDis && isOppControl) circleClass += ' controlled-opp';
 
-              const radius = isPlayer || isOpp ? 10 : isAdj ? 8 : 7;
+              const radius = isPlayer || isOpp ? 16 : isAdj ? 14 : 12;
 
               return (
                 <g key={city.id} className="city-node" onClick={() => handleCityClick(city.id)}>
+                  {intelPopup && <title>{intelPopup.amount} Intel Available</title>}
                   {/* Scheduled disappear warning ring */}
                   {scheduledDisappear && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={14} className="scheduled-ring" />
@@ -335,18 +343,18 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
                   {/* Player marker */}
                   {isPlayer && (
-                    <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="bold" pointerEvents="none">★</text>
+                    <polygon points={`${pos.x},${pos.y - 12} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 12} ${pos.x - 12},${pos.y}`} fill="#10b981" pointerEvents="none" />
                   )}
                   {/* Opponent marker */}
                   {isOpp && (
-                    <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="bold" pointerEvents="none">✕</text>
+                    <polygon points={`${pos.x},${pos.y - 12} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 12} ${pos.x - 12},${pos.y}`} fill="#ff4444" pointerEvents="none" />
                   )}
                   {/* Intel icon */}
                   {hasIntel && !isPlayer && !isOpp && !isDis && (
                     <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="8" fontWeight="black" pointerEvents="none">⊕</text>
                   )}
                   {/* City name */}
-                  <text x={pos.x} y={pos.y + radius + 14} className={`city-label ${isDis ? 'disappeared' : ''}`}>
+                  <text x={pos.x} y={pos.y + radius + 18} className={`city-label ${isDis ? 'disappeared' : ''}`}>
                     {city.name}
                   </text>
                 </g>
@@ -396,10 +404,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <div className="panel-stat">
               <span>Known Location</span>
               <span className="panel-stat-value">{knownOppName}</span>
-            </div>
-            <div className="panel-stat">
-              <span>Moved from start</span>
-              <span className="panel-stat-value">{matchState.opponentMovedFromStart ? 'YES' : 'NO'}</span>
             </div>
           </div>
 
