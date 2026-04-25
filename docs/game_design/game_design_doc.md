@@ -1,7 +1,7 @@
 # Two Spies — Game Design Document (GDD)
 
 **Overview**
-*Two Spies* is a **turn-based 1v1 strategy game of espionage** set on a Cold War-era map of Europe. Two rival spies move secretly between connected cities, gather intelligence, leverage special abilities, and ultimately try to **locate and eliminate the opposing spy**.
+*Two Spies* is a **turn-based 1v1 strategy game of espionage** set on a high-tech **Aegis Terminal tactical display** of the world. Two rival spies move secretly between connected cities, gather intelligence, leverage special abilities, and ultimately try to **locate and eliminate the opposing spy**.
 
 ---
 
@@ -17,7 +17,7 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 
 ### Map
 
-* A graph of interconnected **cities** representing a stylized Cold War Europe.
+* A graph of interconnected **cities** representing a global **Aegis Terminal tactical display**.
 * Each city is a **node**; connections (edges) define valid movement paths.
 * All cities are uniform — there are no bonus or special cities.
 
@@ -187,10 +187,22 @@ A player loses a round when:
 
 * They are struck in their current city.
 * They end their turn in the **same city as the opponent** without cover (immediate reveal/loss).
+* The opponent **aborts the match** (forfeit).
 
 ---
 
-## 9. Stealth and Fog of War
+## 9. Match Management
+
+### Forfeiture (Abort)
+
+A player can choose to end the match at any time by clicking the **TERMINATE LINK** (or ABORT) button:
+* **Effect:** The match ends immediately.
+* **Result:** The player who aborted loses; the other player is declared the winner with the reason: "[SIDE] aborted the match."
+* **Notification:** Both players receive a `GAME_OVER` message from the server.
+
+---
+
+## 10. Stealth and Fog of War
 
 * Player positions are **private** — opponents only learn location through deduction and abilities.
 * Cover state determines visibility: players with cover are hidden from opponent vision.
@@ -199,7 +211,7 @@ A player loses a round when:
 
 ---
 
-## 10. Strategy and Player Goals
+## 11. Strategy and Player Goals
 
 Players must balance competing priorities each turn:
 
@@ -216,7 +228,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 11. Game Modes
+## 12. Game Modes
 
 | Mode         | Description                              |
 | ------------ | ---------------------------------------- |
@@ -226,7 +238,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 12. Game Loop Summary
+## 13. Game Loop Summary
 
 ```
 1. Initialization
@@ -248,7 +260,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 13. Implementation Notes
+## 14. Implementation Notes
 
 * Player positions must **never be sent to the wrong client**. The server must filter state per player before broadcasting.
 * Map data (city nodes + edges) must be **external config**, not hardcoded in game logic.
@@ -258,7 +270,7 @@ Successful play requires **deduction, movement planning, deception, and resource
 
 ---
 
-## 13. Visual Reference
+## 15. Visual Reference
 
 The following screenshots from the original *Two Spies* game are stored in `docs/mockups/` and serve as the authoritative visual reference for UI layout, game board design, and UX decisions.
 

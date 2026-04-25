@@ -252,6 +252,7 @@ async function test() {
   } catch (err) {
     console.error('\n=== TEST FAILED ===');
     console.error(err);
+    // @ts-ignore
     process.exit(1);
   } finally {
     if (ctx1) await ctx1.close();

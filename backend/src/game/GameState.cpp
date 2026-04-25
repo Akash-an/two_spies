@@ -133,7 +133,7 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
 
 // ── STRIKE ───────────────────────────────────────────────────────────
 
-ActionResult GameState::strike(PlayerSide side, const std::string& target_city) {
+ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city*/) {
     ActionResult result;
 
     if (game_over_) {
@@ -156,38 +156,46 @@ ActionResult GameState::strike(PlayerSide side, const std::string& target_city) 
         result.error = "No actions remaining — end your turn.";
         return result;
     }
-    if (!graph_.has_city(target_city)) {
-        result.error = "Target city does not exist.";
-        return result;
-    }
+
+    const std::string& striker_city = attacker.current_city;
 
     attacker.actions_remaining -= 1;
+    
+    // A strike (hit or miss) ALWAYS removes cover
+    attacker.has_cover = false;
 
     const auto& defender = player(opposite(side));
 
-    if (defender.current_city == target_city) {
+    if (defender.current_city == striker_city) {
         // HIT — striker wins the round
         game_over_ = true;
         winner_ = side;
-        game_over_reason_ = std::string(to_string(side)) + " struck " + target_city + " — HIT!";
+        game_over_reason_ = std::string(to_string(side)) + " struck " + striker_city + " — HIT!";
         result.ok = true;
         result.game_over = true;
         result.winner = side;
         result.game_over_reason = game_over_reason_;
-        // Increment action count before returning
-        increment_action_count();
-        return result;
-    }
+        
+        std::cerr << "[STRIKE] HIT! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                  << " eliminated opponent at " << striker_city << "\n";
+    } else {
+        // MISS — striker becomes visible by attempting a strike
+        result.ok = true;
+        result.game_over = false;
+        
+        auto& defender_mut = player_mut(opposite(side));
+        defender_mut.opponent_used_strike = true;    // notify opponent that a strike was attempted
+        
+        // Strike reveals the striker's position to the opponent
+        defender_mut.known_opponent_city = striker_city;
 
-    // MISS — striker becomes visible by attempting a strike
-    auto& opponent = player_mut(opposite(side));
-    attacker.has_cover = false;              // striker loses cover for taking an aggressive action
-    opponent.opponent_used_strike = true;    // notify opponent that a strike was attempted
+        std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                  << " struck at " << striker_city << " but opponent was not there. Position REVEALED.\n";
+    }
 
     // Increment action counter for shrinking map feature
     increment_action_count();
 
-    result.ok = true;
     return result;
 }
 
@@ -484,6 +492,12 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
 
     result.ok = true;
     return result;
+}
+
+void GameState::abort(PlayerSide side) {
+    game_over_ = true;
+    winner_ = opposite(side);
+    game_over_reason_ = std::string(to_string(side)) + " aborted the match.";
 }
 
 // ── Same-city check ──────────────────────────────────────────────────

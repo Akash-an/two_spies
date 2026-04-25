@@ -10,7 +10,7 @@
  */
 
 #include "game/Match.hpp"
-#include "config/DefaultMap.hpp"
+#include "../test_map.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -21,7 +21,7 @@
 using namespace two_spies::game;
 
 static MapDef test_map_for_match() {
-    return two_spies::config::default_map();
+    return two_spies::tests::test_map();
 }
 
 /**

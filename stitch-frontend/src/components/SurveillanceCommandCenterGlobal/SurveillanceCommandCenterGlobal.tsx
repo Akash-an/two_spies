@@ -37,13 +37,20 @@ const SurveillanceCommandCenterGlobal: React.FC<SurveillanceCommandCenterGlobalP
   turnCycle = '05/12',
   // operativeStatus = 'Standby',
   cities = [
-    { id: 'nyc', name: 'NEW YORK CITY', x: 25, y: 35 },
-    { id: 'berlin', name: 'BERLIN_VOID', x: 48, y: 30, isActive: true, isAlly: true },
-    { id: 'london', name: 'LONDON', x: 44, y: 28 },
-    { id: 'tokyo', name: 'TOKYO', x: 85, y: 38 },
-    { id: 'moscow', name: 'MOSCOW', x: 58, y: 25 },
-    { id: 'cairo', name: 'CAIRO', x: 52, y: 45 },
-    { id: 'buenos-aires', name: 'BUENOS AIRES', x: 30, y: 80 },
+    { id: 'nyc', name: 'NEW YORK CITY', x: 29.4, y: 27.3 },
+    { id: 'havana', name: 'HAVANA', x: 27.1, y: 37.1 },
+    { id: 'buenos_aires', name: 'BUENOS AIRES', x: 33.8, y: 69.2 },
+    { id: 'london', name: 'LONDON', x: 49.9, y: 21.4 },
+    { id: 'berlin', name: 'BERLIN', x: 53.7, y: 20.8, isActive: true, isAlly: true },
+    { id: 'moscow', name: 'MOSCOW', x: 60.4, y: 19.0 },
+    { id: 'cairo', name: 'CAIRO', x: 58.6, y: 33.3 },
+    { id: 'tel-aviv', name: 'TEL AVIV', x: 59.6, y: 32.2 },
+    { id: 'dubai', name: 'DUBAI', x: 65.3, y: 36.0 },
+    { id: 'bangalore', name: 'BANGALORE', x: 71.5, y: 42.8 },
+    { id: 'singapore', name: 'SINGAPORE', x: 78.8, y: 49.2 },
+    { id: 'beijing', name: 'BEIJING', x: 82.3, y: 27.8 },
+    { id: 'tokyo', name: 'TOKYO', x: 88.7, y: 30.2 },
+    { id: 'sydney', name: 'SYDNEY', x: 92.0, y: 68.7 },
   ],
   selectedCityId,
   onSelectCity,
@@ -151,11 +158,11 @@ const SurveillanceCommandCenterGlobal: React.FC<SurveillanceCommandCenterGlobalP
               <rect width="1200" height="600" fill="url(#grid)" />
 
               {/* Connection lines */}
-              <line x1="25%" y1="35%" x2="44%" y2="28%" stroke="#00ffff" strokeDasharray="4" strokeWidth="1" opacity="0.4" />
-              <line x1="44%" y1="28%" x2="48%" y2="30%" stroke="#fe9800" strokeWidth="2" opacity="0.6" />
-              <line x1="48%" y1="30%" x2="58%" y2="25%" stroke="#00ffff" strokeDasharray="4" strokeWidth="1" opacity="0.4" />
-              <line x1="48%" y1="30%" x2="52%" y2="45%" stroke="#00ffff" strokeDasharray="4" strokeWidth="1" opacity="0.4" />
-              <line x1="85%" y1="38%" x2="58%" y2="25%" stroke="#00ffff" strokeDasharray="2" strokeWidth="0.5" opacity="0.2" />
+              <line x1="29.4%" y1="27.3%" x2="49.9%" y2="21.4%" stroke="#00ffff" strokeDasharray="4" strokeWidth="1" opacity="0.4" />
+              <line x1="49.9%" y1="21.4%" x2="53.7%" y2="20.8%" stroke="#fe9800" strokeWidth="2" opacity="0.6" />
+              <line x1="53.7%" y1="20.8%" x2="60.4%" y2="19.0%" stroke="#00ffff" strokeDasharray="4" strokeWidth="1" opacity="0.4" />
+              <line x1="53.7%" y1="20.8%" x2="58.6%" y2="33.3%" stroke="#00ffff" strokeDasharray="4" strokeWidth="1" opacity="0.4" />
+              <line x1="88.7%" y1="30.2%" x2="60.4%" y2="19.0%" stroke="#00ffff" strokeDasharray="2" strokeWidth="0.5" opacity="0.2" />
             </svg>
           </div>
 

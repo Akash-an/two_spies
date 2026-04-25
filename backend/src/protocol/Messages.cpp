@@ -18,6 +18,7 @@ std::optional<IncomingMessage> parse_client_message(const std::string& raw) {
         else if (type_str == "PLAYER_ACTION")  msg.type = ClientMsgType::PLAYER_ACTION;
         else if (type_str == "END_TURN")       msg.type = ClientMsgType::END_TURN;
         else if (type_str == "SET_PLAYER_NAME") msg.type = ClientMsgType::SET_PLAYER_NAME;
+        else if (type_str == "ABORT_MATCH")     msg.type = ClientMsgType::ABORT_MATCH;
         else {
             std::cerr << "[Protocol] Unknown message type: " << type_str << "\n";
             return std::nullopt;
@@ -138,7 +139,6 @@ json serialize_match_state(const std::string& session_id,
     result["currentTurn"] = game::to_string(state.current_turn());
     result["player"] = player_state;
     result["opponentName"] = opp.name;  // safe: just a display name, no strategic info
-    result["map"] = serialize_map(state.graph().map_def());
     result["gameOver"] = state.is_game_over();
     result["opponentMovedFromStart"] = opp.has_moved_from_start;
     

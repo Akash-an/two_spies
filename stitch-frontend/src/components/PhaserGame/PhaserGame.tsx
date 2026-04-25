@@ -8,6 +8,7 @@ import {
   MatchState,
   GameOverPayload,
   PlayerSide,
+  MapDef,
 } from '../../types/Messages';
 import './PhaserGame.css';
 
@@ -15,6 +16,7 @@ export interface PhaserGameProps {
   operativeName: string;
   playerName: string;
   webSocketClient: WebSocketClient;
+  initialMap?: MapDef;
   onGameEnd?: () => void;
   onTerminateLink?: () => void;
 }
@@ -25,6 +27,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   operativeName,
   playerName: _playerName,
   webSocketClient,
+  initialMap,
   onGameEnd,
   onTerminateLink,
 }) => {
@@ -45,7 +48,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
   // Adjacency set for the player's current city
   const adjacentCities = useMemo(() => {
-    if (!matchState) return new Set<string>();
+    if (!matchState || !matchState.map) return new Set<string>();
     const current = matchState.player.currentCity;
     const adj = new Set<string>();
     for (const edge of matchState.map.edges) {
@@ -71,6 +74,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   useEffect(() => {
     const handleMatchState = (msg: any) => {
       const state = msg.payload as MatchState;
+      
+      // Inject initial map if missing from state
+      if (!state.map && initialMap) {
+        state.map = initialMap;
+      }
+      
       setMatchState(state);
 
       // Reset local timer from server elapsed
@@ -167,7 +176,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     }
 
     if (actionMode === 'STRIKE') {
-      sendAction(ActionKind.STRIKE, cityId);
+      // Strike should target current location per GDD
+      sendAction(ActionKind.STRIKE, playerCity);
+      setActionMode(null);
       return;
     }
 
@@ -181,9 +192,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const timerUrgent = timerSeconds <= 5;
 
   // SVG viewport setup
-  const SVG_W = 1000;
-  const SVG_H = 600;
-  const PAD = 60;
+  const SVG_W = 1280;
+  const SVG_H = 720;
+  const PAD = 0; // Map directly to image pixels (normalized 0-1)
 
   if (!matchState) {
     return (
@@ -196,10 +207,22 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const mySide = matchState.player.side;
   const playerCity = matchState.player.currentCity;
   const knownOpp = matchState.player.knownOpponentCity;
+  
+  // Safe access to map (either from state or props)
+  const map = matchState.map || initialMap;
+  if (!map) {
+      return (
+        <div className="game-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="waiting-indicator">INITIALIZING MAP DATA...</div>
+        </div>
+      );
+  }
+
+  const knownOppName = map.cities.find(c => c.id === knownOpp)?.name || knownOpp || 'UNKNOWN';
 
   // Build city coordinate map (normalised 0-1 → SVG pixels)
   const cityPos = new Map<string, { x: number; y: number }>();
-  for (const c of matchState.map.cities) {
+  for (const c of map.cities) {
     cityPos.set(c.id, {
       x: PAD + c.x * (SVG_W - 2 * PAD),
       y: PAD + c.y * (SVG_H - 2 * PAD),
@@ -232,16 +255,19 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             </div>
           )}
           <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet">
-            {/* Grid dots background */}
+            {/* Aegis Terminal Background Map */}
+            <image href="/assets/global-map-bg.png" width={SVG_W} height={SVG_H} preserveAspectRatio="xMidYMid slice" opacity="0.8" />
+            
+            {/* Grid dots background overlay */}
             <defs>
               <pattern id="grid-dots" width="40" height="40" patternUnits="userSpaceOnUse">
-                <circle cx="20" cy="20" r="0.8" fill="#00ffff" opacity="0.15" />
+                <circle cx="20" cy="20" r="0.8" fill="#00ffff" opacity="0.1" />
               </pattern>
             </defs>
-            <rect width={SVG_W} height={SVG_H} fill="url(#grid-dots)" />
+            <rect width={SVG_W} height={SVG_H} fill="url(#grid-dots)" pointerEvents="none" />
 
             {/* Edges */}
-            {matchState.map.edges.map((edge, i) => {
+            {map.edges.map((edge, i) => {
               const from = cityPos.get(edge.from);
               const to = cityPos.get(edge.to);
               if (!from || !to) return null;
@@ -261,7 +287,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             })}
 
             {/* Cities */}
-            {matchState.map.cities.map(city => {
+            {map.cities.map(city => {
               const pos = cityPos.get(city.id);
               if (!pos) return null;
               const isDis = disappearedSet.has(city.id);
@@ -295,9 +321,18 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                 <g key={city.id} className="city-node" onClick={() => handleCityClick(city.id)}>
                   {/* Scheduled disappear warning ring */}
                   {scheduledDisappear && !isDis && (
-                    <circle cx={pos.x} cy={pos.y} r={14} fill="none" stroke="#ff6b6b" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.7" />
+                    <circle cx={pos.x} cy={pos.y} r={14} className="scheduled-ring" />
                   )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />
+                  
+                  {/* Disappeared overlay (X) */}
+                  {isDis && (
+                    <>
+                      <line x1={pos.x - 6} y1={pos.y - 6} x2={pos.x + 6} y2={pos.y + 6} stroke="#ff4444" strokeWidth="2" />
+                      <line x1={pos.x + 6} y1={pos.y - 6} x2={pos.x - 6} y2={pos.y + 6} stroke="#ff4444" strokeWidth="2" />
+                    </>
+                  )}
+
                   {/* Player marker */}
                   {isPlayer && (
                     <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="bold" pointerEvents="none">★</text>
@@ -308,7 +343,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   )}
                   {/* Intel icon */}
                   {hasIntel && !isPlayer && !isOpp && !isDis && (
-                    <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="8" fontWeight="bold" pointerEvents="none">$</text>
+                    <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="8" fontWeight="black" pointerEvents="none">⊕</text>
                   )}
                   {/* City name */}
                   <text x={pos.x} y={pos.y + radius + 14} className={`city-label ${isDis ? 'disappeared' : ''}`}>
@@ -326,7 +361,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               background: 'rgba(12,14,15,0.9)', border: '1px solid rgba(0,255,255,0.3)',
               padding: '6px 16px', fontSize: 12, color: '#ffd700', letterSpacing: '0.1em', zIndex: 30,
             }}>
-              {actionMode === 'MOVE' ? 'SELECT AN ADJACENT CITY TO MOVE' : 'SELECT A CITY TO STRIKE'}
+              {actionMode === 'MOVE' ? 'SELECT AN ADJACENT CITY TO MOVE' : 'READY TO STRIKE CURRENT LOCATION'}
               <button onClick={() => setActionMode(null)} style={{
                 marginLeft: 12, background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'inherit',
               }}>✕ CANCEL</button>
@@ -348,7 +383,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             </div>
             <div className="panel-stat">
               <span>Location</span>
-              <span className="panel-stat-value">{matchState.map.cities.find(c => c.id === playerCity)?.name || playerCity}</span>
+              <span className="panel-stat-value">{map.cities.find(c => c.id === playerCity)?.name || playerCity}</span>
             </div>
           </div>
 
@@ -360,7 +395,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             </div>
             <div className="panel-stat">
               <span>Known Location</span>
-              <span className="panel-stat-value">{knownOpp || 'UNKNOWN'}</span>
+              <span className="panel-stat-value">{knownOppName}</span>
             </div>
             <div className="panel-stat">
               <span>Moved from start</span>
@@ -402,32 +437,54 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           disabled={!canAct}
           onClick={() => setActionMode(prev => prev === 'MOVE' ? null : 'MOVE')}
         >
-          MOVE
+          <span className="material-symbols-outlined">directions_run</span>
+          <span className="btn-label">MOVE</span>
         </button>
         <button
           className={`action-btn ${actionMode === 'STRIKE' ? 'active' : ''}`}
           disabled={!canAct}
-          onClick={() => setActionMode(prev => prev === 'STRIKE' ? null : 'STRIKE')}
+          onClick={() => {
+            // Strike fires immediately on current location per GDD
+            sendAction(ActionKind.STRIKE, playerCity);
+          }}
         >
-          STRIKE
+          <span className="material-symbols-outlined">ads_click</span>
+          <span className="btn-label">STRIKE</span>
         </button>
-        <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.LOCATE)}>
-          LOCATE
+        <button 
+          className="action-btn" 
+          disabled={!canAct || matchState.player.intel < 10} 
+          onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.LOCATE)}
+        >
+          <span className="material-symbols-outlined">my_location</span>
+          <span className="btn-label">LOCATE</span>
+          <span className="btn-cost">10</span>
         </button>
-        <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.DEEP_COVER)}>
-          DEEP COVER
+        <button 
+          className="action-btn" 
+          disabled={!canAct || matchState.player.intel < 30} 
+          onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.DEEP_COVER)}
+        >
+          <span className="material-symbols-outlined">visibility_off</span>
+          <span className="btn-label">DEEP COVER</span>
+          <span className="btn-cost">30</span>
         </button>
         <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.WAIT)}>
-          WAIT
+          <span className="material-symbols-outlined">hourglass_empty</span>
+          <span className="btn-label">WAIT</span>
         </button>
         <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.CONTROL)}>
-          CONTROL
+          <span className="material-symbols-outlined">token</span>
+          <span className="btn-label">CONTROL</span>
         </button>
         <button className="action-btn end-turn" disabled={!isMyTurn || !!gameOver} onClick={sendEndTurn}>
-          END TURN
+          <span className="material-symbols-outlined">done_all</span>
+          <span className="btn-label">END TURN</span>
         </button>
+        <div className="action-divider"></div>
         <button className="action-btn terminate" onClick={onTerminateLink}>
-          TERMINATE
+          <span className="material-symbols-outlined">power_settings_new</span>
+          <span className="btn-label">ABORT</span>
         </button>
       </div>
 

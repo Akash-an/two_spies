@@ -76,6 +76,9 @@ public:
     /// @param skip_exploration_bonus If true (e.g., on timeout), skip the +4 exploration bonus
     ActionResult end_turn(PlayerSide side, bool skip_exploration_bonus = false);
 
+    /// Abort the match (requested by a player).
+    void abort(PlayerSide side);
+
     // ── Queries ──────────────────────────────────────────────────
     PlayerSide current_turn() const { return current_turn_; }
     int turn_number() const { return turn_number_; }

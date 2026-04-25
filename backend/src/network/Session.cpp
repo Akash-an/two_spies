@@ -179,6 +179,17 @@ void Session::on_message(const std::string& raw) {
             match->handle_end_turn(player_id_);
             break;
         }
+
+        case protocol::ClientMsgType::ABORT_MATCH: {
+            auto session_id = server_->match_manager().session_for_player(player_id_);
+            if (!session_id.empty()) {
+                auto match = server_->match_manager().get_match(session_id);
+                if (match) {
+                    match->handle_abort(player_id_);
+                }
+            }
+            break;
+        }
     }
     } catch (const std::exception& e) {
         std::cerr << "[Session " << player_id_ << "] Unhandled exception in on_message: "

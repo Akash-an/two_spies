@@ -15,6 +15,7 @@ export enum ClientMessageType {
   JOIN_MATCH = 'JOIN_MATCH',
   PLAYER_ACTION = 'PLAYER_ACTION',
   END_TURN = 'END_TURN',
+  ABORT_MATCH = 'ABORT_MATCH',
 }
 
 /** All server → client message types. */
@@ -99,7 +100,7 @@ export interface MatchState {
   currentTurn: PlayerSide;
   player: PlayerState;
   opponentName: string;
-  map: MapDef;
+  map?: MapDef;
   gameOver: boolean;
   winner: PlayerSide | null;
   opponentMovedFromStart: boolean;
@@ -122,6 +123,7 @@ export interface ServerMessage {
 
 export interface MatchStartPayload {
   side: PlayerSide;
+  map: MapDef;
 }
 
 export interface GameOverPayload {

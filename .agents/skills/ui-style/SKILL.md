@@ -6,7 +6,7 @@ description: >-
   panels, cards, or any visual element. Covers cyberpunk Cold War aesthetic with
   Tailwind CSS + Material Symbols. Trigger: style, color, theme, art style, UI,
   button, modal, panel, card, layout, responsive, font, typography, visual,
-  Tailwind, component, stitch-stitch-frontend.
+  Tailwind, component, stitch-stitch-frontend, Aegis, Terminal.
 ---
 
 # Two Spies — UI Style Reference (stitch-stitch-frontend)
@@ -19,7 +19,7 @@ Always consult these specs before implementing any visual element in stitch-stit
 
 ## 1. Art Direction
 
-**stitch-stitch-frontend** uses a **cyberpunk Cold War surveillance aesthetic** with neon accents.
+**stitch-stitch-frontend** uses a high-tech **Aegis Terminal tactical display** aesthetic with neon accents.
 
 Key descriptors:
 - Dark background (`#0c0e0f` — near-black deep space)
@@ -317,7 +317,7 @@ View all icons at [fonts.google.com/icons](https://fonts.google.com/icons).
 - Adding Material Symbols icons to UI
 - Color adjustments, typography changes, or spacing refinement
 - Fixing visual alignment or consistency issues
-- Ensuring UI matches cyberpunk Cold War aesthetic
+- Ensuring UI matches Aegis Terminal tactical display aesthetic
 - Responsive design adjustments for mobile/tablet/desktop
 
 ---

@@ -5,7 +5,7 @@
  */
 
 #include "game/GameState.hpp"
-#include "config/DefaultMap.hpp"
+#include "backend/tests/test_map.hpp"
 #include <iostream>
 #include <cassert>
 
@@ -14,7 +14,7 @@ using namespace two_spies::game;
 int main() {
     std::cout << "\n=== Deep Cover Persistence Bug Fix Verification ===\n\n";
     
-    GameState gs(two_spies::config::default_map());
+    GameState gs(two_spies::tests::test_map());
     gs.set_starting_cities("london", "moscow");
     
     auto& red = gs.player_mut(PlayerSide::RED);

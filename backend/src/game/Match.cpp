@@ -80,7 +80,8 @@ void Match::start(unsigned int seed) {
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_START,
             session_id_,
-            {{"side", "RED"}}
+            {{"side", "RED"},
+             {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
         std::cout << "[Match " << session_id_ << "] Sending MATCH_START to RED (" 
                   << red_player_id_ << "): " << msg << "\n";
@@ -90,7 +91,8 @@ void Match::start(unsigned int seed) {
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_START,
             session_id_,
-            {{"side", "BLUE"}}
+            {{"side", "BLUE"},
+             {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
         std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BLUE (" 
                   << blue_player_id_ << "): " << msg << "\n";
@@ -164,6 +166,15 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
         );
         send_to(red_player_id_, go_msg);
         send_to(blue_player_id_, go_msg);
+    } else {
+        // Auto end turn if no actions remaining
+        if (state_->player(side).actions_remaining <= 0) {
+            std::cout << "[Match " << session_id_ << "] Auto-ending turn for " 
+                      << to_string(side) << " (0 actions left)\n";
+            state_->end_turn(side);
+            // Reset timer for next player's turn
+            turn_start_time_ = std::chrono::steady_clock::now();
+        }
     }
 
     broadcast_state();
@@ -186,6 +197,29 @@ void Match::handle_end_turn(const std::string& player_id) {
 
     // Reset timer for next player's turn
     turn_start_time_ = std::chrono::steady_clock::now();
+
+    broadcast_state();
+}
+
+void Match::handle_abort(const std::string& player_id) {
+    std::lock_guard lock(mutex_);
+    if (state_->is_game_over()) return;
+
+    PlayerSide side = side_of(player_id);
+    state_->abort(side);
+
+    std::cout << "[Match " << session_id_ << "] Player " << player_id 
+              << " (" << to_string(side) << ") aborted the match.\n";
+
+    // Send GAME_OVER to both players
+    auto go_msg = protocol::make_server_message(
+        protocol::ServerMsgType::GAME_OVER,
+        session_id_,
+        {{"winner", to_string(state_->winner())},
+         {"reason", state_->game_over_reason()}}
+    );
+    send_to(red_player_id_, go_msg);
+    send_to(blue_player_id_, go_msg);
 
     broadcast_state();
 }
