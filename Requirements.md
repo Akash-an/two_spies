@@ -9,7 +9,7 @@
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [Frontend Requirements](#2-frontend-requirements)
+2. [stitch-frontend Requirements](#2-stitch-frontend-requirements)
 3. [Backend Requirements](#3-backend-requirements)
 4. [Game Architecture](#4-game-architecture)
 5. [Development Environment](#5-development-environment)
@@ -23,34 +23,33 @@
 
 ## 1. Overview
 
-This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D frontend rendered with Phaser and a real-time multiplayer backend written in C++ communicating over WebSockets.
+This document defines the technical requirements for porting the Two Spies board game to a fully browser-playable web application. The system consists of a 2D frontend rendered with React and Phaser, and a real-time multiplayer backend written in C++ communicating over WebSockets.
+
+> **⚠️ TERMINOLOGY (Critical): "frontend" now ALWAYS refers to `stitch-frontend/` exclusively. The older `frontend/` directory is **DEPRECATED** and must NOT be used for any new development or implementation work.**
 
 **Goals:**
 
-- Deliver a dynamic 2D game UI rendered in the browser using Phaser (TypeScript).
+- Deliver a dynamic 2D game UI rendered in the browser using React + TypeScript + stitch-frontend/src (Phaser for game scenes).
 - Support turn-based multiplayer gameplay via persistent WebSocket connections.
 - Implement an authoritative C++ backend responsible for game logic, session management, and state broadcast.
 
 ---
 
-## 2. Frontend Requirements
+## 2. stitch-frontend Requirements
 
-### 2.1 Game Engine
+### 2.1 Game Engine & UI Framework
 
-- **Phaser 3** (TypeScript) is the required rendering engine.
-- Must handle rendering, animations, user input, and audio.
-- The Phaser canvas must be embeddable within a component-based frontend framework view.
+- **React 18** + **TypeScript** is the primary framework (located at `stitch-frontend/`).
+- **Phaser 3** (TypeScript) is embedded for 2D game rendering and canvas control.
+- Must handle rendering, animations, user input, and interactions.
+- The Phaser canvas must be embeddable within React components.
 
 ### 2.2 Networking
 
 - Use the browser's native **WebSocket API** for server communication.
 - Connections must be persistent for the duration of a game session.
-- Messages must be encoded in **JSON** or a defined binary protocol.
-
-### 2.3 UI Framework (Optional)
-
-- **Angular** or **React** may be used for non-game UI surfaces (menus, lobby, settings, match lists).
-- The Phaser canvas must integrate cleanly as an embedded component within the chosen framework.
+- Messages must be encoded in **JSON**.
+- All networking logic centralized in `stitch-frontend/src/network/WebSocketClient.ts`
 
 ---
 
@@ -106,7 +105,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 ### 4.1 Authoritative Backend
 
 - The backend is the single source of truth for all game state.
-- The frontend sends player actions; the backend validates them and computes state transitions.
+- The stitch-frontend sends player actions; the backend validates them and computes state transitions.
 - Clients must not be trusted to self-report game outcomes.
 
 ### 4.2 Turn-Based Session Model
@@ -121,7 +120,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 ### 5.1 Local Setup
 
 - The WebSocket server must be runnable locally on a configurable port.
-- The frontend must support hot reload during development.
+- The stitch-frontend must support hot reload during development.
 - The browser client must connect to a local WebSocket endpoint specified via environment configuration.
 
 ### 5.2 Tools and Libraries Summary
@@ -129,7 +128,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 | Category | Tool / Library |
 |---|---|
 | Rendering | Phaser 3 |
-| Frontend Framework | Angular or React |
+| stitch-frontend Framework | Angular or React |
 | Client Networking | Browser WebSocket API |
 | Backend Server | Boost.Beast or uWebSockets |
 | Build System | CMake 3.x |
@@ -154,7 +153,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 
 ## 7. Deployment
 
-- **Frontend:** Static assets (HTML, JS, CSS) served via CDN or static hosting (e.g., Netlify, Vercel).
+- **stitch-frontend:** Static assets (HTML, JS, CSS) served via CDN or static hosting (e.g., Netlify, Vercel).
 - **Backend:** C++ WebSocket server deployed on a cloud VM or container service (e.g., AWS, DigitalOcean).
 - All traffic must use **HTTPS** and **WSS** in production.
 
@@ -181,7 +180,7 @@ A formal message schema must be defined for all client-to-server and server-to-c
 
 ## 9. Deliverables
 
-- Frontend game client built with Phaser (TypeScript)
+- stitch-frontend game client built with Phaser (TypeScript)
 - C++ WebSocket server implementing the rules engine and match handling
 - Formal protocol specification defining all message schemas
 - CI/CD pipeline for automated testing and deployment

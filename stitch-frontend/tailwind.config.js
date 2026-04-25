@@ -1,0 +1,46 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class',
+  content: [
+    './index.html',
+    './main.tsx',
+    './**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        'primary': '#c1fffe',
+        'primary-dim': '#00e6e6',
+        'primary-container': '#00ffff',
+        'secondary': '#fe9800',
+        'secondary-dim': '#eb8d00',
+        'tertiary': '#e2fffe',
+        'surface': '#0c0e0f',
+        'surface-dim': '#0c0e0f',
+        'surface-bright': '#2a2c2e',
+        'surface-container-lowest': '#000000',
+        'surface-container-low': '#111415',
+        'surface-container': '#181a1b',
+        'surface-container-high': '#1d2021',
+        'surface-container-highest': '#232628',
+        'on-surface': '#f6f6f7',
+        'on-surface-variant': '#aaabac',
+        'outline': '#747577',
+        'outline-variant': '#464849',
+        'background': '#0c0e0f',
+        'on-background': '#f6f6f7',
+        'error': '#ff716c',
+        'error-dim': '#d7383b',
+        'error-container': '#9f0519',
+        'on-error': '#490006',
+      },
+      fontFamily: {
+        headline: ['Space Grotesk', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
+        label: ['Space Grotesk', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+    },
+  },
+  plugins: [],
+};

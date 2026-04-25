@@ -1,7 +1,12 @@
 ---
 name: rebuild-and-restart
-description: Instructions and scripts for recompiling and restarting the Two Spies backend (C++) and/or frontend (Vite/TypeScript) after code changes. Trigger: rebuild, recompile, restart server, restart frontend, apply backend changes, hot reload, build failed, compile error, restart dev server.
+description: >-
+  Instructions and scripts for recompiling and restarting the Two Spies backend
+  (C++) and/or stitch-frontend (Vite/TypeScript) after code changes. Trigger: rebuild,
+  recompile, restart server, restart stitch-frontend, apply backend changes, hot reload,
+  build failed, compile error, restart dev server.
 ---
+
 
 # Rebuild & Restart — Two Spies
 
@@ -14,13 +19,13 @@ Scripts live in `scripts/` at the project root. Always use these instead of runn
 | Script | What it does |
 |---|---|
 | `scripts/rebuild-backend.sh` | Stop server → recompile C++ → restart server |
-| `scripts/rebuild-frontend.sh` | Stop Vite → type-check → restart `npm run dev` |
+| `scripts/rebuild-stitch-frontend.sh` | Stop Vite → type-check → restart `npm run dev` |
 | `scripts/rebuild-all.sh` | Runs both scripts in sequence |
 
 All scripts must be executable. If they are not, run once:
 
 ```bash
-chmod +x scripts/rebuild-backend.sh scripts/rebuild-frontend.sh scripts/rebuild-all.sh
+chmod +x scripts/rebuild-backend.sh scripts/rebuild-stitch-frontend.sh scripts/rebuild-all.sh
 ```
 
 ---
@@ -51,21 +56,21 @@ bash scripts/rebuild-backend.sh
 
 ---
 
-## Frontend — After changing TypeScript/Phaser code
+## stitch-frontend (stitch-stitch-frontend) — After changing TypeScript/React code
 
 ```bash
-bash scripts/rebuild-frontend.sh
+bash scripts/rebuild-stitch-frontend.sh
 ```
 
 **What it does, step by step:**
 
-1. Kills any running `vite` process.
+1. Kills any running `vite` process in `stitch-stitch-frontend/`.
 2. Checks for `node_modules/`; runs `npm install` if missing.
 3. Runs `tsc --noEmit` — **fails fast** if TypeScript errors exist.
-4. Starts `npm run dev` (Vite) in the background.
-5. Streams Vite logs to `frontend/vite.log`.
+4. Starts `npm run dev` (Vite) in the background on port 5173.
+5. Streams Vite logs to `stitch-stitch-frontend/vite.log`.
 
-> **Note:** Vite has Hot Module Replacement (HMR). For most TypeScript/Phaser changes you do **not** need to restart—the browser updates automatically. Only restart if you change `vite.config.ts`, environment variables, or Vite plugins.
+> **Note:** Vite has Hot Module Replacement (HMR). For most TypeScript/React changes you do **not** need to restart—the browser updates automatically. Only restart if you change `vite.config.ts`, environment variables, or Vite plugins.
 
 ---
 
@@ -75,7 +80,7 @@ bash scripts/rebuild-frontend.sh
 bash scripts/rebuild-all.sh
 ```
 
-Rebuilds backend then frontend. Pass a custom port as first argument:
+Rebuilds backend then stitch-frontend. Pass a custom port as first argument:
 
 ```bash
 bash scripts/rebuild-all.sh 9090
@@ -89,8 +94,8 @@ bash scripts/rebuild-all.sh 9090
 # Backend logs (live)
 tail -f backend/server.log
 
-# Frontend logs (live)
-tail -f frontend/vite.log
+# stitch-frontend logs (live)
+tail -f stitch-stitch-frontend/vite.log
 ```
 
 ---
@@ -101,12 +106,12 @@ tail -f frontend/vite.log
 # Stop backend
 pkill -f two_spies_server
 
-# Stop frontend
+# Stop stitch-frontend
 pkill -f vite
 
 # Or use saved PIDs
 kill $(cat backend/build/server.pid)
-kill $(cat frontend/.vite.pid)
+kill $(cat stitch-stitch-frontend/.vite.pid)
 ```
 
 ---
@@ -116,7 +121,7 @@ kill $(cat frontend/.vite.pid)
 | Symptom | Fix |
 |---|---|
 | `cmake --build` fails | Check compile errors in terminal; fix C++ source then re-run script |
-| TypeScript errors block frontend restart | Run `npx tsc --noEmit` to see all errors; fix before restarting |
+| TypeScript errors block stitch-frontend restart | Run `npx tsc --noEmit` to see all errors; fix before restarting |
 | Port already in use | Run `lsof -i :8080` to find the process and kill it |
-| `node_modules` out of date after `package.json` change | Delete `frontend/node_modules` and re-run the frontend script |
+| `node_modules` out of date after `package.json` change | Delete `stitch-stitch-frontend/node_modules` and re-run the stitch-frontend rebuild script |
 | Build directory missing | Delete `backend/build` and re-run with the cmake init step above |

@@ -1,0 +1,100 @@
+/* SurveillanceCommandCenterGlobal.css */
+
+.surv-command-center {
+  background: linear-gradient(135deg, #0c0e0f 0%, #111415 100%);
+}
+
+.surv-command-center .scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 255, 0.05) 0px,
+    rgba(0, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+}
+
+.surv-command-center .clipped-corner {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%);
+}
+
+/* Scrollbar styling for intel panel */
+.surv-command-center div::-webkit-scrollbar {
+  width: 6px;
+}
+
+.surv-command-center div::-webkit-scrollbar-track {
+  background: rgba(0, 255, 255, 0.05);
+}
+
+.surv-command-center div::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.surv-command-center div::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .surv-command-center aside {
+    width: 256px;
+  }
+
+  .surv-command-center nav {
+    gap: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .surv-command-center {
+    flex-direction: column;
+  }
+
+  .surv-command-center aside {
+    display: none;
+  }
+
+  .surv-command-center main {
+    margin-left: 0;
+  }
+
+  .surv-command-center .absolute {
+    display: none;
+  }
+
+  .surv-command-center .fixed.bottom-0.left-64 {
+    left: 0;
+  }
+}
+
+/* Animation for pulsing nodes */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(254, 152, 0, 1), 0 0 25px rgba(254, 152, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(254, 152, 0, 1), 0 0 35px rgba(254, 152, 0, 0.7);
+  }
+}
+
+.surv-command-center .animate-pulse {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Cyan glow for cities */
+@keyframes cyan-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+  }
+}
+
+/* Text shadow for neon effect */
+.surv-command-center .text-\[\#00ffff\] {
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+}

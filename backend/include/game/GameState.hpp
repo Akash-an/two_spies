@@ -9,6 +9,13 @@
 
 namespace two_spies::game {
 
+/// Represents an Intel reward pop-up spawned on the board.
+struct IntelPopup {
+    std::string city_id;    // city where Intel appeared
+    int amount = 10;        // amount (fixed at 10)
+    int turn_created;       // turn number when created
+};
+
 /// Action types the client can send.
 enum class ActionKind { MOVE, STRIKE, ABILITY, WAIT, CONTROL };
 
@@ -65,7 +72,9 @@ public:
     ActionResult control(PlayerSide side);
 
     /// End the current player's turn.
-    ActionResult end_turn(PlayerSide side);
+    /// @param side The player whose turn is ending
+    /// @param skip_exploration_bonus If true (e.g., on timeout), skip the +4 exploration bonus
+    ActionResult end_turn(PlayerSide side, bool skip_exploration_bonus = false);
 
     // ── Queries ──────────────────────────────────────────────────
     PlayerSide current_turn() const { return current_turn_; }
@@ -85,6 +94,10 @@ public:
     
     /// Get all controlled cities as a map: city_id -> controlling_player
     const std::unordered_map<std::string, PlayerSide>& city_controllers() const { return city_controllers_; }
+
+    // ── Intel Pop-up Feature ───────────────────────────────────
+    /// Get all active Intel pop-ups on the board
+    const std::vector<IntelPopup>& intel_popups() const { return intel_popups_; }
 
     // ── Shrinking Map Feature ─────────────────────────────────
     /// Get the city scheduled to disappear at the end of this action count
@@ -115,6 +128,11 @@ private:
     // ── City Control Tracking ─────────────────────────────────
     std::unordered_map<std::string, PlayerSide> city_controllers_;  // city_id -> controlling PlayerSide
 
+    // ── Intel Pop-up Tracking ─────────────────────────────────
+    std::vector<IntelPopup> intel_popups_;         // active Intel pop-ups on board
+    int actions_since_last_intel_popup_ = 0;       // action counter for spawning
+    int next_intel_popup_threshold_ = 0;           // how many more actions until next popup (3-5)
+
     /// Select a random city to disappear (one that hasn't disappeared yet)
     /// Ensures the remaining graph stays connected
     std::string select_random_city_to_disappear();
@@ -124,6 +142,15 @@ private:
 
     /// Handle action count increment and city disappearance logic
     void increment_action_count();
+
+    /// Spawn a random Intel pop-up if threshold is reached
+    void try_spawn_intel_popup();
+
+    /// Process Intel claiming: if player is at city with Intel, mark it for claiming
+    void try_claim_intel(PlayerSide side);
+
+    /// Apply claimed Intel at start of turn (blows cover)
+    void apply_claimed_intel(PlayerSide side);
 
     /// Check if both spies are in the same city with no cover.
     ActionResult check_same_city();

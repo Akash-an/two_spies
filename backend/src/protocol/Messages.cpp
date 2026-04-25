@@ -1,5 +1,6 @@
 #include "protocol/Messages.hpp"
 #include <iostream>
+#include <cstdio>
 
 namespace two_spies::protocol {
 
@@ -114,6 +115,18 @@ json serialize_match_state(const std::string& session_id,
     // Include opponent action notifications
     player_state["opponentUsedStrike"] = p.opponent_used_strike;
     player_state["opponentUsedLocate"] = p.opponent_used_locate;
+    player_state["opponentUsedDeepCover"] = p.opponent_used_deep_cover;
+    
+    // Include player action feedback
+    fprintf(stderr, "[!!!] Serializing: player=%s locate_blocked=%d\n",
+            p.side == game::PlayerSide::RED ? "RED" : "BLUE", p.locate_blocked_by_deep_cover);
+    player_state["locateBlockedByDeepCover"] = p.locate_blocked_by_deep_cover;
+    
+    // DEBUG: Print to stderr what we're serializing
+    if (p.locate_blocked_by_deep_cover) {
+        std::cerr << "[SERIALIZE] Player " << (p.side == game::PlayerSide::RED ? "RED" : "BLUE") 
+                  << ": locateBlockedByDeepCover=" << p.locate_blocked_by_deep_cover << "\n";
+    }
     
     // Include starting cities for both players - these are now shared information
     player_state["startingCity"] = p.starting_city;
@@ -142,6 +155,19 @@ json serialize_match_state(const std::string& session_id,
     }
     result["disappearedCities"] = disappeared_arr;
     result["isPlayerStranded"] = state.is_player_stranded(for_player);
+    
+    // Intel pop-ups: visible to both players
+    json intel_popups_arr = json::array();
+    for (const auto& popup : state.intel_popups()) {
+        json popup_obj;
+        popup_obj["city"] = popup.city_id;
+        popup_obj["amount"] = popup.amount;
+        intel_popups_arr.push_back(popup_obj);
+    }
+    result["intelPopups"] = intel_popups_arr;
+    
+    // Player feedback: did they claim Intel this turn?
+    player_state["claimedIntel"] = p.claimed_intel_this_turn;
     
     // Controlled cities: visible to both players
     json controlled_cities_obj = json::object();

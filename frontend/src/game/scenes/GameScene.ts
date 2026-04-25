@@ -82,10 +82,19 @@ export class GameScene extends Phaser.Scene {
   // Banner de-dup tracking
   private lastStrikeBannerTurn = -1;
   private lastLocateBannerTurn = -1;
+  private lastDeepCoverBannerTurn = -1;
+  private lastLocateBlockedBannerTurn = -1;
+  private lastIntelClaimedBannerTurn = -1;
   private lastTurnOwner: string | null = null;
 
   // Active notification banner objects
   private activeBannerObjects: Phaser.GameObjects.GameObject[] = [];
+
+  // Deep Cover indicator
+  private deepCoverText: Phaser.GameObjects.Text | null = null;
+  
+  // Track when player uses deep cover to show confirmation
+  private playerUsedDeepCoverThisTurn = false;
 
   // Timer interpolation
   private lastServerElapsedMs = 0;
@@ -223,6 +232,7 @@ export class GameScene extends Phaser.Scene {
       .setVisible(false);
 
     this.createActionButtons(w, h);
+    this.createDeepCoverIndicator(w);
     this.timerDisplay = new TimerDisplay(this);
   }
 
@@ -376,10 +386,18 @@ export class GameScene extends Phaser.Scene {
       this.showStatus('Waiting...', INK_MID_STR);
     });
 
-    // 3: GO DEEP (not yet implemented)
-    this.actionBtns[3] = this.makeButton(x(3), btnY, btnW, btnH, 'GO DEEP', 'btn_go_deep', () => {
+    // 3: DEEP COVER
+    this.actionBtns[3] = this.makeButton(x(3), btnY, btnW, btnH, 'DEEP COVER', 'btn_go_deep', () => {
       if (!this.areButtonsEnabled()) { this.showStatus('Not your turn', INK_MID_STR); return; }
-      this.showStatus('Not yet available', INK_MID_STR);
+      if (this.state?.isPlayerStranded) { this.showStatus('You must move out of the disappearing city!', '#c0392b'); return; }
+      const DEEP_COVER_COST = 30;
+      if (!this.state || this.state.player.intel < DEEP_COVER_COST) {
+        this.showStatus(`Deep Cover costs ${DEEP_COVER_COST} Intel. You have ${this.state?.player.intel || 0}.`, '#c0392b');
+        return;
+      }
+      this.net.send(ClientMessageType.PLAYER_ACTION, { action: ActionKind.ABILITY, abilityId: AbilityId.DEEP_COVER });
+      this.playerUsedDeepCoverThisTurn = true;
+      this.showStatus('Using Deep Cover ability... You are now invisible!', INK_MID_STR);
     });
 
     // 4: LOCATE
@@ -611,21 +629,90 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(800, () => {
         this.net.send(ClientMessageType.END_TURN, {});
       });
-    } else if (p.opponentUsedStrike) {
-      if (this.state.turnNumber !== this.lastStrikeBannerTurn) {
-        this.lastStrikeBannerTurn = this.state.turnNumber;
-        this.showOpponentStrikeBanner();
-      }
-    } else if (p.opponentUsedLocate) {
-      if (this.state.turnNumber !== this.lastLocateBannerTurn) {
-        this.lastLocateBannerTurn = this.state.turnNumber;
-        this.showOpponentLocateBanner();
-      }
-    } else {
-      this.showStatus('', INK_MID_STR);
     }
 
+    // Check all notifications independently (not if-else) so they can all show
+    if (this.playerUsedDeepCoverThisTurn) {
+      console.log('[GameScene] Showing player Deep Cover banner');
+      this.showPlayerDeepCoverBanner();
+      this.playerUsedDeepCoverThisTurn = false;
+    }
+
+    if (p.opponentUsedStrike) {
+      if (this.state.turnNumber !== this.lastStrikeBannerTurn) {
+        this.lastStrikeBannerTurn = this.state.turnNumber;
+        console.log('[GameScene] Showing opponent strike banner');
+        this.showOpponentStrikeBanner();
+      }
+    }
+
+    if (p.opponentUsedLocate) {
+      if (this.state.turnNumber !== this.lastLocateBannerTurn) {
+        this.lastLocateBannerTurn = this.state.turnNumber;
+        console.log('[GameScene] Showing opponent locate banner');
+        this.showOpponentLocateBanner();
+      }
+    }
+
+    if (p.opponentUsedDeepCover) {
+      if (this.state.turnNumber !== this.lastDeepCoverBannerTurn) {
+        this.lastDeepCoverBannerTurn = this.state.turnNumber;
+        console.log('[GameScene] Showing opponent deep cover banner');
+        this.showOpponentDeepCoverBanner();
+      }
+    }
+
+    if (p.locateBlockedByDeepCover) {
+      if (this.state.turnNumber !== this.lastLocateBlockedBannerTurn) {
+        this.lastLocateBlockedBannerTurn = this.state.turnNumber;
+        console.log('[GameScene] Showing locate blocked banner');
+        this.showLocateBlockedByDeepCoverBanner();
+      }
+    }
+
+    if (p.claimedIntel) {
+      if (this.state.turnNumber !== this.lastIntelClaimedBannerTurn) {
+        this.lastIntelClaimedBannerTurn = this.state.turnNumber;
+        console.log('[GameScene] Showing Intel claimed banner');
+        this.showIntelClaimedBanner();
+      }
+    }
+
+    this.updateDeepCoverIndicator();
     this.updateOpponentMarker();
+  }
+
+  // ── Deep Cover Indicator ─────────────────────────────────────────
+
+  private createDeepCoverIndicator(w: number): void {
+    // Deep Cover indicator in right panel (below opponent name)
+    const indicatorX = w - RIGHT_PANEL_W / 2;
+    const indicatorY = 55;
+
+    this.deepCoverText = this.add
+      .text(indicatorX, indicatorY, '', {
+        fontFamily: FONT_SERIF,
+        fontSize: '11px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        backgroundColor: '#2a5a8a',
+        padding: { x: 6, y: 4 },
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(25)
+      .setVisible(false);
+  }
+
+  private updateDeepCoverIndicator(): void {
+    if (!this.state || !this.deepCoverText) return;
+
+    if (this.state.player.opponentUsedDeepCover) {
+      console.log('[GameScene] Opponent has Deep Cover - showing indicator');
+      this.deepCoverText.setText('🔒 OPPONENT\nIN DEEP COVER');
+      this.deepCoverText.setVisible(true);
+    } else {
+      this.deepCoverText.setVisible(false);
+    }
   }
 
   private showStatus(msg: string, color: string): void {
@@ -822,6 +909,38 @@ export class GameScene extends Phaser.Scene {
       'OPPONENT USED LOCATE',
       'Your current position may be known.',
       0xc8763a,
+    );
+  }
+
+  private showOpponentDeepCoverBanner(): void {
+    this.showNotificationBanner(
+      'OPPONENT USED DEEP COVER',
+      'They have gone invisible in your presence.',
+      0x2a5a8a,
+    );
+  }
+
+  private showPlayerDeepCoverBanner(): void {
+    this.showNotificationBanner(
+      'DEEP COVER ACTIVATED',
+      'You are now invisible and protected.',
+      0x2a5a8a,
+    );
+  }
+
+  private showLocateBlockedByDeepCoverBanner(): void {
+    this.showNotificationBanner(
+      'LOCATE FAILED',
+      'Opponent protected by Deep Cover.',
+      0xc85a3a,
+    );
+  }
+
+  private showIntelClaimedBanner(): void {
+    this.showNotificationBanner(
+      'INTEL ACQUIRED!',
+      '+10 Intel claimed, but your cover is blown.',
+      0xffd700,  // Gold
     );
   }
 }

@@ -1,18 +1,24 @@
 # -----------------------------------------------
 # Frontend (Node / Vite)
 # -----------------------------------------------
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/.env
-frontend/.env.local
-frontend/.env.*.local
-frontend/vite.log
+stitch-frontend/node_modules/
+stitch-frontend/dist/
+stitch-frontend/.vite/
+stitch-frontend/.env
+stitch-frontend/.env.local
+stitch-frontend/.env.*.local
+stitch-frontend/vite.log
+
+# Block compiled JS artifacts from being committed alongside TypeScript source.
+# The tsconfig has noEmit:true so these should never appear in src/, but guard anyway.
+stitch-frontend/src/**/*.js
+stitch-frontend/vite.config.js
 node_modules/
 
 # -----------------------------------------------
 # Backend (CMake / C++)
 # -----------------------------------------------
+build/
 backend/build/
 backend/.cache/
 backend/server.log
@@ -32,6 +38,9 @@ compile_commands.json
 .agents/skills/screenshot-to-code/
 .agents/skills/resolve-conflicts/
 .agents/skills/playwright-cli/
+.agents/skills/design-md/
+.agents/skills/react-components/
+.agents/skills/stitch-design/
 
 # Keep custom project skills (rebuild-and-restart, two-spies-gamedesign)
 # These are NOT ignored and will be committed

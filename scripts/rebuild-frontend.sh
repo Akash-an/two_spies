@@ -5,8 +5,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FRONTEND_DIR="$REPO_ROOT/frontend"
-LOG_FILE="$REPO_ROOT/frontend/vite.log"
+FRONTEND_DIR="$REPO_ROOT/stitch-frontend"
+LOG_FILE="$REPO_ROOT/stitch-frontend/vite.log"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-echo -e "${CYAN}=== Two Spies Frontend Rebuild ===${NC}"
+echo -e "${CYAN}=== Two Spies stitch-frontend Rebuild ===${NC}"
 
 # ── 1. Stop existing Vite dev server ──────────────────────────────────────
 echo -e "${YELLOW}[1/3] Stopping existing Vite server...${NC}"
@@ -67,4 +67,4 @@ else
     exit 1
 fi
 
-echo -e "${GREEN}=== Frontend ready ===${NC}"
+echo -e "${GREEN}=== stitch-frontend ready ===${NC}"

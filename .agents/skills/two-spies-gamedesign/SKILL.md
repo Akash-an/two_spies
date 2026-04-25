@@ -1,7 +1,16 @@
 ---
 name: two-spies-gamedesign
-description: Canonical reference for Two Spies game rules, mechanics, and design decisions. Use this skill whenever implementing or reasoning about game rules, turn structure, actions, movement, strike logic, Intel resource, abilities (Deep Cover, Encryption, Locate, Strike Report, Rapid Recon, Prep Mission), victory conditions, fog of war, hidden information, city graph, or cover system. Trigger: game rules, implement move, implement strike, add ability, turn logic, intel, cover, fog of war, city graph, win condition, validate action, GameState, game loop.
+description: >-
+  Canonical reference for Two Spies game rules, mechanics, and design decisions.
+  Use this skill whenever implementing or reasoning about game rules, turn
+  structure, actions, movement, strike logic, Intel resource, abilities (Deep
+  Cover, Encryption, Locate, Strike Report, Rapid Recon, Prep Mission), victory
+  conditions, fog of war, hidden information, city graph, or cover system.
+  Trigger: game rules, implement move, implement strike, add ability, turn logic,
+  intel, cover, fog of war, city graph, win condition, validate action,
+  GameState, game loop.
 ---
+
 
 # Two Spies — Game Design Reference
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <chrono>
+#include <iostream>
 
 namespace two_spies::game {
 
@@ -11,6 +12,10 @@ GameState::GameState(const MapDef& map)
 {
     red_.side = PlayerSide::RED;
     blue_.side = PlayerSide::BLUE;
+
+    // Initialize Intel pop-up threshold (3-5 actions)
+    std::uniform_int_distribution<> dist(3, 5);
+    next_intel_popup_threshold_ = dist(rng_);
 }
 
 void GameState::set_starting_cities(const std::string& red_city, const std::string& blue_city) {
@@ -93,16 +98,21 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
     }
 
     // Check if opponent controls this city — if so, cover is blown
+    // UNLESS the player has deep_cover_active
     bool entered_controlled_city = false;
     auto it = city_controllers_.find(target_city);
     if (it != city_controllers_.end() && it->second == opposite(side)) {
-        // Opponent controls this city — automatically blow this player's cover
-        p.has_cover = false;
-        entered_controlled_city = true;
+        // Opponent controls this city
+        if (!p.deep_cover_active) {
+            // No deep cover — automatically blow this player's cover
+            p.has_cover = false;
+            entered_controlled_city = true;
+        }
+        // With deep_cover_active, the player remains hidden despite controlled city
     }
 
     // Clear opponent's knowledge of this player's location (Locate effect wears off)
-    // UNLESS we just entered their controlled city (then they gain sight of us)
+    // UNLESS we just entered their controlled city AND don't have deep_cover (then they gain sight of us)
     auto& opponent = player_mut(opposite(side));
     if (!entered_controlled_city) {
         opponent.known_opponent_city = "";  // player took action, clear their known location
@@ -235,25 +245,42 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     // Per-ability effects
     switch (ability) {
         case AbilityId::DEEP_COVER:
-            // Deep Cover grants cover (player becomes hidden)
+            // Deep Cover grants cover (player becomes hidden) until beginning of their next turn
+            p.deep_cover_active = true;
+            p.deep_cover_used_on_turn = turn_number_;  // Track which turn it was used
             p.has_cover = true;
             // Clear opponent's knowledge of this player's location
             opponent.known_opponent_city = "";
+            // Notify opponent that player used Deep Cover
+            opponent.opponent_used_deep_cover = true;
             break;
         case AbilityId::LOCATE:
-            // Locate reveals opponent's current location and makes both players visible
+            // Locate reveals opponent's current location to the current player
+            // UNLESS opponent has deep_cover_active — in that case, it fails
             {
                 const auto& opp = player(opposite(side));
-                // I learn opponent's location
-                p.known_opponent_city = opp.current_city;
-                // Opponent becomes visible to me
                 auto& opp_mut = player_mut(opposite(side));
-                opp_mut.has_cover = false;  // Locate ability reveals opponent
-                opp_mut.opponent_used_locate = true;  // Notify opponent
-                // I also become visible by using Locate
-                p.has_cover = false;
-                // Opponent learns my location
-                opponent.known_opponent_city = p.current_city;
+                
+                if (opp_mut.deep_cover_active) {
+                    // Cannot locate a player in deep cover
+                    // Still costs Intel and action, but fails to reveal
+                    p.known_opponent_city = "";
+                    opp_mut.opponent_used_locate = false;  // They don't get notified
+                    p.locate_blocked_by_deep_cover = true;  // Notify THIS player that their Locate failed
+                    fprintf(stderr, "[!!!] SET locate_blocked_by_deep_cover=TRUE for player %s\n", 
+                            side == PlayerSide::RED ? "RED" : "BLUE");
+                    // Both players stay in their current visibility state
+                } else {
+                    // Normal locate behavior
+                    // I learn opponent's location
+                    p.known_opponent_city = opp.current_city;
+                    // Opponent becomes visible to me
+                    opp_mut.has_cover = false;  // Locate ability reveals opponent
+                    opp_mut.opponent_used_locate = true;  // Notify opponent
+                    p.locate_blocked_by_deep_cover = false;  // Locate succeeded, did not fail
+                    // Note: Current player does NOT become visible by using Locate
+                    // Only the opponent's location is revealed one-way
+                }
             }
             break;
         default:
@@ -382,7 +409,7 @@ ActionResult GameState::control(PlayerSide side) {
 
 // ── END TURN ─────────────────────────────────────────────────────────
 
-ActionResult GameState::end_turn(PlayerSide side) {
+ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     ActionResult result;
 
     if (game_over_) {
@@ -396,15 +423,19 @@ ActionResult GameState::end_turn(PlayerSide side) {
 
     auto& p = player_mut(side);
 
-    // Intel income: base 1 per turn
-    int income = 1;
+    // Check if player ends turn at a city with Intel pop-up
+    try_claim_intel(side);
+
+    // Intel income: base 4 per turn
+    int income = 4;
     p.intel += income;
 
     // Exploration bonus: +4 Intel if player moved to a new city this turn
-    if (p.moved_to_new_city_this_turn) {
+    // (unless skipped due to timeout)
+    if (!skip_exploration_bonus && p.moved_to_new_city_this_turn) {
         p.intel += 4;
-        p.moved_to_new_city_this_turn = false;  // Reset flag for next turn
     }
+    p.moved_to_new_city_this_turn = false;  // Reset flag for next turn
 
     // NOTE: Cover state persists based on player actions. Do NOT reset at turn end.
     // Cover changes only when actions are taken (move, wait, strike, control, locate, deep_cover).
@@ -417,9 +448,39 @@ ActionResult GameState::end_turn(PlayerSide side) {
     auto& next = player_mut(current_turn_);
     next.actions_remaining = 2;
     
+    // Apply any claimed Intel at the start of the new turn (blows cover)
+    apply_claimed_intel(current_turn_);
+    
+    // Clear Intel pop-ups from disappeared cities
+    auto it = intel_popups_.begin();
+    while (it != intel_popups_.end()) {
+        if (disappeared_cities_.find(it->city_id) != disappeared_cities_.end()) {
+            it = intel_popups_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    
+    // Clear Deep Cover if it's been used for at least 2 turns (protecting through opponent's full turn)
+    // Deep Cover is used on turn N, expires at beginning of turn N+2 (after opponent's full turn)
+    if (next.deep_cover_active && next.deep_cover_used_on_turn >= 0) {
+        int turns_since_use = turn_number_ - next.deep_cover_used_on_turn;
+        std::cerr << "[DC-CHECK] turn_number_=" << turn_number_ 
+                  << " next_player=" << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE")
+                  << " deep_cover_  used_on_turn=" << next.deep_cover_used_on_turn
+                  << " turns_since=" << turns_since_use << "\n";
+        if (turns_since_use >= 2) {
+            next.deep_cover_active = false;
+            next.deep_cover_used_on_turn = -1;
+            std::cerr << "[DC-CLEAR] Deep Cover cleared for " << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE") << "\n";
+        }
+    }
+    
     // Clear opponent action notifications for the new turn
     next.opponent_used_strike = false;
     next.opponent_used_locate = false;
+    next.opponent_used_deep_cover = false;
+    next.locate_blocked_by_deep_cover = false;  // Clear Locate feedback flag
 
     result.ok = true;
     return result;
@@ -582,6 +643,9 @@ std::string GameState::select_random_city_to_disappear() {
 void GameState::increment_action_count() {
     action_count_++;
     
+    // Try to spawn Intel pop-up (3-5 action threshold)
+    try_spawn_intel_popup();
+    
     // At action 4, 10, 16, 22, etc. (4, 4+6, 4+12, ...) schedule next disappearance
     // This means at actions 6, 12, 18, 24, ... we execute the disappearance
     if (action_count_ % 6 == 4) {
@@ -610,6 +674,96 @@ PlayerSide GameState::get_city_controller(const std::string& city) const {
     // Return a default PlayerSide value (RED) if no controller found
     // Caller should check if city is actually controlled using city_controllers() map
     return PlayerSide::RED;  // This value indicates "not controlled" when used with the map check
+}
+
+// ── Intel Pop-up Management ──────────────────────────────────────────
+
+void GameState::try_spawn_intel_popup() {
+    actions_since_last_intel_popup_++;
+    
+    std::cerr << "[INTEL-DEBUG] actions_since_last_popup=" << actions_since_last_intel_popup_ 
+              << " threshold=" << next_intel_popup_threshold_ << "\n";
+    
+    if (actions_since_last_intel_popup_ >= next_intel_popup_threshold_) {
+        // Select a random city that hasn't disappeared
+        auto all_cities = graph_.all_city_ids();
+        std::vector<std::string> valid_cities;
+        
+        for (const auto& city : all_cities) {
+            if (disappeared_cities_.find(city) == disappeared_cities_.end()) {
+                valid_cities.push_back(city);
+            }
+        }
+        
+        if (!valid_cities.empty()) {
+            std::uniform_int_distribution<> dist(0, valid_cities.size() - 1);
+            std::string popup_city = valid_cities[dist(rng_)];
+            
+            // Create new Intel pop-up
+            IntelPopup popup;
+            popup.city_id = popup_city;
+            popup.amount = 10;
+            popup.turn_created = turn_number_;
+            intel_popups_.push_back(popup);
+            
+            std::cerr << "[INTEL] Spawned Intel pop-up of " << popup.amount << " at city " 
+                      << popup_city << " on turn " << turn_number_ << "\n";
+        }
+        
+        // Reset counter and pick new threshold
+        actions_since_last_intel_popup_ = 0;
+        std::uniform_int_distribution<> threshold_dist(3, 5);
+        next_intel_popup_threshold_ = threshold_dist(rng_);
+        
+        std::cerr << "[INTEL] Next threshold set to: " << next_intel_popup_threshold_ << "\n";
+    }
+}
+
+void GameState::try_claim_intel(PlayerSide side) {
+    auto& p = player_mut(side);
+    
+    // Check if there's an Intel pop-up at player's current city
+    auto it = std::find_if(intel_popups_.begin(), intel_popups_.end(),
+                          [&p](const IntelPopup& popup) {
+                              return popup.city_id == p.current_city;
+                          });
+    
+    if (it != intel_popups_.end()) {
+        // Mark that Intel should be claimed
+        p.claimed_intel_this_turn = true;
+        p.intel_claimed_from_city = it->city_id;
+        
+        std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                  << " will claim " << it->amount << " Intel at city " << it->city_id << "\n";
+        
+        // Remove the pop-up
+        intel_popups_.erase(it);
+    }
+}
+
+void GameState::apply_claimed_intel(PlayerSide side) {
+    auto& p = player_mut(side);
+    
+    if (p.claimed_intel_this_turn) {
+        // Add 10 Intel
+        p.intel += 10;
+        
+        // Blow cover - player becomes visible
+        p.has_cover = false;
+        
+        // Opponent can now see this player's location (stays visible until they move/wait)
+        auto& opp = player_mut(opposite(side));
+        opp.known_opponent_city = p.current_city;
+        
+        std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                  << " claimed Intel at " << p.intel_claimed_from_city 
+                  << ". New Intel: " << p.intel << ". Cover blown."
+                  << " Opponent now sees at: " << p.current_city << "\n";
+        
+        // Reset flags
+        p.claimed_intel_this_turn = false;
+        p.intel_claimed_from_city = "";
+    }
 }
 
 } // namespace two_spies::game

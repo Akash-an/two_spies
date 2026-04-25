@@ -82,6 +82,8 @@ void Match::start(unsigned int seed) {
             session_id_,
             {{"side", "RED"}}
         );
+        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to RED (" 
+                  << red_player_id_ << "): " << msg << "\n";
         send_to(red_player_id_, msg);
     }
     {
@@ -90,6 +92,8 @@ void Match::start(unsigned int seed) {
             session_id_,
             {{"side", "BLUE"}}
         );
+        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BLUE (" 
+                  << blue_player_id_ << "): " << msg << "\n";
         send_to(blue_player_id_, msg);
     }
 
@@ -103,8 +107,7 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
     
     // Check for turn timeout before processing action
     if (check_turn_timeout()) {
-        send_error(player_id, "Your turn time expired. Actions forfeited.");
-        broadcast_state();
+        handle_turn_timeout();
         return;
     }
     
@@ -193,6 +196,13 @@ void Match::remove_player(const std::string& player_id) {
     if (player_id == blue_player_id_) blue_player_id_.clear();
 }
 
+void Match::periodic_broadcast() {
+    std::lock_guard lock(mutex_);
+    if (started_ && !state_->is_game_over()) {
+        broadcast_state();
+    }
+}
+
 bool Match::is_game_over() const {
     return state_ && state_->is_game_over();
 }
@@ -209,6 +219,13 @@ std::string Match::player_id_of(PlayerSide side) const {
 }
 
 void Match::broadcast_state() {
+    // Check for turn timeout before broadcasting state
+    // This ensures timeout is detected even when players are idle
+    if (check_turn_timeout()) {
+        handle_turn_timeout();
+        return;  // handle_turn_timeout() will call broadcast_state() again
+    }
+    
     long long elapsed = time_since_turn_start();
     
     // Send per-player filtered state
@@ -245,31 +262,55 @@ long long Match::time_since_turn_start() const {
     return elapsed.count();
 }
 
+void Match::handle_turn_timeout() {
+    // This method is called when timeout is detected.
+    // Assumes: lock is already held by caller.
+    
+    if (!started_ || state_->is_game_over()) {
+        return;
+    }
+
+    PlayerSide expired_player = state_->current_turn();
+    PlayerSide next_player = opposite(expired_player);
+    
+    // Forfeit remaining actions
+    auto& player_data = state_->player_mut(expired_player);
+    player_data.actions_remaining = 0;
+    
+    // Force end the turn (skip exploration bonus on timeout)
+    state_->end_turn(expired_player, true);
+    
+    // Reset timer for next player's turn
+    turn_start_time_ = std::chrono::steady_clock::now();
+    
+    std::cout << "[Match " << session_id_ << "] Turn timeout: " 
+              << to_string(expired_player) << " forfeited remaining actions. "
+              << "Control transferred to " << to_string(next_player) << ".\n";
+    
+    // Send TURN_CHANGE message to both players indicating timeout
+    {
+        auto msg = protocol::make_server_message(
+            protocol::ServerMsgType::TURN_CHANGE,
+            session_id_,
+            {{"previousTurn", to_string(expired_player)},
+             {"currentTurn", to_string(next_player)},
+             {"reason", "timeout"}}
+        );
+        send_to(red_player_id_, msg);
+        send_to(blue_player_id_, msg);
+    }
+    
+    // Broadcast new state so clients see the updated board
+    broadcast_state();
+}
+
 bool Match::check_turn_timeout() {
     if (!started_ || state_->is_game_over()) {
         return false;
     }
 
     long long elapsed = time_since_turn_start();
-    if (elapsed >= TURN_DURATION_MS) {
-        // Forfeit all remaining actions and end turn for current player
-        PlayerSide current_player = state_->current_turn();
-        auto& player_data = state_->player_mut(current_player);
-        player_data.actions_remaining = 0;
-        
-        // Force end turn
-        state_->end_turn(current_player);
-        
-        // Reset timer for next player
-        turn_start_time_ = std::chrono::steady_clock::now();
-        
-        std::cout << "[Match " << session_id_ << "] Turn timeout: " 
-                  << to_string(current_player) << " forfeited remaining actions.\n";
-        
-        return true;
-    }
-
-    return false;
+    return elapsed >= TURN_DURATION_MS;
 }
 
 } // namespace two_spies::game

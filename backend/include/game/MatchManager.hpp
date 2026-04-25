@@ -39,6 +39,10 @@ public:
     /// Returns the session ID for a given player, or empty.
     std::string session_for_player(const std::string& player_id) const;
 
+    /// Broadcast state for all active matches (triggers timeout checks).
+    /// Called periodically by the WebSocket server.
+    void broadcast_all_matches();
+
 private:
     MapDef default_map_;
     mutable std::mutex mutex_;

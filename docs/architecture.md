@@ -1,9 +1,11 @@
 # Architecture Overview
 
+> ⚠️ **TERMINOLOGY: "frontend" now always refers to `stitch-frontend/` — the canonical browser client. The older `frontend/` directory is **DEPRECATED** and must not be used.**
+
 ## System Components
 
 ```
-Browser (Client)
+Browser (Client) — stitch-frontend/
   └── React UI (menus, lobby, settings)
   └── Phaser 3 canvas (game rendering)
   └── WebSocketClient (browser native API)
@@ -19,7 +21,7 @@ C++ WebSocket Server (Boost.Beast + Asio)
 ## Message Flow
 
 ```
-Client                          Server
+Client (stitch-frontend/)      Server (backend/)
   │── LOBBY_JOIN ─────────────▶  │
   │◀─ BOARD_STATE_UPDATE ───────  │ (initial board)
   │                               │
@@ -38,9 +40,10 @@ Client                          Server
 
 | Path | Purpose |
 |---|---|
-| `frontend/src/game/` | Phaser scenes, entities, game config |
-| `frontend/src/ui/` | React components, pages, hooks |
-| `frontend/src/network/` | WebSocket client wrapper |
+| `stitch-frontend/src/components/` | React components (UI overlays, modals) |
+| `stitch-frontend/src/network/` | WebSocket client wrapper |
+| `stitch-frontend/src/types/` | Message types (ClientMessageType, ServerMessageType) |
+| `stitch-frontend/src/styles/` | Global CSS and Tailwind |
 | `backend/src/game/` | Rules engine, state machine |
 | `backend/src/network/` | WebSocket server, session handling |
 | `backend/src/protocol/` | Message parsing and serialization |
@@ -49,7 +52,7 @@ Client                          Server
 
 ## Key Design Decisions
 
-- **Authoritative server**: All game state lives on the server. Clients are pure views.
+- **Authoritative server**: All game state lives on the server. Clients (stitch-frontend/) are pure views.
 - **JSON protocol**: Human-readable for development; can be replaced with binary for production performance.
-- **Phaser embedded in React**: Phaser mounts into a `<div>` managed by React; React overlays handle all non-game UI.
+- **React + Phaser**: stitch-frontend uses React for overlays and menus; Phaser embedded in a React component for the game canvas.
 - **Per-session rooms**: Each active match is an isolated room object on the server, making horizontal scaling straightforward.
