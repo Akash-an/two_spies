@@ -19,6 +19,7 @@ enum class ClientMsgType {
     PLAYER_ACTION,
     END_TURN,
     SET_PLAYER_NAME,
+    ABORT_MATCH,
 };
 
 /// Server → Client message types.

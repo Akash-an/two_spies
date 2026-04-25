@@ -41,7 +41,7 @@ public:
 
     /// Broadcast state for all active matches (triggers timeout checks).
     /// Called periodically by the WebSocket server.
-    void broadcast_all_matches();
+    void check_all_timeouts();
 
 private:
     MapDef default_map_;

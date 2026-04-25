@@ -18,6 +18,7 @@ function App() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [matchCode, setMatchCode] = useState<string | null>(null);
   const [, setPlayerSide] = useState<PlayerSide | null>(null);
+  const [initialMap, setInitialMap] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
     'SCRUBBING METADATA...',
@@ -85,7 +86,9 @@ function App() {
         client.on(ServerMessageType.MATCH_START, (msg: any) => {
           console.log('[App] Match started - both players ready:', msg);
           const side = (msg.payload as any)?.side as PlayerSide;
+          const map = (msg.payload as any)?.map;
           if (side) setPlayerSide(side);
+          if (map) setInitialMap(map);
           setLogs((p) => [...p, `MATCH STARTED — You are ${side || 'assigned'}`]);
           setIsLoading(false);
           // Both initiating and joining players transition to game
@@ -207,6 +210,9 @@ function App() {
           onLinkToNetwork={handleLinkToNetwork}
           onTerminateLink={() => {
             console.log('[App] Terminate link');
+            if (netRef.current && netRef.current.isConnected()) {
+              netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+            }
             setPhase('entering-name');
             setPlayerName('');
             setMatchCode(null);
@@ -221,6 +227,7 @@ function App() {
           operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
           playerName={playerName}
           webSocketClient={netRef.current}
+          initialMap={initialMap}
           onGameEnd={() => {
             console.log('[App] Game ended');
             setPhase('deployment');
@@ -229,6 +236,9 @@ function App() {
           }}
           onTerminateLink={() => {
             console.log('[App] Terminate link from game');
+            if (netRef.current && netRef.current.isConnected()) {
+              netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+            }
             setPhase('entering-name');
             setPlayerName('');
             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);

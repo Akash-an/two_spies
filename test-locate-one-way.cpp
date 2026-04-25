@@ -2,13 +2,13 @@
 #include <iostream>
 #include "game/GameState.hpp"
 #include "game/Player.hpp"
-#include "config/DefaultMap.hpp"
+#include "backend/tests/test_map.hpp"
 
 using namespace two_spies::game;
 
 // Get test map
 static MapDef test_map() {
-    return two_spies::config::default_map();
+    return two_spies::tests::test_map();
 }
 
 int main() {

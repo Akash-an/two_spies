@@ -167,11 +167,11 @@ std::string MatchManager::generate_room_code() {
     return code;
 }
 
-void MatchManager::broadcast_all_matches() {
+void MatchManager::check_all_timeouts() {
     std::lock_guard lock(mutex_);
     for (auto& [session_id, match] : matches_) {
         if (match && match->is_started() && !match->is_game_over()) {
-            match->periodic_broadcast();
+            match->check_for_timeout();
         }
     }
 }

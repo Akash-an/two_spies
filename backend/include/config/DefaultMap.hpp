@@ -5,81 +5,52 @@
 namespace two_spies::config {
 
 /**
- * Default Cold War Europe map — mirrors frontend/src/game/config/DefaultMap.ts.
+ * Default global Aegis Terminal map — mirrors the tactical display aesthetic.
  * Single source of truth for the server's map data. In a production system this
  * would be loaded from an external JSON file; for now it's compiled in.
  */
 inline game::MapDef default_map() {
-    game::MapDef map;
+  game::MapDef map;
 
-    // ── Cities ───────────────────────────────────────────────────
-    map.cities = {
-        // Northern Europe
-        {"london",     "London",     0.22, 0.28},
-        {"paris",      "Paris",      0.30, 0.42},
-        {"amsterdam",  "Amsterdam",  0.35, 0.26},
-        {"berlin",     "Berlin",     0.48, 0.28},
-        {"copenhagen", "Copenhagen", 0.44, 0.17},
+  // ── Cities ───────────────────────────────────────────────────
+  // Normalized coordinates (0.0 - 1.0) matching plain-map.png
+  map.cities = {{"nyc", "New York City", 0.300, 0.320},
+                {"havana", "Havana", 0.280, 0.490},
+                {"rio", "Rio de Janeiro", 0.395, 0.650},
+                {"london", "London", 0.500, 0.280},
+                {"algiers", "Algiers", 0.500, 0.400},
+                {"moscow", "Moscow", 0.600, 0.250},
+                {"dar_es_salaam", "Dar es Salaam", 0.625, 0.620},
+                {"tel-aviv", "Tel Aviv", 0.620, 0.380},
+                {"dubai", "Dubai", 0.670, 0.440},
+                {"bangalore", "Bangalore", 0.735, 0.495},
+                {"singapore", "Singapore", 0.807, 0.555},
+                {"beijing", "Beijing", 0.830, 0.390},
+                {"tokyo", "Tokyo", 0.910, 0.400},
+                {"sydney", "Sydney", 0.930, 0.770}};
 
-        // Central Europe
-        {"zurich",     "Zurich",     0.38, 0.48},
-        {"vienna",     "Vienna",     0.52, 0.44},
-        {"prague",     "Prague",     0.50, 0.36},
+  // ── Edges ────────────────────────────────────────────────────
+  map.edges = {{"nyc", "havana"},
+               {"havana", "rio"},
+               {"nyc", "london"},
+               {"london", "algiers"},
+               {"algiers", "moscow"},
+               {"moscow", "beijing"},
+               {"beijing", "tokyo"},
+               {"tokyo", "sydney"},
+               {"sydney", "singapore"},
+               {"singapore", "bangalore"},
+               {"bangalore", "dubai"},
+               {"dubai", "tel-aviv"},
+               {"tel-aviv", "dar_es_salaam"},
+               {"dar_es_salaam", "london"},
+               {"dar_es_salaam", "dubai"},
+               {"singapore", "tokyo"},
+               {"beijing", "bangalore"},
+               {"nyc", "rio"},
+               {"rio", "dar_es_salaam"}};
 
-        // Southern Europe
-        {"rome",       "Rome",       0.44, 0.62},
-        {"madrid",     "Madrid",     0.15, 0.62},
-        {"istanbul",   "Istanbul",   0.72, 0.58},
-
-        // Eastern Europe
-        {"warsaw",     "Warsaw",     0.58, 0.28},
-        {"moscow",     "Moscow",     0.78, 0.20},
-        {"budapest",   "Budapest",   0.56, 0.48},
-        {"bucharest",  "Bucharest",  0.64, 0.52},
-
-        // Scandinavia
-        {"stockholm",  "Stockholm",  0.50, 0.10},
-    };
-
-    // ── Edges ────────────────────────────────────────────────────
-    map.edges = {
-        // NW cluster
-        {"london",    "paris"},
-        {"london",    "amsterdam"},
-        {"paris",     "amsterdam"},
-        {"paris",     "zurich"},
-        {"paris",     "madrid"},
-        {"amsterdam", "berlin"},
-        {"amsterdam", "copenhagen"},
-
-        // Central
-        {"berlin",    "copenhagen"},
-        {"berlin",    "prague"},
-        {"berlin",    "warsaw"},
-        {"prague",    "vienna"},
-        {"prague",    "zurich"},
-        {"zurich",    "rome"},
-        {"vienna",    "budapest"},
-        {"vienna",    "zurich"},
-
-        // South
-        {"rome",      "madrid"},
-        {"rome",      "budapest"},
-
-        // East
-        {"warsaw",    "moscow"},
-        {"warsaw",    "prague"},
-        {"budapest",  "bucharest"},
-        {"bucharest", "istanbul"},
-        {"budapest",  "istanbul"},
-        {"moscow",    "warsaw"},
-
-        // Scandinavia links
-        {"copenhagen", "stockholm"},
-        {"stockholm",  "moscow"},
-    };
-
-    return map;
+  return map;
 }
 
 } // namespace two_spies::config

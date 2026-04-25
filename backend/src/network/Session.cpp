@@ -93,13 +93,13 @@ void Session::on_message(const std::string& raw) {
     auto& msg = *msg_opt;
     std::cout << "[Session " << player_id_ << "] <- " << raw << "\n";
 
-    // IMPORTANT: Check for active match and do periodic broadcast/timeout check
+    // IMPORTANT: Check for active match and do timeout check
     // This ensures timeout is detected even when players are idle
     auto current_session_id = server_->match_manager().session_for_player(player_id_);
     if (!current_session_id.empty()) {
         auto match = server_->match_manager().get_match(current_session_id);
         if (match) {
-            match->periodic_broadcast();
+            match->check_for_timeout();
         }
     }
 
@@ -177,6 +177,17 @@ void Session::on_message(const std::string& raw) {
                 return;
             }
             match->handle_end_turn(player_id_);
+            break;
+        }
+
+        case protocol::ClientMsgType::ABORT_MATCH: {
+            auto session_id = server_->match_manager().session_for_player(player_id_);
+            if (!session_id.empty()) {
+                auto match = server_->match_manager().get_match(session_id);
+                if (match) {
+                    match->handle_abort(player_id_);
+                }
+            }
             break;
         }
     }
