@@ -1,9 +1,0 @@
-.surv-map { background: linear-gradient(180deg, rgba(6,8,14,0.5), rgba(8,10,20,0.8)); padding: 12px; border-radius:8px; }
-.map-wrapper { width: 100%; height: 420px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.04); }
-.map { width:100%; height:100%; background-size:cover; background-position:center; position:relative; }
-.map.placeholder { display:flex; align-items:center; justify-content:center; color:rgba(200,240,230,0.5); }
-.city-marker { position:absolute; width:14px; height:14px; border-radius:50%; background:#ffd54f; border:2px solid rgba(0,0,0,0.4); transform:translate(-50%,-50%); cursor:pointer; }
-.city-marker.selected { box-shadow: 0 0 12px rgba(255,149,59,0.6); background:#ff9e3b; }
-.terminal-log { background: rgba(0,0,0,0.25); padding:8px; border-radius:8px; max-height:180px; overflow:auto; margin-top:12px; }
-.terminal-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace; color:#c8fff0; padding:2px 0; }
-.text-muted { color: rgba(200,240,230,0.45); }

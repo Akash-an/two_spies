@@ -128,6 +128,33 @@ Server is now listening at `ws://localhost:8080`
 
 ---
 
+## Docker Support (Recommended)
+
+You can run the entire stack (backend + stitch-frontend) using Docker and Docker Compose. This ensures all dependencies are correctly configured.
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+### Quick Start
+```bash
+# Start everything
+./scripts/docker-run.sh
+
+# Rebuild and restart (e.g. after code changes)
+./scripts/docker-rebuild.sh
+
+# Stop everything
+./scripts/docker-stop.sh
+```
+
+- **Frontend:** http://localhost:5173
+- **Backend:** ws://localhost:8080
+
+Logs can be viewed with `docker compose logs -f`.
+
+---
+
 ## stitch-frontend Setup & Run
 
 ### 1. Install Dependencies
