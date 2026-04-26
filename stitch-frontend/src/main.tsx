@@ -7,6 +7,7 @@ import { WebSocketClient } from './network/WebSocketClient';
 import { ClientMessageType, ServerMessageType } from './types/Messages';
 import type { PlayerSide } from './types/Messages';
 import './styles/index.css';
+import HowToPlayOverlay from './components/PhaserGame/HowToPlayOverlay';
 
 type GamePhase = 'entering-name' | 'deployment' | 'playing';
 
@@ -25,6 +26,28 @@ function App() {
     'SCRUBBING METADATA...',
     'BOUNCING SIGNAL: SIN - LDN - DC',
   ]);
+  const [showHowToPlay, setShowHowToPlay] = useState<boolean>(false);
+  const [actionTooltip, setActionTooltip] = useState<string | null>(null);
+  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSetActionTooltip = (text: string | null) => {
+    // Clear any pending timer
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+
+    if (text) {
+      // Set a new timer for 1 second
+      tooltipTimerRef.current = setTimeout(() => {
+        setActionTooltip(text);
+        tooltipTimerRef.current = null;
+      }, 1000);
+    } else {
+      // Clear immediately if mouse leaves
+      setActionTooltip(null);
+    }
+  };
 
   // Initialize WebSocket connection on mount
   useEffect(() => {
@@ -189,68 +212,79 @@ function App() {
           longitude="77.0369° W"
           threatLevel={isConnected ? 'Normal' : 'High'}
           terminalLog={logs}
-          onEstablish={handleNameSubmit}
-          onInputChange={handleInputChange}
-          loading={isLoading}
-        />
-      )}
-
-      {phase === 'deployment' && (
-        <MissionDeploymentHub
-          operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
-          sector="BERLIN_VOID"
-          turnCycle="05/12"
-          location="Berlin"
-          coverLevel={92}
-          networkStatus="Secure"
-          intelUpdate="Intercepting encrypted traffic from Sector 7..."
-          threatLevel="Local authorities increasing patrol frequency."
-          environment="Heavy rain. Visual range reduced to 500m."
-          latitude="52.5200° N"
-          longitude="13.4050° E"
-          logs={logs}
-          matchCode={matchCode}
-          onInitiateOperation={handleInitiateOperation}
-          onLinkToNetwork={handleLinkToNetwork}
-          onTerminateLink={() => {
-            console.log('[App] Terminate link');
-            if (netRef.current && netRef.current.isConnected()) {
-              netRef.current.send(ClientMessageType.ABORT_MATCH, {});
-            }
-            setPhase('entering-name');
-            setPlayerName('');
-            setMatchCode(null);
-            setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
-          }}
-          loading={isLoading}
-        />
-      )}
-
-      {phase === 'playing' && netRef.current && (
-        <PhaserGame
-          operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
-          playerName={playerName}
-          webSocketClient={netRef.current}
-          initialMap={initialMap}
-          initialState={initialState}
-          onGameEnd={() => {
-            console.log('[App] Game ended');
-            setPhase('deployment');
-            setMatchCode(null);
-            setPlayerSide(null);
-          }}
-          onTerminateLink={() => {
-            console.log('[App] Terminate link from game');
-            if (netRef.current && netRef.current.isConnected()) {
-              netRef.current.send(ClientMessageType.ABORT_MATCH, {});
-            }
-            setPhase('entering-name');
-            setPlayerName('');
-            setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
-          }}
-        />
-      )}
-    </div>
+           onEstablish={handleNameSubmit}
+           onInputChange={handleInputChange}
+           loading={isLoading}
+           onOpenHowToPlay={() => setShowHowToPlay(true)}
+           setActionTooltip={handleSetActionTooltip}
+         />
+       )}
+ 
+       {phase === 'deployment' && (
+         <MissionDeploymentHub
+           operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
+           sector="BERLIN_VOID"
+           networkStatus="Secure"
+           intelUpdate="Intercepting encrypted traffic from Sector 7..."
+           threatLevel="Local authorities increasing patrol frequency."
+           environment="Heavy rain. Visual range reduced to 500m."
+           latitude="52.5200° N"
+           longitude="13.4050° E"
+           logs={logs}
+           matchCode={matchCode}
+           onInitiateOperation={handleInitiateOperation}
+           onLinkToNetwork={handleLinkToNetwork}
+           onTerminateLink={() => {
+             console.log('[App] Terminate link');
+             if (netRef.current && netRef.current.isConnected()) {
+               netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+             }
+             setPhase('entering-name');
+             setPlayerName('');
+             setMatchCode(null);
+             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
+           }}
+           loading={isLoading}
+           onOpenHowToPlay={() => setShowHowToPlay(true)}
+           setActionTooltip={handleSetActionTooltip}
+         />
+       )}
+ 
+       {phase === 'playing' && netRef.current && (
+         <PhaserGame
+           operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
+           playerName={playerName}
+           webSocketClient={netRef.current}
+           initialMap={initialMap}
+           initialState={initialState}
+           onGameEnd={() => {
+             console.log('[App] Game ended');
+             setPhase('deployment');
+             setMatchCode(null);
+             setPlayerSide(null);
+           }}
+           onTerminateLink={() => {
+             console.log('[App] Terminate link from game');
+             if (netRef.current && netRef.current.isConnected()) {
+               netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+             }
+             setPhase('entering-name');
+             setPlayerName('');
+             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
+           }}
+           showHowToPlay={showHowToPlay}
+           setShowHowToPlay={setShowHowToPlay}
+           actionTooltip={actionTooltip}
+           setActionTooltip={handleSetActionTooltip}
+         />
+       )}
+       {actionTooltip && <div className="action-tooltip">{actionTooltip}</div>}
+       {showHowToPlay && (
+         <div className="global-overlay-wrapper">
+           <HowToPlayOverlay onClose={() => setShowHowToPlay(false)} />
+         </div>
+       )}
+     </div>
   );
 }
 

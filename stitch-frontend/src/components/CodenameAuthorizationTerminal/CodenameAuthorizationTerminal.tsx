@@ -13,6 +13,8 @@ export interface CodenameAuthorizationProps {
   onEstablish?: (codename: string) => void;
   onInputChange?: (value: string) => void;
   loading?: boolean;
+  onOpenHowToPlay?: () => void;
+  setActionTooltip?: (val: string | null) => void;
 }
 
 const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
@@ -24,6 +26,8 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
   onEstablish,
   onInputChange,
   loading = false,
+  onOpenHowToPlay,
+  setActionTooltip,
 }) => {
   const [input, setInput] = useState<string>(operativeCodename);
 
@@ -102,6 +106,15 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           >
             STATUS: ACTIVE
           </div>
+          <button
+            className="help-btn-header"
+            onClick={onOpenHowToPlay}
+            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY: Open field manual and mission objectives.')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title="How to Play"
+          >
+            <span className="material-symbols-outlined">help_outline</span>
+          </button>
         </div>
       </header>
 

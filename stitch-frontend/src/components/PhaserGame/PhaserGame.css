@@ -225,6 +225,8 @@
 }
 
 .panel-stat-value.intel { color: #fe9800; }
+.panel-stat-value.active-warn { color: #fe9800; text-shadow: 0 0 5px rgba(254, 152, 0, 0.4); }
+.panel-stat-value.dimmed { opacity: 0.3; }
 
 /* ── Notifications ─── */
 .notification-list {
@@ -244,6 +246,46 @@
 
 .notification-item.warning { color: #fe9800; }
 .notification-item.error { color: #ff6b6b; }
+
+.notification-item.latest {
+  color: #00ffff;
+  font-weight: 700;
+  border-left: 2px solid #00ffff;
+  padding-left: 8px;
+  margin-left: -10px;
+  background: rgba(0, 255, 255, 0.05);
+  animation: pulse-border 2s infinite;
+}
+
+.notification-item.irrelevant {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+}
+
+.notification-turn {
+  font-size: 8px;
+  opacity: 0.5;
+  margin-right: 4px;
+  background: rgba(0, 255, 255, 0.1);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.latest-tag {
+  font-size: 8px;
+  background: #00ffff;
+  color: #0c0e0f;
+  padding: 0 4px;
+  border-radius: 2px;
+  margin-right: 6px;
+  font-weight: 900;
+  vertical-align: middle;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-left-color: #00ffff; }
+  50% { border-left-color: rgba(0, 255, 255, 0.2); }
+}
 
 /* ── Action bar ─── */
 .game-actions {
@@ -324,6 +366,7 @@
   opacity: 0.2;
   filter: grayscale(1);
   cursor: not-allowed;
+  pointer-events: auto;
 }
 
 .action-btn.active {
@@ -457,3 +500,135 @@
   70% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* Help Button styles moved to global index.css */
+
+/* ── How to Play Overlay ─── */
+.howto-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.howto-card {
+  background: #0c0e0f;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.1), inset 0 0 10px rgba(0, 255, 255, 0.05);
+  width: 100%;
+  max-width: 600px;
+  max-height: 85vh;
+  padding: 32px;
+  position: relative;
+  overflow-y: auto;
+  font-family: 'Space Grotesk', sans-serif;
+  color: #c1fffe;
+}
+
+.howto-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: rgba(0, 255, 255, 0.5);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.howto-close:hover {
+  color: #ff6b6b;
+  transform: rotate(90deg);
+}
+
+.howto-title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fe9800;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(254, 152, 0, 0.3);
+  padding-bottom: 8px;
+}
+
+.howto-brief p {
+  line-height: 1.6;
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+.howto-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.howto-list li {
+  margin-bottom: 10px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.howto-list li::before {
+  content: '▶';
+  position: absolute;
+  left: 0;
+  color: #00ffff;
+  font-size: 10px;
+  top: 4px;
+}
+
+.howto-details h3 {
+  color: #00ffff;
+  font-size: 18px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.howto-steps {
+  padding-left: 20px;
+  margin-bottom: 24px;
+}
+
+.howto-steps li {
+  margin-bottom: 12px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.howto-details-btn, .howto-close-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid #00ffff;
+  color: #00ffff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.howto-details-btn:hover, .howto-close-btn:hover {
+  background: rgba(0, 255, 255, 0.15);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.howto-details-btn:active, .howto-close-btn:active {
+  transform: translateY(0);
+}
+
+/* Tooltip styles moved to global index.css */
+
+

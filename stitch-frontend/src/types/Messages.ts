@@ -89,6 +89,11 @@ export interface PlayerState {
   opponentUsedStrike: boolean;
   opponentUsedLocate: boolean;
   opponentUsedDeepCover: boolean;
+  opponentUsedControl: boolean;
+  opponentClaimedIntel: boolean;
+  opponentWaited: boolean;
+  opponentUnlockedStrikeReport: boolean;
+  opponentStrikeReportActive: boolean;
   locateBlockedByDeepCover: boolean;
   claimedIntel: boolean;
   startingCity: string;
