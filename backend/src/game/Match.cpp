@@ -107,10 +107,28 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
                            const std::string& target_city, const std::string& ability_id) {
     std::lock_guard lock(mutex_);
     
-    // Check for turn timeout before processing action
-    if (check_turn_timeout()) {
+    // Check for turn timeout before processing action.
+    // If the active player is the one sending the action we still allow it
+    // (the timeout check runs first, but we don't drop actions from the correct player).
+    PlayerSide acting_side = side_of(player_id);
+    bool timed_out = check_turn_timeout();
+    if (timed_out && acting_side != state_->current_turn()) {
+        // Wrong player's turn AND timed out — handle timeout and return.
         handle_turn_timeout();
         return;
+    } else if (timed_out) {
+        // Their turn timed out but they just sent an action — reset timer and continue
+        // (generous: let the action through instead of silently dropping it).
+        turn_start_time_ = std::chrono::steady_clock::now();
+    }
+    
+    // If we're still in the startup grace period and the first player acts,
+    // end the grace period and give them a fresh full turn.
+    if (first_turn_grace_) {
+        first_turn_grace_ = false;
+        turn_start_time_ = std::chrono::steady_clock::now();
+        std::cout << "[Match " << session_id_ << "] Grace period ended by first action from "
+                  << to_string(acting_side) << "\n";
     }
     
     if (!started_ || state_->is_game_over()) {
@@ -314,6 +332,9 @@ void Match::handle_turn_timeout() {
     PlayerSide expired_player = state_->current_turn();
     PlayerSide next_player = opposite(expired_player);
     
+    // Grace period ends once any timeout fires (even if player never acted)
+    first_turn_grace_ = false;
+    
     // Forfeit remaining actions
     auto& player_data = state_->player_mut(expired_player);
     player_data.actions_remaining = 0;
@@ -351,7 +372,13 @@ bool Match::check_turn_timeout() {
     }
 
     long long elapsed = time_since_turn_start();
-    return elapsed >= TURN_DURATION_MS;
+    
+    // During the startup grace period, apply a longer effective duration
+    // (TURN_DURATION_MS + STARTUP_GRACE_MS) so clients have time to load.
+    long long effective_limit = first_turn_grace_
+        ? (TURN_DURATION_MS + STARTUP_GRACE_MS)
+        : TURN_DURATION_MS;
+    return elapsed >= effective_limit;
 }
 
 } // namespace two_spies::game

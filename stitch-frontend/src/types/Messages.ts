@@ -91,7 +91,7 @@ export interface PlayerState {
   opponentUsedDeepCover: boolean;
   opponentUsedControl: boolean;
   opponentClaimedIntel: boolean;
-  opponentWaited: boolean;
+
   opponentUnlockedStrikeReport: boolean;
   opponentStrikeReportActive: boolean;
   locateBlockedByDeepCover: boolean;

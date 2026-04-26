@@ -58,9 +58,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
   useEffect(() => {
     if (initialState) {
-      setMatchState(initialState);
+      // Inject the map if it's missing from the state payload (it's only sent in MATCH_START)
+      const state = { ...initialState };
+      if (!state.map && initialMap) {
+        state.map = initialMap;
+      }
+      setMatchState(state);
     }
-  }, [initialState]);
+  }, [initialState, initialMap]);
 
   const addNotification = useCallback((msg: string, type?: 'warning' | 'error', turn?: number) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -76,15 +81,16 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
   // Adjacency set for the player's current city
   const adjacentCities = useMemo(() => {
-    if (!matchState || !matchState.map) return new Set<string>();
+    const effectiveMap = matchState?.map || initialMap;
+    if (!matchState || !effectiveMap) return new Set<string>();
     const current = matchState.player.currentCity;
     const adj = new Set<string>();
-    for (const edge of matchState.map.edges) {
+    for (const edge of effectiveMap.edges) {
       if (edge.from === current) adj.add(edge.to);
       if (edge.to === current) adj.add(edge.from);
     }
     return adj;
-  }, [matchState]);
+  }, [matchState, initialMap]);
 
   // Set of disappeared cities
   const disappearedSet = useMemo(() => {
@@ -139,9 +145,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       if (state.player.opponentClaimedIntel) {
         addNotification('Opponent claimed INTEL (position revealed)', 'warning', state.turnNumber);
       }
-      if (state.player.opponentWaited) {
-        addNotification('Opponent WAITED (gained cover)', 'warning', state.turnNumber);
-      }
+
       if (state.player.opponentUnlockedStrikeReport) {
         addNotification('Opponent unlocked STRIKE REPORT!', 'warning', state.turnNumber);
       }
@@ -201,7 +205,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       webSocketClient.off(ServerMessageType.GAME_OVER, handleGameOver);
       webSocketClient.off(ServerMessageType.ERROR, handleError);
     };
-  }, [webSocketClient, addNotification]);
+  }, [webSocketClient, addNotification, initialMap]);
 
   // Local timer tick
   useEffect(() => {

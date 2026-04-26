@@ -57,7 +57,7 @@ struct PlayerData {
     bool opponent_used_deep_cover = false;  // opponent used deep cover ability this turn
     bool opponent_used_control = false;     // opponent took control of a city
     bool opponent_claimed_intel = false;    // opponent claimed an Intel pop-up
-    bool opponent_waited = false;           // opponent used Wait action
+
     bool opponent_unlocked_strike_report = false; // opponent permanently unlocked Strike Report
 
     // Player action feedback flags

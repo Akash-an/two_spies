@@ -83,7 +83,10 @@ private:
 
     // Turn timer (15 seconds per turn)
     static constexpr long long TURN_DURATION_MS = 15000;
+    // Startup grace period: first turn timer doesn't start until this many ms after match start
+    static constexpr long long STARTUP_GRACE_MS = 5000;
     std::chrono::steady_clock::time_point turn_start_time_;
+    bool first_turn_grace_ = true;  // True until first action is taken or grace period expires
 
     PlayerSide side_of(const std::string& player_id) const;
     std::string player_id_of(PlayerSide side) const;

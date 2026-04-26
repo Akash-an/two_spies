@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v2.11.3
+    image: traefik:v3.6.1
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
@@ -41,7 +41,7 @@ services:
       context: ./stitch-frontend
       dockerfile: Dockerfile
       args:
-        - VITE_WS_URL=wss://spies.atyourservice-ai.com/ws
+        - VITE_WS_URL=/ws
     depends_on:
       - backend
     restart: always
