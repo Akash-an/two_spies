@@ -1,54 +1,21 @@
 services:
-  traefik:
-    image: traefik:v2.11.31
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=admin@atyourservice-ai.com"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-      # Global HTTP to HTTPS redirection
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8081:8080" # Traefik Dashboard (optional)
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./letsencrypt:/letsencrypt"
-    restart: always
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`spies.atyourservice-ai.com`) && PathPrefix(`/ws`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=myresolver"
-      - "traefik.http.services.backend.loadbalancer.server.port=8080"
-      # Strip the /ws prefix before forwarding to the backend
-      - "traefik.http.middlewares.backend-stripprefix.stripprefix.prefixes=/ws"
-      - "traefik.http.routers.backend.middlewares=backend-stripprefix"
+    ports:
+      - "8085:8085"
+    # Dev-friendly settings can be added here
 
   frontend:
     build:
       context: ./stitch-frontend
       dockerfile: Dockerfile
       args:
-        - VITE_WS_URL=wss://spies.atyourservice-ai.com/ws
+        - VITE_WS_URL=ws://localhost:8085
     depends_on:
       - backend
     restart: always
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`spies.atyourservice-ai.com`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
-      - "traefik.http.services.frontend.loadbalancer.server.port=4173"
+    ports:
+      - "5173:4173"

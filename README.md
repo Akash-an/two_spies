@@ -113,18 +113,18 @@ test_city_graph_adjacency... OK
 
 ### 4. Start the Server
 ```bash
-./two_spies_server 8080 4
+./two_spies_server 8085 4
 ```
 
 Args: `<port> <thread_count>`
 
 Output:
 ```
-[two_spies] Starting WebSocket server on port 8080 (4 threads)
-[Server] Listening on port 8080
+[two_spies] Starting WebSocket server on port 8085 (4 threads)
+[Server] Listening on port 8085
 ```
 
-Server is now listening at `ws://localhost:8080`
+Server is now listening at `ws://localhost:8085`
 
 ---
 
@@ -137,19 +137,21 @@ You can run the entire stack (backend + stitch-frontend) using Docker and Docker
 - [Docker Compose](https://docs.docker.com/compose/install/)
 
 ### Quick Start
+The project provides two Docker Compose configurations:
+
+**Development Mode** (Direct port access):
 ```bash
-# Start everything
 ./scripts/docker-run.sh
-
-# Rebuild and restart (e.g. after code changes)
-./scripts/docker-rebuild.sh
-
-# Stop everything
-./scripts/docker-stop.sh
 ```
-
 - **Frontend:** http://localhost:5173
-- **Backend:** ws://localhost:8080
+- **Backend:** ws://localhost:8085
+
+**Production Mode** (Traefik + SSL):
+```bash
+docker compose -f docker-compose-prod.yml up -d
+```
+- **URL:** https://spies.atyourservice-ai.com
+- **Traefik Dashboard:** http://localhost:8081
 
 Logs can be viewed with `docker compose logs -f`.
 
@@ -167,7 +169,7 @@ npm install
 Edit [stitch-frontend/src/main.tsx](stitch-frontend/src/main.tsx):
 ```typescript
 const USE_REAL_SERVER = true;        // true = connect to C++ backend
-const WS_URL = 'ws://localhost:8080'; // backend URL
+const WS_URL = 'ws://localhost:8085'; // backend URL
 ```
 
 Set to `false` to use the in-browser mock server (single-player simulation).
@@ -202,7 +204,7 @@ Open http://localhost:5173 in your browser.
 **Terminal 1 — Backend:**
 ```bash
 cd backend/build
-./two_spies_server 8080
+./two_spies_server 8085
 ```
 
 **Terminal 2 — stitch-frontend:**
@@ -222,14 +224,14 @@ npm run dev
 **On Machine A (Backend):**
 ```bash
 cd backend/build
-./two_spies_server 0.0.0.0 8080  # listen on all interfaces
+./two_spies_server 0.0.0.0 8085  # listen on all interfaces
 ```
 
 **On Machine B (stitch-frontend):**
 ```bash
 cd stitch-frontend
 # Edit src/main.tsx to use Machine A's IP:
-# const WS_URL = 'ws://machine-a-ip:8080';
+# const WS_URL = 'ws://machine-a-ip:8085';
 npm run dev
 ```
 
@@ -291,7 +293,7 @@ cmake .. -CMAKE_PREFIX_PATH=/opt/homebrew/opt/boost
 
 ### stitch-frontend won't connect to backend
 - Ensure backend is running: `ps aux | grep two_spies_server`
-- Check port 8080 is listening: `lsof -i :8080`
+- Check port 8085 is listening: `lsof -i :8085`
 - Verify `WS_URL` in [main.tsx](stitch-frontend/src/main.tsx) is correct
 - Check browser console for errors (F12 → Console tab)
 
@@ -302,7 +304,7 @@ cmake .. -CMAKE_PREFIX_PATH=/opt/homebrew/opt/boost
 ### Port already in use
 ```bash
 # Kill existing server
-lsof -i :8080 | grep LISTEN | awk '{print $2}' | xargs kill -9
+lsof -i :8085 | grep LISTEN | awk '{print $2}' | xargs kill -9
 ```
 
 ---

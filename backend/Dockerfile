@@ -29,5 +29,5 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY --from=builder /app/build/two_spies_server .
 
-EXPOSE 8080
-CMD ["./two_spies_server", "8080", "4"]
+EXPOSE 8085
+CMD ["./two_spies_server", "8085", "4"]

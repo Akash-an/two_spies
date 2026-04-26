@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 {
     std::cout << std::unitbuf;  // flush stdout after every << so logs appear immediately when redirected to a file
 
-    const unsigned short port    = (argc > 1) ? static_cast<unsigned short>(std::atoi(argv[1])) : 8080;
+    const unsigned short port    = (argc > 1) ? static_cast<unsigned short>(std::atoi(argv[1])) : 8085;
     const unsigned int   threads = (argc > 2) ? static_cast<unsigned int>(std::atoi(argv[2]))   : 4;
 
     std::cout << "[two_spies] Starting WebSocket server on port " << port
