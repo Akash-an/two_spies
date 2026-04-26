@@ -1,4 +1,5 @@
-FROM node:20-slim
+# Build stage
+FROM node:20-slim AS build
 
 WORKDIR /app
 
@@ -9,8 +10,23 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 
-# Expose Vite's default port
-EXPOSE 5173
+# Environment variable for WebSocket URL (baked into the build)
+ARG VITE_WS_URL=wss://spies.atyourservice-ai.com/ws
+ENV VITE_WS_URL=$VITE_WS_URL
 
-# Run the dev server, bound to all interfaces so it's accessible from the host
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Build the production application
+RUN npm run build
+
+# Serve stage
+FROM node:20-slim
+
+WORKDIR /app
+
+# Only copy what's needed to serve
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+
+EXPOSE 4173
+
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "4173"]
