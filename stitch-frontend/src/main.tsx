@@ -250,32 +250,36 @@ function App() {
          />
        )}
  
-       {phase === 'playing' && netRef.current && (
-         <PhaserGame
-           operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
-           playerName={playerName}
-           webSocketClient={netRef.current}
-           initialMap={initialMap}
-           initialState={initialState}
-           onGameEnd={() => {
-             console.log('[App] Game ended');
-             setPhase('deployment');
-             setMatchCode(null);
-             setPlayerSide(null);
-           }}
-           onTerminateLink={() => {
-             console.log('[App] Terminate link from game');
-             if (netRef.current && netRef.current.isConnected()) {
-               netRef.current.send(ClientMessageType.ABORT_MATCH, {});
-             }
-             setPhase('entering-name');
-             setPlayerName('');
-             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
-           }}
-           setShowHowToPlay={setShowHowToPlay}
-           setActionTooltip={handleSetActionTooltip}
-         />
-       )}
+        {phase === 'playing' && netRef.current && (
+          <PhaserGame
+            operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
+            playerName={playerName}
+            webSocketClient={netRef.current}
+            initialMap={initialMap}
+            initialState={initialState}
+            onGameEnd={() => {
+              console.log('[App] Game ended');
+              setPhase('deployment');
+              setMatchCode(null);
+              setPlayerSide(null);
+              setInitialMap(null);
+              setInitialState(null);
+            }}
+            onTerminateLink={() => {
+              console.log('[App] Terminate link from game');
+              if (netRef.current && netRef.current.isConnected()) {
+                netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+              }
+              setPhase('entering-name');
+              setPlayerName('');
+              setInitialMap(null);
+              setInitialState(null);
+              setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
+            }}
+            setShowHowToPlay={setShowHowToPlay}
+            setActionTooltip={handleSetActionTooltip}
+          />
+        )}
        {actionTooltip && <div className="action-tooltip">{actionTooltip}</div>}
        {showHowToPlay && (
          <div className="global-overlay-wrapper">

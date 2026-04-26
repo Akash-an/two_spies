@@ -243,6 +243,11 @@ bool Match::is_game_over() const {
     return state_ && state_->is_game_over();
 }
 
+bool Match::is_empty() const {
+    std::lock_guard lock(mutex_);
+    return red_player_id_.empty() && blue_player_id_.empty();
+}
+
 // ── Private helpers ──────────────────────────────────────────────────
 
 PlayerSide Match::side_of(const std::string& player_id) const {

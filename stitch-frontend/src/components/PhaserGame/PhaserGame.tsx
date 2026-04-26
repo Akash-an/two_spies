@@ -55,6 +55,13 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
 
+  // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
+  useEffect(() => {
+    if (initialState) {
+      setMatchState(initialState);
+    }
+  }, [initialState]);
+
   const addNotification = useCallback((msg: string, type?: 'warning' | 'error', turn?: number) => {
     const id = Math.random().toString(36).substring(2, 9);
     setNotifications(prev => {
@@ -208,6 +215,19 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const isMyTurn = matchState ? matchState.currentTurn === matchState.player.side : false;
   const actionsLeft = matchState?.player.actionsRemaining ?? 0;
   const canAct = isMyTurn && actionsLeft > 0 && !gameOver;
+
+  useEffect(() => {
+    if (matchState) {
+      console.log('[PhaserGame] State update:', {
+        side: matchState.player.side,
+        currentTurn: matchState.currentTurn,
+        actionsLeft: matchState.player.actionsRemaining,
+        isMyTurn,
+        canAct,
+        gameOver: !!gameOver
+      });
+    }
+  }, [matchState, isMyTurn, actionsLeft, canAct, gameOver]);
 
   const sendAction = useCallback((action: string, targetCity?: string, abilityId?: string) => {
     const payload: Record<string, string> = { action };

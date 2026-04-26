@@ -121,7 +121,11 @@ void Session::on_message(const std::string& raw) {
                 }
             };
             auto code = server_->match_manager().create_match(player_id_, send_fn, player_name_);
-            std::cout << "[Session " << player_id_ << "] Created match with code " << code << "\n";
+            if (code.empty()) {
+                send(protocol::make_error("", "Failed to create match. You may already be in an active session."));
+            } else {
+                std::cout << "[Session " << player_id_ << "] Created match with code " << code << "\n";
+            }
             break;
         }
 
