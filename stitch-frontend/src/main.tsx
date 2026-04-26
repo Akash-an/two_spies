@@ -19,6 +19,7 @@ function App() {
   const [matchCode, setMatchCode] = useState<string | null>(null);
   const [, setPlayerSide] = useState<PlayerSide | null>(null);
   const [initialMap, setInitialMap] = useState<any>(null);
+  const [initialState, setInitialState] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
     'SCRUBBING METADATA...',
@@ -91,10 +92,13 @@ function App() {
           if (map) setInitialMap(map);
           setLogs((p) => [...p, `MATCH STARTED — You are ${side || 'assigned'}`]);
           setIsLoading(false);
-          // Both initiating and joining players transition to game
-          setTimeout(() => {
-            setPhase('playing');
-          }, 500);
+          // Transition to game immediately
+          setPhase('playing');
+        });
+
+        client.on(ServerMessageType.MATCH_STATE, (msg: any) => {
+          console.log('[App] Initial state received:', msg.type);
+          setInitialState(msg.payload);
         });
 
         client.on(ServerMessageType.ERROR, (msg: any) => {
@@ -228,6 +232,7 @@ function App() {
           playerName={playerName}
           webSocketClient={netRef.current}
           initialMap={initialMap}
+          initialState={initialState}
           onGameEnd={() => {
             console.log('[App] Game ended');
             setPhase('deployment');

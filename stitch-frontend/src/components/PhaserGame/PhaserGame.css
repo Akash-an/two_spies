@@ -112,15 +112,27 @@
 
 .city-circle.default { fill: #00ffff; opacity: 0.4; stroke: rgba(0, 255, 255, 0.3); stroke-width: 1; }
 .city-circle.player { fill: #10b981; opacity: 0.3; stroke: #10b981; stroke-width: 2; filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.8)); }
+.city-circle.player.exposed { stroke: #fe9800; stroke-width: 3; stroke-dasharray: 4 2; filter: drop-shadow(0 0 10px rgba(254, 152, 0, 0.8)); }
 .city-circle.opponent { fill: #ff4444; opacity: 0.3; stroke: #ff4444; stroke-width: 2; filter: drop-shadow(0 0 10px rgba(255, 68, 68, 0.8)); }
 .city-circle.adjacent-highlight { fill: #00ffff; opacity: 0.6; stroke: #fe9800; stroke-width: 2; stroke-dasharray: 4 2; }
 .city-circle.selected { fill: #fe9800; opacity: 0.9; stroke: #fff; stroke-width: 2; }
 .city-circle.starting-own { stroke: #10b981; stroke-width: 2; stroke-dasharray: 4 2; }
 .city-circle.starting-opp { stroke: #ff4444; stroke-width: 2; stroke-dasharray: 4 2; }
 .city-circle.disappeared { fill: #333; opacity: 0.3; }
-.city-circle.controlled-mine { fill: #10b981; opacity: 0.5; stroke: #10b981; stroke-width: 2; }
-.city-circle.controlled-opp { fill: #ff4444; opacity: 0.5; stroke: #ff4444; stroke-width: 2; }
-.city-circle.intel-popup { fill: #fe9800; opacity: 0.9; animation: intel-pulse 1.5s infinite; }
+.city-circle.controlled-mine { fill: #10b981; opacity: 0.8; stroke: #10b981; stroke-width: 2; }
+.city-circle.controlled-opp { fill: #ff4444; opacity: 0.8; stroke: #ff4444; stroke-width: 2; }
+.city-circle.intel-popup { fill: #fe9800; opacity: 0.9; animation: intel-pulse-glow 2s infinite; }
+
+.intel-ripple {
+  animation: intel-ripple-anim 2s infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes intel-ripple-anim {
+  0% { transform: scale(1); opacity: 0.8; stroke-width: 2px; }
+  100% { transform: scale(2.5); opacity: 0; stroke-width: 0.5px; }
+}
 
 .scheduled-ring {
   fill: none;
@@ -137,9 +149,9 @@
   50% { opacity: 0.2; transform: scale(1.1); }
 }
 
-@keyframes intel-pulse {
-  0%, 100% { filter: drop-shadow(0 0 5px #fe9800); }
-  50% { filter: drop-shadow(0 0 15px #fe9800); }
+@keyframes intel-pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px #fe9800); }
+  50% { filter: drop-shadow(0 0 12px #fe9800); }
 }
 
 .city-label {
@@ -153,6 +165,24 @@
 }
 
 .city-label.disappeared { fill: #555; text-decoration: line-through; }
+
+.marker-float {
+  animation: marker-float-anim 2s ease-in-out infinite;
+}
+
+@keyframes marker-float-anim {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.exposed-glow {
+  animation: marker-float-anim 2s ease-in-out infinite, exposed-pulse 1s ease-in-out infinite;
+}
+
+@keyframes exposed-pulse {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 2px #fff); }
+  50% { filter: brightness(1.8) drop-shadow(0 0 8px #10b981); }
+}
 
 /* ── Side panel ─── */
 .game-panel {

@@ -186,11 +186,15 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
         auto& defender_mut = player_mut(opposite(side));
         defender_mut.opponent_used_strike = true;    // notify opponent that a strike was attempted
         
-        // Strike reveals the striker's position to the opponent
-        defender_mut.known_opponent_city = striker_city;
-
-        std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
-                  << " struck at " << striker_city << " but opponent was not there. Position REVEALED.\n";
+        // Strike reveals the striker's position to the opponent ONLY IF opponent has Strike Report unlocked
+        if (defender_mut.strike_report_unlocked) {
+            defender_mut.known_opponent_city = striker_city;
+            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                      << " struck at " << striker_city << " but opponent was not there. Position REVEALED by Strike Report.\n";
+        } else {
+            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                      << " struck at " << striker_city << " but opponent was not there. Opponent knows a strike occurred.\n";
+        }
     }
 
     // Increment action counter for shrinking map feature
@@ -230,6 +234,11 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     auto it = std::find(p.abilities.begin(), p.abilities.end(), ability);
     if (it == p.abilities.end()) {
         result.error = std::string("You don't have ability: ") + to_string(ability);
+        return result;
+    }
+
+    if (ability == AbilityId::STRIKE_REPORT && p.strike_report_unlocked) {
+        result.error = "Strike Report is already unlocked.";
         return result;
     }
 
@@ -290,6 +299,11 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     // Only the opponent's location is revealed one-way
                 }
             }
+            break;
+        case AbilityId::STRIKE_REPORT:
+            p.strike_report_unlocked = true;
+            std::cerr << "[ABILITY] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                      << " unlocked STRIKE_REPORT.\n";
             break;
         default:
             // Other abilities: stub for now

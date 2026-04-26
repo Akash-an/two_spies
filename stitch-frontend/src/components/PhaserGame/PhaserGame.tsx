@@ -17,6 +17,7 @@ export interface PhaserGameProps {
   playerName: string;
   webSocketClient: WebSocketClient;
   initialMap?: MapDef;
+  initialState?: MatchState | null;
   onGameEnd?: () => void;
   onTerminateLink?: () => void;
 }
@@ -28,10 +29,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   playerName: _playerName,
   webSocketClient,
   initialMap,
+  initialState,
   onGameEnd,
   onTerminateLink,
 }) => {
-  const [matchState, setMatchState] = useState<MatchState | null>(null);
+  const [matchState, setMatchState] = useState<MatchState | null>(initialState || null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode>(null);
   const [notifications, setNotifications] = useState<string[]>([]);
@@ -65,10 +67,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   }, [matchState]);
 
   // Intel popup cities
-  const intelCitySet = useMemo(() => {
-    if (!matchState) return new Set<string>();
-    return new Set(matchState.intelPopups.map(p => p.city));
-  }, [matchState]);
+  // const intelCitySet = useMemo(() => {
+  //   if (!matchState) return new Set<string>();
+  //   return new Set(matchState.intelPopups.map(p => p.city));
+  // }, [matchState]);
 
   // Subscribe to WebSocket events
   useEffect(() => {
@@ -307,7 +309,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
               let circleClass = 'city-circle';
               if (isDis) circleClass += ' disappeared';
-              else if (isPlayer) circleClass += ' player';
+              else if (isPlayer) circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
               else if (isOpp) circleClass += ' opponent';
               else if (hasIntel) circleClass += ' intel-popup';
               else if (isAdj) circleClass += ' adjacent-highlight';
@@ -331,6 +333,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   {scheduledDisappear && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={14} className="scheduled-ring" />
                   )}
+                  {/* Intel ripple animation */}
+                  {hasIntel && !isPlayer && !isOpp && !isDis && (
+                    <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#fe9800" className="intel-ripple" pointerEvents="none" />
+                  )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />
                   
                   {/* Disappeared overlay (X) */}
@@ -341,17 +347,70 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                     </>
                   )}
 
-                  {/* Player marker */}
-                  {isPlayer && (
-                    <polygon points={`${pos.x},${pos.y - 12} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 12} ${pos.x - 12},${pos.y}`} fill="#10b981" pointerEvents="none" />
-                  )}
-                  {/* Opponent marker */}
-                  {isOpp && (
-                    <polygon points={`${pos.x},${pos.y - 12} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 12} ${pos.x - 12},${pos.y}`} fill="#ff4444" pointerEvents="none" />
-                  )}
-                  {/* Intel icon */}
-                  {hasIntel && !isPlayer && !isOpp && !isDis && (
-                    <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="8" fontWeight="black" pointerEvents="none">⊕</text>
+                  {/* Player & Opponent Markers (Pointer Style) */}
+                  {(() => {
+                    const markers = [];
+                    const markerW = 16;
+                    const markerH = 28;
+                    const shoulderH = 20; // Widest part is now near the top
+                    const tipY = pos.y - radius - 1;
+                    const isExposed = isPlayer && !matchState.player.hasCover;
+                    
+                    if (isPlayer && isOpp) {
+                      // Both players in same city - offset side-by-side
+                      const p1X = pos.x - 10;
+                      const p2X = pos.x + 10;
+                      markers.push(
+                        <polygon 
+                          key="player"
+                          points={`${p1X},${tipY} ${p1X + markerW/2},${tipY - shoulderH} ${p1X},${tipY - markerH} ${p1X - markerW/2},${tipY - shoulderH}`} 
+                          fill="#10b981" 
+                          stroke={isExposed ? "#fff" : "none"}
+                          strokeWidth={isExposed ? "2" : "0"}
+                          pointerEvents="none" 
+                          className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
+                        />
+                      );
+                      markers.push(
+                        <polygon 
+                          key="opponent"
+                          points={`${p2X},${tipY} ${p2X + markerW/2},${tipY - shoulderH} ${p2X},${tipY - markerH} ${p2X - markerW/2},${tipY - shoulderH}`} 
+                          fill="#ff4444" 
+                          pointerEvents="none" 
+                          className="marker-float"
+                        />
+                      );
+                    } else if (isPlayer) {
+                      markers.push(
+                        <polygon 
+                          key="player"
+                          points={`${pos.x},${tipY} ${pos.x + markerW/2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW/2},${tipY - shoulderH}`} 
+                          fill="#10b981" 
+                          stroke={isExposed ? "#fff" : "none"}
+                          strokeWidth={isExposed ? "2" : "0"}
+                          pointerEvents="none" 
+                          className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
+                        />
+                      );
+                    } else if (isOpp) {
+                      markers.push(
+                        <polygon 
+                          key="opponent"
+                          points={`${pos.x},${tipY} ${pos.x + markerW/2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW/2},${tipY - shoulderH}`} 
+                          fill="#ff4444" 
+                          pointerEvents="none" 
+                          className="marker-float"
+                        />
+                      );
+                    }
+                    return markers;
+                  })()}
+
+                  {/* Intel points display (now always visible as markers are above) */}
+                  {hasIntel && !isDis && (
+                    <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="900" pointerEvents="none">
+                      {intelPopup.amount}
+                    </text>
                   )}
                   {/* City name */}
                   <text x={pos.x} y={pos.y + radius + 18} className={`city-label ${isDis ? 'disappeared' : ''}`}>
@@ -472,6 +531,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <span className="material-symbols-outlined">visibility_off</span>
           <span className="btn-label">DEEP COVER</span>
           <span className="btn-cost">30</span>
+        </button>
+        <button 
+          className="action-btn" 
+          disabled={!canAct || matchState.player.intel < 20 || matchState.player.strikeReportUnlocked} 
+          onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.STRIKE_REPORT)}
+        >
+          <span className="material-symbols-outlined">plagiarism</span>
+          <span className="btn-label">{matchState.player.strikeReportUnlocked ? 'REPORT ACTIVE' : 'STRIKE REPORT'}</span>
+          {!matchState.player.strikeReportUnlocked && <span className="btn-cost">20</span>}
         </button>
         <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.WAIT)}>
           <span className="material-symbols-outlined">hourglass_empty</span>

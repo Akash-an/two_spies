@@ -113,6 +113,8 @@ json serialize_match_state(const std::string& session_id,
         player_state["knownOpponentCity"] = nullptr;
     }
     
+    player_state["strikeReportUnlocked"] = p.strike_report_unlocked;
+    
     // Include opponent action notifications
     player_state["opponentUsedStrike"] = p.opponent_used_strike;
     player_state["opponentUsedLocate"] = p.opponent_used_locate;

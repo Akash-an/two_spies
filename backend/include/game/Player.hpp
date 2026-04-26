@@ -49,7 +49,7 @@ struct PlayerData {
     int actions_remaining = 2;
     bool has_cover = false;
     std::string known_opponent_city;  // empty = unknown
-    std::vector<AbilityId> abilities = { AbilityId::LOCATE, AbilityId::DEEP_COVER };
+    std::vector<AbilityId> abilities = { AbilityId::LOCATE, AbilityId::DEEP_COVER, AbilityId::STRIKE_REPORT };
     
     // Opponent action notifications - cleared each turn
     bool opponent_used_strike = false;  // opponent attempted a strike this turn
@@ -58,6 +58,9 @@ struct PlayerData {
 
     // Player action feedback flags
     bool locate_blocked_by_deep_cover = false;  // this player's Locate was blocked by opponent's Deep Cover
+
+    // Passive ability unlocks
+    bool strike_report_unlocked = false; // permanent unlock for tracking opponent strikes
 
     // Deep Cover ability state - cleared at the beginning of the player's next turn
     bool deep_cover_active = false;  // active until beginning of this player's next turn
