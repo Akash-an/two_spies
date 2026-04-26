@@ -1,0 +1,53 @@
+import React, { useState } from 'react';
+
+interface HowToPlayOverlayProps {
+  onClose: () => void;
+}
+
+const HowToPlayOverlay: React.FC<HowToPlayOverlayProps> = ({ onClose }) => {
+  const [showDetails, setShowDetails] = useState(false);
+
+  return (
+    <div className="howto-overlay">
+      <div className="howto-card">
+        <button className="howto-close" onClick={onClose}>✕</button>
+        <h2 className="howto-title">How to Play</h2>
+        {!showDetails && (
+          <div className="howto-brief">
+            <p>Two Spies is a turn‑based, 2‑player strategy game. Each player controls an operative moving between cities, gathering intel, and attempting a strike on the opponent’s location.</p>
+            <ul className="howto-list">
+              <li>Each turn you have <strong>2 actions</strong> (Move, Ability, or Strike).</li>
+              <li>Use <strong>Move</strong> to travel to an adjacent city.</li>
+              <li>Gather <strong>Intel</strong> from marked cities to unlock abilities like <em>Locate</em> or <em>Deep Cover</em>.</li>
+              <li>A successful <strong>Strike</strong> ends the match instantly.</li>
+              <li>Failed strikes reveal your location ONLY if the opponent has <em>Strike Report</em>.</li>
+            </ul>
+            <button className="howto-details-btn" onClick={() => setShowDetails(true)}>
+              Show Detailed Mechanics
+            </button>
+          </div>
+        )}
+        {showDetails && (
+          <div className="howto-details">
+            <h3>Game Flow</h3>
+            <ol className="howto-steps">
+              <li>Match starts with each player placed in a hidden starting city.</li>
+              <li>On your turn you receive <strong>2 actions</strong>. You may move, use an ability, or strike.</li>
+              <li>Moving is only allowed to adjacent cities (see the highlighted edges).</li>
+              <li><strong>Intel</strong> spawns randomly in cities. Stay in a city with an Intel marker to collect it at the beginning of next turn.</li>
+              <li><strong>Locate</strong> (cost 10 Intel) reveals the opponent’s city for one turn.</li>
+              <li><strong>Deep Cover</strong> (cost 30 Intel) protects you from being located and allows you to enter opponent‑controlled cities without being revealed.</li>
+              <li><strong>Strike Report</strong> (cost 20 Intel) reveals the opponent's location if they attempt a strike.</li>
+              <li>When you feel confident, use <strong>Strike</strong> on your current city. If the opponent is there you win.</li>
+              <li>If the strike fails, your location is revealed ONLY if the opponent has <em>Strike Report</em> active.</li>
+              <li>The game ends when a strike succeeds or all cities disappear.</li>
+            </ol>
+            <button className="howto-close-btn" onClick={onClose}>Got it!</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default HowToPlayOverlay;

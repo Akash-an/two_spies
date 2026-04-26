@@ -1,0 +1,191 @@
+Running GameState unit tests...
+  test_starting_cities... OK
+  test_move_valid... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+  test_move_not_adjacent... OK
+  test_move_wrong_turn... OK
+  test_strike_hit... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+[STRIKE] HIT! Player RED eliminated opponent at moscow
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=4
+OK
+  test_strike_miss... [STRIKE] MISS! Player RED struck at london but opponent was not there. Opponent knows a strike occurred.
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+OK
+  test_strike_miss_does_not_reveal_location_without_report... [STRIKE] MISS! Player RED struck at london but opponent was not there. Opponent knows a strike occurred.
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+OK
+  test_strike_report_ability_reveals_location... [ABILITY] Player BLUE unlocked STRIKE_REPORT.
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[STRIKE] MISS! Player RED struck at london but opponent was not there. Position REVEALED by Strike Report.
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_strike_hit_no_spurious_notification... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+[STRIKE] HIT! Player RED eliminated opponent at moscow
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=3
+[INTEL] Spawned Intel pop-up of 10 at city paris on turn 3
+[INTEL] Next threshold set to: 5
+OK
+  test_end_turn... OK
+
+Running Intel Increase Tests...
+  test_intel_base_increase_no_movement... OK
+  test_intel_with_new_city_movement... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+OK
+  test_intel_no_bonus_revisiting_city... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_intel_moved_to_new_city_flag_resets... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+  test_intel_multiple_turns_accumulation... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=4
+OK
+  test_intel_no_bonus_on_timeout... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+OK
+  test_no_actions_remaining... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_city_graph_adjacency... OK
+  test_turn_alternation... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+OK
+  test_starting_cities_not_adjacent... OK
+
+Running Disappearing Cities Feature Tests...
+  test_city_scheduling_at_action_4... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=4 threshold=4
+[INTEL] Spawned Intel pop-up of 10 at city tokyo on turn 4
+[INTEL] Next threshold set to: 3
+OK
+  test_city_disappears_at_action_6... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=4 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=5 threshold=5
+[INTEL] Spawned Intel pop-up of 10 at city moscow on turn 5
+[INTEL] Next threshold set to: 4
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+  test_stranded_player_detection... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=4 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=5 threshold=5
+[INTEL] Spawned Intel pop-up of 10 at city london on turn 5
+[INTEL] Next threshold set to: 4
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+  test_movement_blocked_to_disappeared_city... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=4 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=5 threshold=5
+[INTEL] Spawned Intel pop-up of 10 at city nyc on turn 5
+[INTEL] Next threshold set to: 4
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+  test_graph_connectivity_preserved... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_stranded_player_only_can_move... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_action_count_increments... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=4 threshold=5
+OK
+  test_multiple_disappearance_cycles... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+OK
+
+Running Control Feature Tests...
+  test_control_takes_ownership_of_city... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+OK
+  test_control_blows_own_cover... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_control_notifies_opponent... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+OK
+  test_control_disabled_if_already_controlling... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+OK
+  test_opponent_cover_blown_entering_controlled_city... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+  test_control_persists_for_game_duration... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+OK
+  test_control_can_be_taken_over_by_opponent... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+OK
+  test_stranded_player_cannot_control... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=3
+[INTEL] Spawned Intel pop-up of 10 at city london on turn 3
+[INTEL] Next threshold set to: 3
+[INTEL] Player RED will claim 10 Intel at city london
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[INTEL] Player RED claimed Intel at london. New Intel: 24. Cover blown. Opponent now sees at: london
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=3
+[INTEL] Spawned Intel pop-up of 10 at city moscow on turn 6
+[INTEL] Next threshold set to: 4
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+OK
+
+Running Deep Cover Ability Tests...
+  test_deep_cover_costs_30_intel... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+OK
+  test_deep_cover_insufficient_intel... OK
+  test_deep_cover_grants_cover... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+OK
+  test_deep_cover_clears_opponent_knowledge... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+OK
+  test_deep_cover_persists_until_end_of_turn... [INTEL-DEBUG] actions_since_last_popup=1 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=5
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=5
+[DC-CHECK] turn_number_=3 next_player=RED deep_cover_  used_on_turn=1 turns_since=2
+[DC-CLEAR] Deep Cover cleared for RED
+OK
+  test_locate_fails_against_deep_cover... [INTEL-DEBUG] actions_since_last_popup=1 threshold=3
+[!!!] SET locate_blocked_by_deep_cover=TRUE for player BLUE
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=3
+OK
+  test_locate_succeeds_after_deep_cover_expires... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[!!!] SET locate_blocked_by_deep_cover=TRUE for player BLUE
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+[DC-CHECK] turn_number_=3 next_player=RED deep_cover_  used_on_turn=1 turns_since=2
+[DC-CLEAR] Deep Cover cleared for RED
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=4
+OK
+  test_locate_one_way_reveal_only... [INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+[INTEL-DEBUG] actions_since_last_popup=3 threshold=4
+[!!!] Serializing: player=RED locate_blocked=0
+[!!!] Serializing: player=BLUE locate_blocked=0
+OK
+
+Running Match Timeout Features Tests...
+  test_timeout_not_triggered_before_timeout... [Match sess_id_1] Started: RED=madrid BLUE=berlin
+[Match sess_id_1] Sending MATCH_START to RED (red_player): {"payload":{"map":{"cities":[{"id":"london","name":"London","x":0.22,"y":0.28},{"id":"paris","name":"Paris","x":0.3,"y":0.42},{"id":"amsterdam","name":"Amsterdam","x":0.35,"y":0.26},{"id":"berlin","name":"Berlin","x":0.48,"y":0.28},{"id":"copenhagen","name":"Copenhagen","x":0.44,"y":0.17},{"id":"zurich","name":"Zurich","x":0.38,"y":0.48},{"id":"vienna","name":"Vienna","x":0.52,"y":0.44},{"id":"prague","name":"Prague","x":0.5,"y":0.36},{"id":"rome","name":"Rome","x":0.44,"y":0.62},{"id":"madrid","name":"Madrid","x":0.15,"y":0.62},{"id":"istanbul","name":"Istanbul","x":0.72,"y":0.58},{"id":"warsaw","name":"Warsaw","x":0.58,"y":0.28},{"id":"moscow","name":"Moscow","x":0.78,"y":0.2},{"id":"budapest","name":"Budapest","x":0.56,"y":0.48},{"id":"bucharest","name":"Bucharest","x":0.64,"y":0.52},{"id":"stockholm","name":"Stockholm","x":0.5,"y":0.1}],"edges":[{"from":"london","to":"paris"},{"from":"london","to":"amsterdam"},{"from":"paris","to":"amsterdam"},{"from":"paris","to":"zurich"},{"from":"paris","to":"madrid"},{"from":"amsterdam","to":"berlin"},{"from":"amsterdam","to":"copenhagen"},{"from":"berlin","to":"copenhagen"},{"from":"berlin","to":"prague"},{"from":"berlin","to":"warsaw"},{"from":"prague","to":"vienna"},{"from":"prague","to":"zurich"},{"from":"zurich","to":"rome"},{"from":"vienna","to":"budapest"},{"from":"vienna","to":"zurich"},{"from":"rome","to":"madrid"},{"from":"rome","to":"budapest"},{"from":"warsaw","to":"moscow"},{"from":"warsaw","to":"prague"},{"from":"budapest","to":"bucharest"},{"from":"bucharest","to":"istanbul"},{"from":"budapest","to":"istanbul"},{"from":"moscow","to":"warsaw"},{"from":"copenhagen","to":"stockholm"},{"from":"stockholm","to":"moscow"}]},"side":"RED"},"sessionId":"sess_id_1","type":"MATCH_START"}
+[Match sess_id_1] Sending MATCH_START to BLUE (blue_player): {"payload":{"map":{"cities":[{"id":"london","name":"London","x":0.22,"y":0.28},{"id":"paris","name":"Paris","x":0.3,"y":0.42},{"id":"amsterdam","name":"Amsterdam","x":0.35,"y":0.26},{"id":"berlin","name":"Berlin","x":0.48,"y":0.28},{"id":"copenhagen","name":"Copenhagen","x":0.44,"y":0.17},{"id":"zurich","name":"Zurich","x":0.38,"y":0.48},{"id":"vienna","name":"Vienna","x":0.52,"y":0.44},{"id":"prague","name":"Prague","x":0.5,"y":0.36},{"id":"rome","name":"Rome","x":0.44,"y":0.62},{"id":"madrid","name":"Madrid","x":0.15,"y":0.62},{"id":"istanbul","name":"Istanbul","x":0.72,"y":0.58},{"id":"warsaw","name":"Warsaw","x":0.58,"y":0.28},{"id":"moscow","name":"Moscow","x":0.78,"y":0.2},{"id":"budapest","name":"Budapest","x":0.56,"y":0.48},{"id":"bucharest","name":"Bucharest","x":0.64,"y":0.52},{"id":"stockholm","name":"Stockholm","x":0.5,"y":0.1}],"edges":[{"from":"london","to":"paris"},{"from":"london","to":"amsterdam"},{"from":"paris","to":"amsterdam"},{"from":"paris","to":"zurich"},{"from":"paris","to":"madrid"},{"from":"amsterdam","to":"berlin"},{"from":"amsterdam","to":"copenhagen"},{"from":"berlin","to":"copenhagen"},{"from":"berlin","to":"prague"},{"from":"berlin","to":"warsaw"},{"from":"prague","to":"vienna"},{"from":"prague","to":"zurich"},{"from":"zurich","to":"rome"},{"from":"vienna","to":"budapest"},{"from":"vienna","to":"zurich"},{"from":"rome","to":"madrid"},{"from":"rome","to":"budapest"},{"from":"warsaw","to":"moscow"},{"from":"warsaw","to":"prague"},{"from":"budapest","to":"bucharest"},{"from":"bucharest","to":"istanbul"},{"from":"budapest","to":"istanbul"},{"from":"moscow","to":"warsaw"},{"from":"copenhagen","to":"stockholm"},{"from":"stockholm","to":"moscow"}]},"side":"BLUE"},"sessionId":"sess_id_1","type":"MATCH_START"}
+OK
+
+Running Auto End Turn Tests...
+  test_match_auto_end_turn... [Match sess_auto_end] Started: RED=berlin BLUE=moscow
+[Match sess_auto_end] Sending MATCH_START to RED (red): {"payload":{"map":{"cities":[{"id":"london","name":"London","x":0.22,"y":0.28},{"id":"paris","name":"Paris","x":0.3,"y":0.42},{"id":"am[!!!] Serializing: player=RED locate_blocked=0
+[!!!] Serializing: player=BLUE locate_blocked=0
+sterdam","name":"Amsterdam","x":0.35,"y":0.26},{"id":"berlin","name":"Berlin","x":0.48,"y":0.28},{"id":"copenhagen","name":"Copenhagen","x":0.44,"y":0.17},{"id":"zurich","name":"Zurich","x":0.38,"y":0.48},{"id":"vienna","name":"Vienna","x":0.52,"y":0.44},{"id":"prague","name":"Prague","x":0.5,"y":0.36},{"id":"rome","name":"Rome","x":0.44,"y":0.62},{"id":"madrid","name":"Madrid","x":0.15,"y":0.62},{"id":"istanbul","name":"Istanbul","x":0.72,"y":0.58},{"id":"warsaw","name":"Warsaw","x":0.58,"y":0.28},{"id":"moscow","name":"Moscow","x":0.78,"y":0.2},{"id":"budapest","name":"Budapest","x":0.56,"y":0.48},{"id":"bucharest","name":"Bucharest","x":0.64,"y":0.52},{"id":"stockholm","name":"Stockholm","x":0.5,"y":0.1}],"edges":[{"from":"london","to":"paris"},{"from":"london","to":"amsterdam"},{"from":"paris","to":"amsterdam"},{"from":"paris","to":"zurich"},{"from":"paris","to":"madrid"},{"from":"amsterdam","to":"berlin"},{"from":"amsterdam","to":"copenhagen"},{"from":"berlin","to":"copenhagen"},{"from":"berlin","to":"prague"},{"from":"berlin","to":"warsaw"},{"from":"prague","to":"vienna"},{"from":"prague","to":"zurich"},{"from":"zurich","to":"rome"},{"from":"vienna","to":"budapest"},{"from":"vienna","to":"zurich"},{"from":"rome","to":"madrid"},{"from":"rome","to":"budapest"},{"from":"warsaw","to":"moscow"},{"from":"warsaw","to":"prague"},{"from":"budapest","to":"bucharest"},{"from":"bucharest","to":"istanbul"},{"from":"budapest","to":"istanbul"},{"from":"moscow","to":"warsaw"},{"from":"copenhagen","to":"stockholm"},{"from":"stockholm","to":"moscow"}]},"side":"RED"},"sessionId":"sess_auto_end","type":"MATCH_START"}
+[Match sess_auto_end] Sending MATCH_START to BLUE (blue): {"payload":{"map":{"cities":[{"id":"london","name":"London","x":0.22,"y":0.28},{"id":"paris","name":"Paris","x":0.3,"y":0.42},{"id":"amsterdam","name":"Amsterdam","x":0.35,"y":0.26},{"id":"berlin","name":"Berlin","x":0.48,"y":0.28},{"id":"copenhagen","name":"Copenhagen","x":0.44,"y":0.17},{"id":"zurich","name":"Zurich","x":0.38,"y":0.48},{"id":"vienna","name":"Vienna","x":0.52,"y":0.44},{"id":"prague","name":"Prague","x":0.5,"y":0.36},{"id":"rome","name":"Rome","x":0.44,"y":0.62},{"id":"madrid","name":"Madrid","x":0.15,"y":0.62},{"id":"istanbul","name":"Istanbul","x":0.72,"y":0.58},{"id":"warsaw","name":"Warsaw","x":0.58,"y":0.28},{"id":"moscow","name":"Moscow","x":0.78,"y":0.2},{"id":"budapest","name":"Budapest","x":0.56,"y":0.48},{"id":"bucharest","name":"Bucharest","x":0.64,"y":0.52},{"id":"stockholm","name":"Stockholm","x":0.5,"y":0.1}],"edges":[{"from":"london","to":"paris"},{"from":"london","to":"amsterdam"},{"from":"paris","to":"amsterdam"},{"from":"paris","to":"zurich"},{"from":"paris","to":"madrid"},{"from":"amsterdam","to":"berlin"},{"from":"amsterdam","to":"copenhagen"},{"from":"berlin","to":"copenhagen"},{"from":"berlin","to":"prague"},{"from":"berlin","to":"warsaw"},{"from":"prague","to":"vienna"},{"from":"prague","to":"zurich"},{"from":"zurich","to":"rome"},{"from":"vienna","to":"budapest"},{"from":"vienna","to":"zurich"},{"from":"rome","to":"madrid"},{"from":"rome","to":"budapest"},{"from":"warsaw","to":"moscow"},{"from":"warsaw","to":"prague"},{"from":"budapest","to":"bucharest"},{"from":"bucharest","to":"istanbul"},{"from":"budapest","to":"istanbul"},{"from":"moscow","to":"warsaw"},{"from":"copenhagen","to":"stockholm"},{"from":"stockholm","to":"moscow"}]},"side":"BLUE"},"sessionId":"sess_auto_end","type":"MATCH_START"}
+[INTEL-DEBUG] actions_since_last_popup=1 threshold=4
+[!!!] Serializing: player=RED locate_blocked=0
+[!!!] Serializing: player=BLUE locate_blocked=0
+[INTEL-DEBUG] actions_since_last_popup=2 threshold=4
+[!!!] Serializing: player=RED locate_blocked=0
+[!!!] Serializing: player=BLUE locate_blocked=0
+[Match sess_auto_end] Auto-ending turn for RED (0 actions left)
+OK
+
+All tests passed!

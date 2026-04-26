@@ -186,11 +186,15 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
         auto& defender_mut = player_mut(opposite(side));
         defender_mut.opponent_used_strike = true;    // notify opponent that a strike was attempted
         
-        // Strike reveals the striker's position to the opponent
-        defender_mut.known_opponent_city = striker_city;
-
-        std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
-                  << " struck at " << striker_city << " but opponent was not there. Position REVEALED.\n";
+        // Strike reveals the striker's position to the opponent ONLY IF opponent has Strike Report unlocked
+        if (defender_mut.strike_report_unlocked) {
+            defender_mut.known_opponent_city = striker_city;
+            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                      << " struck at " << striker_city << " but opponent was not there. Position REVEALED by Strike Report.\n";
+        } else {
+            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                      << " struck at " << striker_city << " but opponent was not there. Opponent knows a strike occurred.\n";
+        }
     }
 
     // Increment action counter for shrinking map feature
@@ -230,6 +234,11 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
     auto it = std::find(p.abilities.begin(), p.abilities.end(), ability);
     if (it == p.abilities.end()) {
         result.error = std::string("You don't have ability: ") + to_string(ability);
+        return result;
+    }
+
+    if (ability == AbilityId::STRIKE_REPORT && p.strike_report_unlocked) {
+        result.error = "Strike Report is already unlocked.";
         return result;
     }
 
@@ -291,6 +300,12 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                 }
             }
             break;
+        case AbilityId::STRIKE_REPORT:
+            p.strike_report_unlocked = true;
+            opponent.opponent_unlocked_strike_report = true;
+            std::cerr << "[ABILITY] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+                      << " unlocked STRIKE_REPORT.\n";
+            break;
         default:
             // Other abilities: stub for now
             break;
@@ -351,6 +366,7 @@ ActionResult GameState::wait(PlayerSide side) {
         // Clear opponent's knowledge of this player's location
         auto& opponent = player_mut(opposite(side));
         opponent.known_opponent_city = "";
+        opponent.opponent_waited = true;  // notify opponent that player waited
     }
 
     // Increment action counter for shrinking map feature
@@ -404,6 +420,7 @@ ActionResult GameState::control(PlayerSide side) {
     // Notify opponent of the action by revealing this player's location
     auto& opponent = player_mut(opposite(side));
     opponent.known_opponent_city = current_city;
+    opponent.opponent_used_control = true;  // notify opponent that player took control
 
     // Consume one action
     p.actions_remaining -= 1;
@@ -484,11 +501,16 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
         }
     }
     
-    // Clear opponent action notifications for the new turn
-    next.opponent_used_strike = false;
-    next.opponent_used_locate = false;
-    next.opponent_used_deep_cover = false;
-    next.locate_blocked_by_deep_cover = false;  // Clear Locate feedback flag
+    // Clear opponent action notifications for the player who just finished their turn.
+    // This ensures they saw the notifications during their turn.
+    p.opponent_used_strike = false;
+    p.opponent_used_locate = false;
+    p.opponent_used_deep_cover = false;
+    p.opponent_used_control = false;
+    p.opponent_claimed_intel = false;
+    p.opponent_waited = false;
+    p.opponent_unlocked_strike_report = false;
+    p.locate_blocked_by_deep_cover = false;  // Clear Locate feedback flag
 
     result.ok = true;
     return result;
@@ -768,6 +790,7 @@ void GameState::apply_claimed_intel(PlayerSide side) {
         // Opponent can now see this player's location (stays visible until they move/wait)
         auto& opp = player_mut(opposite(side));
         opp.known_opponent_city = p.current_city;
+        opp.opponent_claimed_intel = true;  // notify opponent that player claimed intel
         
         std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
                   << " claimed Intel at " << p.intel_claimed_from_city 

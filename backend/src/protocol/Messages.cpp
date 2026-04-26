@@ -113,10 +113,17 @@ json serialize_match_state(const std::string& session_id,
         player_state["knownOpponentCity"] = nullptr;
     }
     
+    player_state["strikeReportUnlocked"] = p.strike_report_unlocked;
+    
     // Include opponent action notifications
     player_state["opponentUsedStrike"] = p.opponent_used_strike;
     player_state["opponentUsedLocate"] = p.opponent_used_locate;
     player_state["opponentUsedDeepCover"] = p.opponent_used_deep_cover;
+    player_state["opponentUsedControl"] = p.opponent_used_control;
+    player_state["opponentClaimedIntel"] = p.opponent_claimed_intel;
+    player_state["opponentWaited"] = p.opponent_waited;
+    player_state["opponentUnlockedStrikeReport"] = p.opponent_unlocked_strike_report;
+    player_state["opponentStrikeReportActive"] = opp.strike_report_unlocked;
     
     // Include player action feedback
     fprintf(stderr, "[!!!] Serializing: player=%s locate_blocked=%d\n",

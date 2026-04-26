@@ -11,39 +11,65 @@ import {
   MapDef,
 } from '../../types/Messages';
 import './PhaserGame.css';
+import HowToPlayOverlay from './HowToPlayOverlay';
 
 export interface PhaserGameProps {
   operativeName: string;
   playerName: string;
   webSocketClient: WebSocketClient;
   initialMap?: MapDef;
+  initialState?: MatchState | null;
   onGameEnd?: () => void;
   onTerminateLink?: () => void;
+  showHowToPlay: boolean;
+  setShowHowToPlay: (val: boolean) => void;
+  actionTooltip: string | null;
+  setActionTooltip: (val: string | null) => void;
 }
 
 type ActionMode = 'MOVE' | 'STRIKE' | null;
+
+interface Notification {
+  id: string;
+  text: string;
+  type?: 'warning' | 'error';
+  turn: number;
+}
 
 const PhaserGame: React.FC<PhaserGameProps> = ({
   operativeName,
   playerName: _playerName,
   webSocketClient,
   initialMap,
+  initialState,
   onGameEnd,
   onTerminateLink,
+  showHowToPlay,
+  setShowHowToPlay,
+  actionTooltip,
+  setActionTooltip,
 }) => {
-  const [matchState, setMatchState] = useState<MatchState | null>(null);
+  const [matchState, setMatchState] = useState<MatchState | null>(initialState || null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode>(null);
-  const [notifications, setNotifications] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [gameOver, setGameOver] = useState<GameOverPayload | null>(null);
   const [turnBanner, setTurnBanner] = useState<string | null>(null);
   const [localTimerMs, setLocalTimerMs] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTurnRef = useRef<PlayerSide | null>(null);
+  const lastStateRef = useRef<MatchState | null>(null);
 
-  const addNotification = useCallback((msg: string, type?: 'warning' | 'error') => {
-    const prefix = type === 'warning' ? '⚠ ' : type === 'error' ? '✗ ' : '› ';
-    setNotifications(prev => [...prev.slice(-49), prefix + msg]);
+  const addNotification = useCallback((msg: string, type?: 'warning' | 'error', turn?: number) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setNotifications(prev => {
+      // Avoid duplicate identical messages in the same turn
+      if (prev.length > 0) {
+        const last = prev[prev.length - 1];
+        if (last.text === msg && last.turn === (turn ?? 0)) return prev;
+      }
+      return [...prev.slice(-49), { id, text: msg, type, turn: turn ?? 0 }];
+    });
   }, []);
 
   // Adjacency set for the player's current city
@@ -65,10 +91,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   }, [matchState]);
 
   // Intel popup cities
-  const intelCitySet = useMemo(() => {
-    if (!matchState) return new Set<string>();
-    return new Set(matchState.intelPopups.map(p => p.city));
-  }, [matchState]);
+  // const intelCitySet = useMemo(() => {
+  //   if (!matchState) return new Set<string>();
+  //   return new Set(matchState.intelPopups.map(p => p.city));
+  // }, [matchState]);
 
   // Subscribe to WebSocket events
   useEffect(() => {
@@ -97,23 +123,62 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
       // Process notifications from state
       if (state.player.opponentUsedStrike) {
-        addNotification('Opponent attempted a STRIKE!', 'warning');
+        addNotification('Opponent attempted a STRIKE!', 'warning', state.turnNumber);
       }
       if (state.player.opponentUsedLocate) {
-        addNotification('Opponent used LOCATE', 'warning');
+        addNotification('Opponent used LOCATE', 'warning', state.turnNumber);
       }
       if (state.player.opponentUsedDeepCover) {
-        addNotification('Opponent activated DEEP COVER', 'warning');
+        addNotification('Opponent activated DEEP COVER', 'warning', state.turnNumber);
+      }
+      if (state.player.opponentUsedControl) {
+        addNotification('Opponent took CONTROL of a city', 'warning', state.turnNumber);
+      }
+      if (state.player.opponentClaimedIntel) {
+        addNotification('Opponent claimed INTEL (position revealed)', 'warning', state.turnNumber);
+      }
+      if (state.player.opponentWaited) {
+        addNotification('Opponent WAITED (gained cover)', 'warning', state.turnNumber);
+      }
+      if (state.player.opponentUnlockedStrikeReport) {
+        addNotification('Opponent unlocked STRIKE REPORT!', 'warning', state.turnNumber);
       }
       if (state.player.locateBlockedByDeepCover) {
-        addNotification('Your LOCATE was blocked by Deep Cover!', 'error');
+        addNotification('Your LOCATE was blocked by Deep Cover!', 'error', state.turnNumber);
       }
       if (state.player.claimedIntel) {
-        addNotification('Intel claimed! (+10 Intel, cover blown)', 'warning');
+        addNotification('Intel claimed! (+10 Intel, cover blown)', 'warning', state.turnNumber);
       }
       if (state.isPlayerStranded) {
-        addNotification('WARNING: You are in a disappearing city!', 'error');
+        addNotification('WARNING: You are in a disappearing city!', 'error', state.turnNumber);
       }
+
+      // Detect new city destructions
+      if (lastStateRef.current) {
+        // Detect player strike report unlock
+        if (state.player.strikeReportUnlocked && !lastStateRef.current.player.strikeReportUnlocked) {
+          addNotification('STRIKE REPORT activated: You will now be notified of all opponent strike attempts.', undefined, state.turnNumber);
+        }
+
+        const oldDis = new Set(lastStateRef.current.disappearedCities);
+        for (const c of state.disappearedCities) {
+          if (!oldDis.has(c)) {
+            const cityName = state.map?.cities.find(city => city.id === c)?.name || c;
+            addNotification(`City destroyed: ${cityName}`, 'error', state.turnNumber);
+          }
+        }
+
+        // Detect new intel spawns
+        const oldIntel = new Set(lastStateRef.current.intelPopups.map(p => p.city));
+        for (const p of state.intelPopups) {
+          if (!oldIntel.has(p.city)) {
+            const cityName = state.map?.cities.find(city => city.id === p.city)?.name || p.city;
+            addNotification(`Intel detected: ${cityName}`, 'warning', state.turnNumber);
+          }
+        }
+      }
+
+      lastStateRef.current = state;
     };
 
     const handleGameOver = (msg: any) => {
@@ -246,6 +311,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div className={`header-timer ${timerUrgent ? 'urgent' : 'normal'}`}>
           {timerSeconds}s
         </div>
+        <button
+          className="help-btn-header"
+          onClick={() => setShowHowToPlay(true)}
+          onMouseEnter={() => setActionTooltip('HOW TO PLAY: Open field manual and mission objectives.')}
+          onMouseLeave={() => setActionTooltip(null)}
+          title="How to Play"
+        >
+          <span className="material-symbols-outlined">help_outline</span>
+        </button>
       </div>
 
       {/* ── Body: Map + Panel ─── */}
@@ -307,7 +381,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
               let circleClass = 'city-circle';
               if (isDis) circleClass += ' disappeared';
-              else if (isPlayer) circleClass += ' player';
+              else if (isPlayer) circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
               else if (isOpp) circleClass += ' opponent';
               else if (hasIntel) circleClass += ' intel-popup';
               else if (isAdj) circleClass += ' adjacent-highlight';
@@ -331,6 +405,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   {scheduledDisappear && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={14} className="scheduled-ring" />
                   )}
+                  {/* Intel ripple animation */}
+                  {hasIntel && !isPlayer && !isOpp && !isDis && (
+                    <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#fe9800" className="intel-ripple" pointerEvents="none" />
+                  )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />
                   
                   {/* Disappeared overlay (X) */}
@@ -341,17 +419,70 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                     </>
                   )}
 
-                  {/* Player marker */}
-                  {isPlayer && (
-                    <polygon points={`${pos.x},${pos.y - 12} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 12} ${pos.x - 12},${pos.y}`} fill="#10b981" pointerEvents="none" />
-                  )}
-                  {/* Opponent marker */}
-                  {isOpp && (
-                    <polygon points={`${pos.x},${pos.y - 12} ${pos.x + 12},${pos.y} ${pos.x},${pos.y + 12} ${pos.x - 12},${pos.y}`} fill="#ff4444" pointerEvents="none" />
-                  )}
-                  {/* Intel icon */}
-                  {hasIntel && !isPlayer && !isOpp && !isDis && (
-                    <text x={pos.x} y={pos.y + 3} textAnchor="middle" fill="#0c0e0f" fontSize="8" fontWeight="black" pointerEvents="none">⊕</text>
+                  {/* Player & Opponent Markers (Pointer Style) */}
+                  {(() => {
+                    const markers = [];
+                    const markerW = 16;
+                    const markerH = 28;
+                    const shoulderH = 20; // Widest part is now near the top
+                    const tipY = pos.y - radius - 1;
+                    const isExposed = isPlayer && !matchState.player.hasCover;
+                    
+                    if (isPlayer && isOpp) {
+                      // Both players in same city - offset side-by-side
+                      const p1X = pos.x - 10;
+                      const p2X = pos.x + 10;
+                      markers.push(
+                        <polygon 
+                          key="player"
+                          points={`${p1X},${tipY} ${p1X + markerW/2},${tipY - shoulderH} ${p1X},${tipY - markerH} ${p1X - markerW/2},${tipY - shoulderH}`} 
+                          fill="#10b981" 
+                          stroke={isExposed ? "#fff" : "none"}
+                          strokeWidth={isExposed ? "2" : "0"}
+                          pointerEvents="none" 
+                          className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
+                        />
+                      );
+                      markers.push(
+                        <polygon 
+                          key="opponent"
+                          points={`${p2X},${tipY} ${p2X + markerW/2},${tipY - shoulderH} ${p2X},${tipY - markerH} ${p2X - markerW/2},${tipY - shoulderH}`} 
+                          fill="#ff4444" 
+                          pointerEvents="none" 
+                          className="marker-float"
+                        />
+                      );
+                    } else if (isPlayer) {
+                      markers.push(
+                        <polygon 
+                          key="player"
+                          points={`${pos.x},${tipY} ${pos.x + markerW/2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW/2},${tipY - shoulderH}`} 
+                          fill="#10b981" 
+                          stroke={isExposed ? "#fff" : "none"}
+                          strokeWidth={isExposed ? "2" : "0"}
+                          pointerEvents="none" 
+                          className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
+                        />
+                      );
+                    } else if (isOpp) {
+                      markers.push(
+                        <polygon 
+                          key="opponent"
+                          points={`${pos.x},${tipY} ${pos.x + markerW/2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW/2},${tipY - shoulderH}`} 
+                          fill="#ff4444" 
+                          pointerEvents="none" 
+                          className="marker-float"
+                        />
+                      );
+                    }
+                    return markers;
+                  })()}
+
+                  {/* Intel points display (now always visible as markers are above) */}
+                  {hasIntel && !isDis && (
+                    <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="900" pointerEvents="none">
+                      {intelPopup.amount}
+                    </text>
                   )}
                   {/* City name */}
                   <text x={pos.x} y={pos.y + radius + 18} className={`city-label ${isDis ? 'disappeared' : ''}`}>
@@ -393,6 +524,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               <span>Location</span>
               <span className="panel-stat-value">{map.cities.find(c => c.id === playerCity)?.name || playerCity}</span>
             </div>
+            <div className="panel-stat" title="Monitors opponent strike attempts">
+              <span>Strike Report</span>
+              <span className={`panel-stat-value ${matchState.player.strikeReportUnlocked ? '' : 'dimmed'}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
+                  {matchState.player.strikeReportUnlocked ? 'security' : 'shield'}
+                </span>
+                {matchState.player.strikeReportUnlocked ? 'ACTIVE' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
 
           <div className="panel-section">
@@ -404,6 +544,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <div className="panel-stat">
               <span>Known Location</span>
               <span className="panel-stat-value">{knownOppName}</span>
+            </div>
+            <div className="panel-stat" title="Monitors your strike attempts">
+              <span>Strike Report</span>
+              <span className={`panel-stat-value ${matchState.player.opponentStrikeReportActive ? 'active-warn' : 'dimmed'}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
+                  {matchState.player.opponentStrikeReportActive ? 'security' : 'shield'}
+                </span>
+                {matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}
+              </span>
             </div>
           </div>
 
@@ -423,11 +572,20 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               {notifications.length === 0 ? (
                 <div style={{ opacity: 0.4 }}>&gt; AWAITING INTEL...</div>
               ) : (
-                [...notifications].reverse().map((n, i) => (
-                  <div key={i} className={`notification-item ${n.startsWith('⚠') ? 'warning' : n.startsWith('✗') ? 'error' : ''}`}>
-                    {n}
-                  </div>
-                ))
+                [...notifications].reverse().map((n, i) => {
+                  const isLatest = i === 0;
+                  const isIrrelevant = n.turn < matchState.turnNumber;
+                  const prefix = n.type === 'warning' ? '⚠ ' : n.type === 'error' ? '✗ ' : '› ';
+                  return (
+                    <div 
+                      key={n.id} 
+                      className={`notification-item ${n.type || ''} ${isLatest ? 'latest' : ''} ${isIrrelevant ? 'irrelevant' : ''}`}
+                    >
+                      {isLatest && <span className="latest-tag">NEW</span>}
+                      <span className="notification-turn">T{n.turn}</span> {prefix}{n.text}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -436,60 +594,101 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
       {/* ── Action Bar ─── */}
       <div className="game-actions">
-        <button
-          className={`action-btn ${actionMode === 'MOVE' ? 'active' : ''}`}
-          disabled={!canAct}
-          onClick={() => setActionMode(prev => prev === 'MOVE' ? null : 'MOVE')}
-        >
-          <span className="material-symbols-outlined">directions_run</span>
-          <span className="btn-label">MOVE</span>
-        </button>
-        <button
-          className={`action-btn ${actionMode === 'STRIKE' ? 'active' : ''}`}
-          disabled={!canAct}
-          onClick={() => {
-            // Strike fires immediately on current location per GDD
-            sendAction(ActionKind.STRIKE, playerCity);
-          }}
-        >
-          <span className="material-symbols-outlined">ads_click</span>
-          <span className="btn-label">STRIKE</span>
-        </button>
-        <button 
-          className="action-btn" 
-          disabled={!canAct || matchState.player.intel < 10} 
-          onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.LOCATE)}
-        >
-          <span className="material-symbols-outlined">my_location</span>
-          <span className="btn-label">LOCATE</span>
-          <span className="btn-cost">10</span>
-        </button>
-        <button 
-          className="action-btn" 
-          disabled={!canAct || matchState.player.intel < 30} 
-          onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.DEEP_COVER)}
-        >
-          <span className="material-symbols-outlined">visibility_off</span>
-          <span className="btn-label">DEEP COVER</span>
-          <span className="btn-cost">30</span>
-        </button>
-        <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.WAIT)}>
-          <span className="material-symbols-outlined">hourglass_empty</span>
-          <span className="btn-label">WAIT</span>
-        </button>
-        <button className="action-btn" disabled={!canAct} onClick={() => sendAction(ActionKind.CONTROL)}>
-          <span className="material-symbols-outlined">token</span>
-          <span className="btn-label">CONTROL</span>
-        </button>
-        <button className="action-btn end-turn" disabled={!isMyTurn || !!gameOver} onClick={sendEndTurn}>
-          <span className="material-symbols-outlined">done_all</span>
-          <span className="btn-label">END TURN</span>
-        </button>
+        <div onMouseEnter={() => setActionTooltip('MOVE: Travel to an adjacent connected city. Grants Cover.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className={`action-btn ${actionMode === 'MOVE' ? 'active' : ''}`}
+            disabled={!canAct}
+            onClick={() => setActionMode(actionMode === 'MOVE' ? null : 'MOVE')}
+          >
+            <span className="material-symbols-outlined">directions_run</span>
+            <span className="btn-label">MOVE</span>
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('WAIT: Stay put and regain Cover (unless in enemy territory).')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canAct}
+            onClick={() => sendAction(ActionKind.WAIT)}
+          >
+            <span className="material-symbols-outlined">hourglass_empty</span>
+            <span className="btn-label">WAIT</span>
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('STRIKE: Attack the opponent at your current location. Reveals you ONLY if opponent has Strike Report.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canAct}
+            onClick={() => {
+              sendAction(ActionKind.STRIKE, playerCity);
+            }}
+          >
+            <span className="material-symbols-outlined">ads_click</span>
+            <span className="btn-label">STRIKE</span>
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('CONTROL: Claim this city for your network. Blows Cover.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canAct}
+            onClick={() => sendAction(ActionKind.CONTROL)}
+          >
+            <span className="material-symbols-outlined">token</span>
+            <span className="btn-label">CONTROL</span>
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip("LOCATE: Reveal the opponent's current city. Costs 10 Intel.")} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canAct || matchState.player.intel < 10}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.LOCATE)}
+          >
+            <span className="material-symbols-outlined">my_location</span>
+            <span className="btn-label">LOCATE</span>
+            <span className="btn-cost">10</span>
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('DEEP COVER: Hide from Locate attempts and enter opponent-controlled cities safely. Costs 30 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canAct || matchState.player.intel < 30}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.DEEP_COVER)}
+          >
+            <span className="material-symbols-outlined">visibility_off</span>
+            <span className="btn-label">DEEP COVER</span>
+            <span className="btn-cost">30</span>
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('STRIKE REPORT: Reveal the opponent\'s location if they attempt a strike. Costs 20 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canAct || matchState.player.intel < 20 || matchState.player.strikeReportUnlocked}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.STRIKE_REPORT)}
+          >
+            <span className="material-symbols-outlined">plagiarism</span>
+            <span className="btn-label">{matchState.player.strikeReportUnlocked ? 'REPORT ACTIVE' : 'STRIKE REPORT'}</span>
+            {!matchState.player.strikeReportUnlocked && <span className="btn-cost">20</span>}
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('END TURN: Pass control to the opponent. Gain +4 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn end-turn"
+            disabled={!isMyTurn || !!gameOver}
+            onClick={sendEndTurn}
+          >
+            <span className="material-symbols-outlined">done_all</span>
+            <span className="btn-label">END TURN</span>
+          </button>
+        </div>
         <div className="action-divider"></div>
-        <button className="action-btn terminate" onClick={onTerminateLink}>
-          <span className="material-symbols-outlined">power_settings_new</span>
-          <span className="btn-label">ABORT</span>
-        </button>
+        <div onMouseEnter={() => setActionTooltip('ABORT: Terminate current mission and return to lobby.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn terminate"
+            onClick={onTerminateLink}
+          >
+            <span className="material-symbols-outlined">power_settings_new</span>
+            <span className="btn-label">ABORT</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Game Over Overlay ─── */}

@@ -13,6 +13,8 @@ export interface CodenameAuthorizationProps {
   onEstablish?: (codename: string) => void;
   onInputChange?: (value: string) => void;
   loading?: boolean;
+  onOpenHowToPlay?: () => void;
+  setActionTooltip?: (val: string | null) => void;
 }
 
 const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
@@ -24,6 +26,8 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
   onEstablish,
   onInputChange,
   loading = false,
+  onOpenHowToPlay,
+  setActionTooltip,
 }) => {
   const [input, setInput] = useState<string>(operativeCodename);
 
@@ -102,16 +106,26 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           >
             STATUS: ACTIVE
           </div>
+          <button
+            className="help-btn-header"
+            onClick={onOpenHowToPlay}
+            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY: Open field manual and mission objectives.')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title="How to Play"
+          >
+            <span className="material-symbols-outlined">help_outline</span>
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
       <main 
-        className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto"
+        className="flex-1 flex flex-col items-center p-4 sm:p-6 overflow-y-auto"
         style={{ zIndex: 20 }}
         data-testid="terminal-main"
       >
-        <div className="mb-12 text-center">
+        <div className="my-auto w-full flex flex-col items-center py-4">
+          <div className="mb-8 sm:mb-12 text-center">
           <h1 
             className="text-4xl md:text-6xl font-black tracking-[0.2em] mb-4"
             style={{
@@ -147,7 +161,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         {/* Terminal Form */}
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-xl p-10 relative overflow-hidden"
+          className="w-full max-w-xl p-6 sm:p-10 relative overflow-hidden"
           style={{
             backgroundColor: 'rgba(24, 26, 27, 0.6)',
             borderColor: 'rgba(0, 255, 255, 0.1)',
@@ -215,7 +229,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 mt-12">
+          <div className="flex flex-col sm:flex-row gap-4 mt-8 sm:mt-12">
             <button
               type="button"
               onClick={handleGenerateRandom}
@@ -292,7 +306,8 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         >
           <p>Enter your operative codename or select GENERATE for a random assignment.</p>
         </div>
-      </main>
+      </div>
+    </main>
 
       {/* Footer Info Panels */}
       <footer

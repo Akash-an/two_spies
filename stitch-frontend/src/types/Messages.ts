@@ -85,9 +85,15 @@ export interface PlayerState {
   hasCover: boolean;
   knownOpponentCity?: string | null;
   abilities: AbilityId[];
+  strikeReportUnlocked: boolean;
   opponentUsedStrike: boolean;
   opponentUsedLocate: boolean;
   opponentUsedDeepCover: boolean;
+  opponentUsedControl: boolean;
+  opponentClaimedIntel: boolean;
+  opponentWaited: boolean;
+  opponentUnlockedStrikeReport: boolean;
+  opponentStrikeReportActive: boolean;
   locateBlockedByDeepCover: boolean;
   claimedIntel: boolean;
   startingCity: string;

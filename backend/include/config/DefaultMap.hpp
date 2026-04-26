@@ -48,7 +48,10 @@ inline game::MapDef default_map() {
                {"singapore", "tokyo"},
                {"beijing", "bangalore"},
                {"nyc", "rio"},
-               {"rio", "dar_es_salaam"}};
+               {"rio", "dar_es_salaam"},
+               {"london", "moscow"},
+               {"nyc", "algiers"},
+               {"rio", "tel-aviv"}};
 
   return map;
 }

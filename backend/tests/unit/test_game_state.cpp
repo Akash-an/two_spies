@@ -22,7 +22,28 @@ void test_timeout_resets_timer_for_next_player();
 void test_match_auto_end_turn();
 
 static MapDef test_map() {
-    return two_spies::config::default_map();
+    MapDef map;
+    map.cities = {
+        {"london", "London", 0, 0},
+        {"moscow", "Moscow", 0, 0},
+        {"berlin", "Berlin", 0, 0},
+        {"paris", "Paris", 0, 0},
+        {"tokyo", "Tokyo", 0, 0},
+        {"nyc", "New York", 0, 0},
+        {"cairo", "Cairo", 0, 0}
+    };
+    map.edges = {
+        {"london", "berlin"},
+        {"london", "paris"},
+        {"berlin", "moscow"},
+        {"moscow", "tokyo"},
+        {"paris", "nyc"},
+        {"nyc", "cairo"},
+        {"cairo", "london"},
+        {"berlin", "cairo"},
+        {"london", "nyc"},
+    };
+    return map;
 }
 
 static void test_starting_cities() {
@@ -42,6 +63,9 @@ static void test_move_valid() {
     gs.set_starting_cities("london", "moscow");
 
     auto r = gs.move(PlayerSide::RED, "berlin");
+    if (!r.ok) {
+        std::cerr << "Move failed: " << r.error << std::endl;
+    }
     assert(r.ok);
     assert(gs.player(PlayerSide::RED).current_city == "berlin");
     assert(gs.player(PlayerSide::RED).actions_remaining == 1);
@@ -108,16 +132,44 @@ static void test_strike_miss() {
     std::cout << "OK\n";
 }
 
-// A failed strike MUST reveal the striker's current city to the opponent.
-static void test_strike_miss_reveals_location() {
-    std::cout << "  test_strike_miss_reveals_location... ";
+// A failed strike does NOT reveal the striker's current city to the opponent unless they have Strike Report unlocked.
+static void test_strike_miss_does_not_reveal_location_without_report() {
+    std::cout << "  test_strike_miss_does_not_reveal_location_without_report... ";
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
     // RED is in london, strikes (misses)
     gs.strike(PlayerSide::RED, "london");  // MISS
 
-    // BLUE MUST have learned where RED is (london)
+    // BLUE MUST NOT have learned where RED is
+    assert(gs.player(PlayerSide::BLUE).known_opponent_city == "");
+    std::cout << "OK\n";
+}
+
+// A failed strike reveals the striker's location if the opponent has Strike Report unlocked.
+static void test_strike_report_ability_reveals_location() {
+    std::cout << "  test_strike_report_ability_reveals_location... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // Give BLUE enough Intel to unlock Strike Report (costs 20)
+    gs.player_mut(PlayerSide::BLUE).intel = 30;
+    
+    // RED ends turn so it's BLUE's turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE unlocks Strike Report
+    auto r1 = gs.use_ability(PlayerSide::BLUE, AbilityId::STRIKE_REPORT, "");
+    assert(r1.ok);
+    assert(gs.player(PlayerSide::BLUE).strike_report_unlocked);
+    
+    // BLUE ends turn
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // RED is in london, strikes (misses)
+    gs.strike(PlayerSide::RED, "london");  // MISS
+
+    // BLUE MUST have learned where RED is (london) because they have Strike Report unlocked
     assert(gs.player(PlayerSide::BLUE).known_opponent_city == "london");
     std::cout << "OK\n";
 }
@@ -297,6 +349,9 @@ static void test_intel_multiple_turns_accumulation() {
 
     // Turn 2: RED moves to another new city (Cairo)
     auto r_cairo_move = gs.move(PlayerSide::RED, "cairo");
+    if (!r_cairo_move.ok) {
+        std::cerr << "Cairo move failed: " << r_cairo_move.error << std::endl;
+    }
     assert(r_cairo_move.ok);
     gs.end_turn(PlayerSide::RED);
     red_intel = gs.player(PlayerSide::RED).intel;
@@ -1106,7 +1161,8 @@ int main() {
     test_move_wrong_turn();
     test_strike_hit();
     test_strike_miss();
-    test_strike_miss_reveals_location();
+    test_strike_miss_does_not_reveal_location_without_report();
+    test_strike_report_ability_reveals_location();
     test_strike_hit_no_spurious_notification();
     test_end_turn();
     

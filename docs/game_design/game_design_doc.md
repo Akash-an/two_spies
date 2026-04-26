@@ -46,7 +46,7 @@ Players win a round by eliminating the opponent spy via an accurate strike. A fu
 
 * A player may use an action to attempt a **strike at their current location**.
 * If the opponent is in the same city — the round ends, striker wins.
-* If the opponent is not there — the attacking spy's **location is revealed** to the opponent.
+* If the opponent is not there — the opponent is notified that a strike occurred. The attacking spy's **location is NOT revealed**, unless the opponent has unlocked the **Strike Report** ability.
 * **The opponent is notified** that a strike attempt was made, even if it missed.
 * **Implementation note:** Strike no longer requires city selection; it always targets current location.
 
@@ -128,7 +128,7 @@ All abilities cost Intel and modify information visibility or mobility.
 | Deep Cover     | 30   | Grants temporary invisibility until the end of your current turn. You may enter the opponent's controlled city without being discovered. The opponent's Locate ability cannot reveal your position while Deep Cover is active. |
 | Encryption     | TBD  | Masks what Intel was spent on, limiting opponent deduction.            |
 | Locate         | 10   | Reveals the opponent's current location with a prominent pulsing yellow marker. Forces opponent into visible state (removes opponent's cover) **UNLESS the opponent has Deep Cover active**. **The opponent is notified** that the Locate ability was used against them (unless blocked by Deep Cover). |
-| Strike Report  | TBD  | Provides enhanced information after a strike attempt.                  |
+| Strike Report  | 20   | Permanent unlock. When active, if the opponent attempts a strike that misses, their location is immediately revealed to you. |
 | Rapid Recon    | TBD  | Grants additional movement options or reveals potential move paths.    |
 | Prep Mission   | TBD  | Grants an extra action or sets up a future positional advantage.       |
 

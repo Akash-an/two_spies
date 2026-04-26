@@ -3,9 +3,6 @@ import React, { useState, useEffect } from 'react';
 export interface MissionDeploymentHubProps {
   operativeName?: string;
   sector?: string;
-  turnCycle?: string;
-  location?: string;
-  coverLevel?: number;
   networkStatus?: string;
   intelUpdate?: string;
   threatLevel?: string;
@@ -19,14 +16,13 @@ export interface MissionDeploymentHubProps {
   matchCode?: string | null;
   className?: string;
   loading?: boolean;
+  onOpenHowToPlay?: () => void;
+  setActionTooltip?: (val: string | null) => void;
 }
 
 const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   operativeName = 'OPERATIVE_01',
   sector = 'BERLIN_VOID',
-  turnCycle = '05/12',
-  location = 'Berlin',
-  coverLevel = 92,
   networkStatus = 'Secure',
   intelUpdate = 'Intercepting encrypted traffic from Sector 7...',
   threatLevel = 'Local authorities increasing patrol frequency.',
@@ -40,6 +36,8 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   // logs = [],
   className = '',
   loading = false,
+  onOpenHowToPlay,
+  setActionTooltip,
 }) => {
   const [showGeneratedFrequencyModal, setShowGeneratedFrequencyModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -85,14 +83,18 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <h1 className="text-on-surface font-['Space_Grotesk'] font-bold tracking-widest uppercase text-lg">MISSION DEPLOYMENT HUB</h1>
         </div>
         <div className="flex items-center gap-6">
-          <div className="flex gap-4 text-[#c1fffe]/60">
-            <span className="hover:bg-[#00ffff]/10 hover:text-[#00ffff] transition-all p-2 cursor-pointer">⚡</span>
-            <span className="hover:bg-[#00ffff]/10 hover:text-[#00ffff] transition-all p-2 cursor-pointer">🔒</span>
-            <span className="hover:bg-[#00ffff]/10 hover:text-[#00ffff] transition-all p-2 cursor-pointer">⚠️</span>
-          </div>
           <div className="bg-primary-container/10 px-4 py-1 border border-primary/30">
             <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter">STATUS: ACTIVE</span>
           </div>
+          <button
+            className="help-btn-header"
+            onClick={onOpenHowToPlay}
+            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY: Open field manual and mission objectives.')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title="How to Play"
+          >
+            <span className="material-symbols-outlined">help_outline</span>
+          </button>
         </div>
       </header>
 
@@ -105,33 +107,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
         </div>
 
         <div className="space-y-6">
-          {/* Turn Cycle */}
-          <div className="p-4 bg-surface-container-high border-l-2 border-primary/50 space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">Turn Cycle</span>
-              <span className="text-primary font-['JetBrains_Mono'] text-sm">{turnCycle}</span>
-            </div>
-            <div className="w-full bg-surface-variant h-1">
-              <div className="bg-primary w-5/12 h-full shadow-[0_0_8px_rgba(0,255,255,0.8)]" />
-            </div>
-          </div>
-
-          {/* Location, Cover, Network */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between group cursor-pointer hover:bg-primary/5 p-2 transition-colors">
-              <div className="flex items-center gap-3">
-                <span className="text-primary/60">📍</span>
-                <span className="text-on-surface text-sm font-['Inter'] tracking-tight uppercase">Location</span>
-              </div>
-              <span className="text-primary font-bold text-xs uppercase">{location}</span>
-            </div>
-            <div className="flex items-center justify-between group cursor-pointer hover:bg-primary/5 p-2 transition-colors">
-              <div className="flex items-center gap-3">
-                <span className="text-primary/60">👁️</span>
-                <span className="text-on-surface text-sm font-['Inter'] tracking-tight uppercase">Cover Level</span>
-              </div>
-              <span className="text-secondary font-bold text-xs">{coverLevel}%</span>
-            </div>
             <div className="flex items-center justify-between group cursor-pointer hover:bg-primary/5 p-2 transition-colors">
               <div className="flex items-center gap-3">
                 <span className="text-primary/60">🌐</span>
