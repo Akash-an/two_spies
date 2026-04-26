@@ -18,10 +18,23 @@ std::string MatchManager::create_match(const std::string& player_id, SendFn send
                                         const std::string& player_name) {
     std::lock_guard lock(mutex_);
 
-    // Prevent double-join
+    // Check if player is already in a match
     auto it = player_to_session_.find(player_id);
     if (it != player_to_session_.end()) {
-        return "";  // already in a match
+        auto old_session_id = it->second;
+        auto mit = matches_.find(old_session_id);
+        if (mit != matches_.end() && !mit->second->is_game_over()) {
+            return "";  // already in an ACTIVE match
+        }
+        
+        // Match is either missing or over — clean up before creating new one
+        player_to_session_.erase(it);
+        if (mit != matches_.end()) {
+            mit->second->remove_player(player_id);
+            if (mit->second->is_empty()) {
+                matches_.erase(mit);
+            }
+        }
     }
 
     auto session_id = generate_session_id();
@@ -64,10 +77,30 @@ std::string MatchManager::join_match_by_code(const std::string& player_id, const
                                               SendFn send_fn, const std::string& player_name) {
     std::lock_guard lock(mutex_);
 
-    // Prevent double-join
+    // Check if player is already in a match
     auto pit = player_to_session_.find(player_id);
     if (pit != player_to_session_.end()) {
-        return pit->second;
+        auto old_session_id = pit->second;
+        auto mit = matches_.find(old_session_id);
+        
+        // If it's the SAME room they are trying to join, just return the session
+        auto cit = code_to_session_.find(code);
+        if (cit != code_to_session_.end() && cit->second == old_session_id) {
+            return old_session_id;
+        }
+
+        if (mit != matches_.end() && !mit->second->is_game_over()) {
+            return old_session_id; // Already in another ACTIVE match
+        }
+
+        // Match is over or different — clean up before joining new one
+        player_to_session_.erase(pit);
+        if (mit != matches_.end()) {
+            mit->second->remove_player(player_id);
+            if (mit->second->is_empty()) {
+                matches_.erase(mit);
+            }
+        }
     }
 
     // Look up the room code

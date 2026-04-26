@@ -59,6 +59,7 @@ public:
 
     bool is_started() const { return started_; }
     bool is_game_over() const;
+    bool is_empty() const;
 
     const GameState& state() const { return *state_; }
 
@@ -73,7 +74,7 @@ private:
     std::string session_id_;
     std::unique_ptr<GameState> state_;
     SendFn send_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 
     // Player bookkeeping
     std::string red_player_id_;
