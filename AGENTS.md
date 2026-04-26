@@ -380,6 +380,9 @@ Rebuild scripts live in `scripts/` at the project root. Always use these when co
 | `scripts/rebuild-backend.sh` | After any C++ source change |
 | `scripts/rebuild-stitch-frontend.sh` | After `vite.config.ts`, env vars, or plugin changes (HMR handles the rest) |
 | `scripts/rebuild-all.sh` | Full rebuild of both services |
+| `scripts/docker-run.sh` | Start services using Docker Compose |
+| `scripts/docker-rebuild.sh` | Rebuild images and restart via Docker Compose |
+| `scripts/docker-stop.sh` | Stop services using Docker Compose |
 
 Logs: `backend/server.log`, `stitch-stitch-frontend/vite.log`
 

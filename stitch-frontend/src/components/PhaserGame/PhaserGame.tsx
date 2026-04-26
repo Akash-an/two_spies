@@ -11,7 +11,6 @@ import {
   MapDef,
 } from '../../types/Messages';
 import './PhaserGame.css';
-import HowToPlayOverlay from './HowToPlayOverlay';
 
 export interface PhaserGameProps {
   operativeName: string;
@@ -21,9 +20,7 @@ export interface PhaserGameProps {
   initialState?: MatchState | null;
   onGameEnd?: () => void;
   onTerminateLink?: () => void;
-  showHowToPlay: boolean;
   setShowHowToPlay: (val: boolean) => void;
-  actionTooltip: string | null;
   setActionTooltip: (val: string | null) => void;
 }
 
@@ -44,9 +41,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   initialState,
   onGameEnd,
   onTerminateLink,
-  showHowToPlay,
   setShowHowToPlay,
-  actionTooltip,
   setActionTooltip,
 }) => {
   const [matchState, setMatchState] = useState<MatchState | null>(initialState || null);

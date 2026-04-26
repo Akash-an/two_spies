@@ -53,7 +53,7 @@ function App() {
   useEffect(() => {
     const initConnection = async () => {
       try {
-        const client = new WebSocketClient('ws://localhost:8080');
+        const client = new WebSocketClient();
         netRef.current = client;
 
         // Listen for events
@@ -272,9 +272,7 @@ function App() {
              setPlayerName('');
              setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
            }}
-           showHowToPlay={showHowToPlay}
            setShowHowToPlay={setShowHowToPlay}
-           actionTooltip={actionTooltip}
            setActionTooltip={handleSetActionTooltip}
          />
        )}

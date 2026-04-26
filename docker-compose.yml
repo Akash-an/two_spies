@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    restart: always
+
+  frontend:
+    build:
+      context: ./stitch-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./stitch-frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_WS_URL=ws://localhost:8080
+    depends_on:
+      - backend
+    restart: always

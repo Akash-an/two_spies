@@ -10,7 +10,7 @@ export class WebSocketClient extends EventEmitter {
   private ws: WebSocket | null = null;
   private url: string;
 
-  constructor(url: string = 'ws://localhost:8080') {
+  constructor(url: string = import.meta.env.VITE_WS_URL || 'ws://localhost:8080') {
     super();
     this.url = url;
   }
