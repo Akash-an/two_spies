@@ -7,7 +7,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$REPO_ROOT/backend/build"
 SERVER_BIN="$BUILD_DIR/two_spies_server"
-SERVER_PORT="${1:-8080}"
+SERVER_PORT="${1:-8085}"
 SERVER_MAX_PLAYERS="${2:-4}"
 LOG_FILE="$REPO_ROOT/backend/server.log"
 
@@ -20,12 +20,20 @@ NC='\033[0m' # No Color
 echo -e "${CYAN}=== Two Spies Backend Rebuild ===${NC}"
 
 # ── 1. Stop existing server ────────────────────────────────────────────────
-echo -e "${YELLOW}[1/3] Stopping existing server...${NC}"
+echo -e "${YELLOW}[1/3] Stopping existing native server...${NC}"
 if pgrep -f "two_spies_server" > /dev/null 2>&1; then
-    pkill -f "two_spies_server" && echo -e "      ${GREEN}Server stopped.${NC}"
+    pkill -f "two_spies_server" && echo -e "      ${GREEN}Native server stopped.${NC}"
     sleep 1
 else
-    echo -e "      No running server found."
+    echo -e "      No running native server found."
+fi
+
+# Check if port is still in use (e.g. by Docker)
+if lsof -i :"$SERVER_PORT" -sTCP:LISTEN > /dev/null 2>&1; then
+    echo -e "${RED}[WARNING] Port $SERVER_PORT is already in use by another process.${NC}"
+    echo -e "          This might be a Docker container. Try running:${NC}"
+    echo -e "          ${CYAN}docker compose down${NC}"
+    echo -e "          or stopping the process manually."
 fi
 
 # ── 2. Compile ─────────────────────────────────────────────────────────────

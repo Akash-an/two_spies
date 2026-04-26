@@ -366,7 +366,7 @@ ActionResult GameState::wait(PlayerSide side) {
         // Clear opponent's knowledge of this player's location
         auto& opponent = player_mut(opposite(side));
         opponent.known_opponent_city = "";
-        opponent.opponent_waited = true;  // notify opponent that player waited
+
     }
 
     // Increment action counter for shrinking map feature
@@ -508,7 +508,7 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     p.opponent_used_deep_cover = false;
     p.opponent_used_control = false;
     p.opponent_claimed_intel = false;
-    p.opponent_waited = false;
+
     p.opponent_unlocked_strike_report = false;
     p.locate_blocked_by_deep_cover = false;  // Clear Locate feedback flag
 

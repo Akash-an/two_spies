@@ -10,9 +10,17 @@ export class WebSocketClient extends EventEmitter {
   private ws: WebSocket | null = null;
   private url: string;
 
-  constructor(url: string = import.meta.env.VITE_WS_URL || 'ws://localhost:8080') {
+  constructor(url: string = import.meta.env.VITE_WS_URL || 'ws://localhost:8085') {
     super();
-    this.url = url;
+    
+    // Support relative URLs (e.g. '/ws') by prepending the current host and appropriate protocol
+    if (url.startsWith('/')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      this.url = `${protocol}//${host}${url}`;
+    } else {
+      this.url = url;
+    }
   }
 
   connect(): Promise<void> {

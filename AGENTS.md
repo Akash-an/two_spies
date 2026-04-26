@@ -67,8 +67,6 @@ Game logic must never depend on networking code.
 
 ## 3.1 stitch-frontend
 
-⚠️ **CANONICAL CLIENT:** As of 2026-04, **`stitch-frontend/` is the only frontend in active development. The old `frontend/` directory is DEPRECATED and must not be used.**
-
 **Main client is at `stitch-frontend/` — a production React + Tailwind + TypeScript project.**
 
 Tech stack:
@@ -112,13 +110,6 @@ stitch-frontend/
 * No hardcoded message strings — use `ClientMessageType` enums.
 * Styling follows Tailwind utility classes with cyberpunk colors.
 * **No compiled .js files in src/ (tsconfig has noEmit: true). Always edit .tsx/.ts source files.**
-
-**Old `frontend/` directory:**
-- ⚠️ Deprecated since 2026-04
-- Do NOT use for new development
-- Will be removed in a future release
-- Tests moved to `tests/stitch-frontend/`
-- Docs moved to `docs/stitch-frontend/`
 
 ---
 
@@ -210,56 +201,7 @@ No string duplication.
 
 ---
 
-# 6. Development Phases
-
-## Phase 1 — Infrastructure
-
-* Basic Phaser app
-* Minimal WebSocket server in C++
-* Successful connection
-* Echo test message
-
----
-
-## Phase 2 — Basic Match Flow
-
-* Match creation
-* Two players assigned
-* Dummy GameState
-* Server sends fake state
-* stitch-frontend renders simple board
-
----
-
-## Phase 3 — Core Mechanics
-
-* City graph
-* Movement validation
-* Turn enforcement
-* Intel resource
-* Strike logic
-
----
-
-## Phase 4 — Hidden Information
-
-* Per-player filtered state
-* Cover system
-* Ability framework
-
----
-
-## Phase 5 — Production Hardening
-
-* Reconnection logic
-* Basic logging
-* Error handling
-* WSS support
-* Input validation
-
----
-
-# 7. Code Quality Requirements
+# 6. Code Quality Requirements
 
 All agents must:
 
@@ -280,7 +222,7 @@ stitch-frontend must:
 
 ---
 
-# 8. Scalability Guidelines
+# 7. Scalability Guidelines
 
 * Matches stored in memory (initially)
 * Design so MatchManager can scale
@@ -297,7 +239,7 @@ Do not over-engineer yet, but design extensibly.
 
 ---
 
-# 9. Explicit Non-Goals (For Now)
+# 8. Explicit Non-Goals (For Now)
 
 * No database persistence
 * No ranking system
@@ -310,7 +252,7 @@ Focus is core multiplayer loop.
 
 ---
 
-# 10. Security Guidelines
+# 9. Security Guidelines
 
 * Never trust client input.
 * Validate all actions.
@@ -321,7 +263,7 @@ Focus is core multiplayer loop.
 
 ---
 
-# 11. stitch-frontend Rendering Philosophy
+# 10. stitch-frontend Rendering Philosophy
 
 * Phaser handles rendering.
 * UI overlays (menus) may use simple HTML.
@@ -331,7 +273,7 @@ Focus is core multiplayer loop.
 
 ---
 
-# 12. Long-Term Extensibility
+# 11. Long-Term Extensibility
 
 Design must allow:
 
@@ -343,7 +285,7 @@ Design must allow:
 
 ---
 
-# 13. AI Agent Behavior Rules
+# 12. AI Agent Behavior Rules
 
 When generating code:
 

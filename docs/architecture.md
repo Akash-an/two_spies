@@ -1,58 +1,48 @@
 # Architecture Overview
 
-> ⚠️ **TERMINOLOGY: "frontend" now always refers to `stitch-frontend/` — the canonical browser client. The older `frontend/` directory is **DEPRECATED** and must not be used.**
-
 ## System Components
 
-```
-Browser (Client) — stitch-frontend/
-  └── React UI (menus, lobby, settings)
-  └── Phaser 3 canvas (game rendering)
-  └── WebSocketClient (browser native API)
-         │  JSON messages over WSS
-         ▼
-C++ WebSocket Server (Boost.Beast + Asio)
-  └── WebSocketServer   — accept & manage connections
-  └── SessionManager    — isolated per-match rooms
-  └── GameRules         — authoritative state transitions
-  └── ProtocolParser    — message validation & serialization
+```mermaid
+graph TD
+    subgraph Browser ["Browser (Client) — stitch-frontend/"]
+        UI[React UI]
+        Game[Phaser 3 Canvas]
+        Net[WebSocketClient]
+    end
+
+    subgraph Server ["C++ Server — backend/"]
+        WS[WebSocketServer]
+        SM[SessionManager]
+        GR[GameRules]
+        PP[ProtocolParser]
+    end
+
+    Net <-->|JSON over WSS| WS
+    WS --> SM
+    SM --> GR
+    PP <--> WS
 ```
 
 ## Message Flow
 
-```
-Client (stitch-frontend/)      Server (backend/)
-  │── LOBBY_JOIN ─────────────▶  │
-  │◀─ BOARD_STATE_UPDATE ───────  │ (initial board)
-  │                               │
-  │── PLAYER_MOVE ─────────────▶  │
-  │                               │ (validate → apply → broadcast)
-  │◀─ BOARD_STATE_UPDATE ───────  │
-  │◀─ TURN_CHANGE ──────────────  │
-  │                               │
-  │── PLAYER_END_TURN ──────────▶ │
-  │◀─ TURN_CHANGE ──────────────  │
-  │                               │
-  │◀─ GAME_OVER ────────────────  │ (when a flag is captured)
-```
+1. **LOBBY_JOIN**: Client connects and identifies.
+2. **MATCH_START**: Server pairs players and sends initial state.
+3. **PLAYER_ACTION**: Client sends intent (Move, Strike, etc.).
+4. **STATE_UPDATE**: Server validates, applies transitions, and broadcasts filtered state.
+5. **GAME_OVER**: Server notifies clients of round conclusion.
 
 ## Directory Layout
 
 | Path | Purpose |
 |---|---|
-| `stitch-frontend/src/components/` | React components (UI overlays, modals) |
-| `stitch-frontend/src/network/` | WebSocket client wrapper |
-| `stitch-frontend/src/types/` | Message types (ClientMessageType, ServerMessageType) |
-| `stitch-frontend/src/styles/` | Global CSS and Tailwind |
-| `backend/src/game/` | Rules engine, state machine |
-| `backend/src/network/` | WebSocket server, session handling |
-| `backend/src/protocol/` | Message parsing and serialization |
-| `backend/include/` | Public C++ headers |
-| `protocol/schemas/` | JSON Schema definitions (source of truth) |
+| `stitch-frontend/src/` | React components, Phaser scenes, and networking. |
+| `backend/src/` | Rules engine, state machine, and WebSocket implementation. |
+| `protocol/` | Shared JSON message schemas. |
+| `docs/` | Project documentation and mockups. |
 
 ## Key Design Decisions
 
-- **Authoritative server**: All game state lives on the server. Clients (stitch-frontend/) are pure views.
-- **JSON protocol**: Human-readable for development; can be replaced with binary for production performance.
-- **React + Phaser**: stitch-frontend uses React for overlays and menus; Phaser embedded in a React component for the game canvas.
-- **Per-session rooms**: Each active match is an isolated room object on the server, making horizontal scaling straightforward.
+- **Authoritative Server**: The server is the single source of truth; clients are pure views.
+- **Filtered State**: Each client only receives information allowed by game rules (fog of war).
+- **Hybrid Rendering**: React manages UI overlays/menus; Phaser handles the tactical map.
+- **Isolated Sessions**: Each match is a self-contained room, enabling easier horizontal scaling.

@@ -21,6 +21,7 @@ function App() {
   const [, setPlayerSide] = useState<PlayerSide | null>(null);
   const [initialMap, setInitialMap] = useState<any>(null);
   const [initialState, setInitialState] = useState<any>(null);
+
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
     'SCRUBBING METADATA...',
@@ -120,7 +121,9 @@ function App() {
         });
 
         client.on(ServerMessageType.MATCH_STATE, (msg: any) => {
-          console.log('[App] Initial state received:', msg.type);
+          console.log('[App] MATCH_STATE received:', msg.type);
+          // Always capture — PhaserGame uses this as its initial state on mount
+          // and handles subsequent updates via its own subscription.
           setInitialState(msg.payload);
         });
 
@@ -239,10 +242,10 @@ function App() {
              if (netRef.current && netRef.current.isConnected()) {
                netRef.current.send(ClientMessageType.ABORT_MATCH, {});
              }
-             setPhase('entering-name');
-             setPlayerName('');
-             setMatchCode(null);
-             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
+              setPhase('entering-name');
+              setPlayerName('');
+              setMatchCode(null);
+              setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
            }}
            loading={isLoading}
            onOpenHowToPlay={() => setShowHowToPlay(true)}
