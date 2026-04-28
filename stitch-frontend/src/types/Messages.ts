@@ -16,6 +16,7 @@ export enum ClientMessageType {
   PLAYER_ACTION = 'PLAYER_ACTION',
   END_TURN = 'END_TURN',
   ABORT_MATCH = 'ABORT_MATCH',
+  LEAVE_MATCH = 'LEAVE_MATCH',
 }
 
 /** All server → client message types. */

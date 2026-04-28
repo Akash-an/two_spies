@@ -191,7 +191,14 @@ void Session::on_message(const std::string& raw) {
                 if (match) {
                     match->handle_abort(player_id_);
                 }
+                // Immediately remove player from match to clear state
+                server_->match_manager().remove_player(player_id_);
             }
+            break;
+        }
+
+        case protocol::ClientMsgType::LEAVE_MATCH: {
+            server_->match_manager().remove_player(player_id_);
             break;
         }
     }

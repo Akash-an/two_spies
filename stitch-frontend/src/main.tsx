@@ -242,8 +242,9 @@ function App() {
              if (netRef.current && netRef.current.isConnected()) {
                netRef.current.send(ClientMessageType.ABORT_MATCH, {});
              }
-              setPhase('entering-name');
-              setPlayerName('');
+              setPhase('deployment');
+              setInitialMap(null);
+              setInitialState(null);
               setMatchCode(null);
               setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
            }}
@@ -262,6 +263,9 @@ function App() {
             initialState={initialState}
             onGameEnd={() => {
               console.log('[App] Game ended');
+              if (netRef.current && netRef.current.isConnected()) {
+                netRef.current.send(ClientMessageType.LEAVE_MATCH, {});
+              }
               setPhase('deployment');
               setMatchCode(null);
               setPlayerSide(null);
@@ -273,10 +277,10 @@ function App() {
               if (netRef.current && netRef.current.isConnected()) {
                 netRef.current.send(ClientMessageType.ABORT_MATCH, {});
               }
-              setPhase('entering-name');
-              setPlayerName('');
+              setPhase('deployment');
               setInitialMap(null);
               setInitialState(null);
+              setMatchCode(null);
               setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
             }}
             setShowHowToPlay={setShowHowToPlay}

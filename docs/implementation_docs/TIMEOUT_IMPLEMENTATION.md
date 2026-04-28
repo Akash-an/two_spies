@@ -2,7 +2,7 @@
 
 ## Overview
 
-When a player's turn timer expires (15 seconds), the game now **automatically transfers control to the opponent** in a smooth, deterministic way instead of leaving the game in an indeterminate state.
+When a player's turn timer expires (30 seconds), the game now **automatically transfers control to the opponent** in a smooth, deterministic way instead of leaving the game in an indeterminate state.
 
 ---
 
@@ -122,7 +122,7 @@ void Match::handle_action(...) {
 
 ## How It Works Now: Step-by-Step Flow
 
-**Scenario: RED's 15-second turn expires**
+**Scenario: RED's 30-second turn expires**
 
 1. **RED tries to send an action** after time expires (or after time expires, on next server check)
    ```
@@ -131,7 +131,7 @@ void Match::handle_action(...) {
 
 2. **Server receives action in `handle_action()`**
    - Acquires lock
-   - Calls `check_turn_timeout()` → returns `true` (15+ seconds elapsed)
+   - Calls `check_turn_timeout()` → returns `true` (30+ seconds elapsed)
 
 3. **Server calls `handle_turn_timeout()`**
    - Sets RED's `actions_remaining = 0`
@@ -202,8 +202,8 @@ Tests verify:
    - Runs in < 1 second
 
 2. **`test_timeout_detected_after_duration()`** (commented - slow)
-   - Timeout IS detected after 15+ seconds of inactivity
-   - WARNING: Requires ~15 second sleep
+   - Timeout IS detected after 30+ seconds of inactivity
+   - WARNING: Requires ~30 second sleep
 
 3. **`test_timeout_transfers_control_with_messages()`** (commented - slow)
    - `handle_turn_timeout()` sends `TURN_CHANGE` to both players
@@ -215,7 +215,7 @@ Tests verify:
    - Turn ends immediately upon timeout
 
 5. **`test_timeout_resets_timer_for_next_player()`** (commented - slow)
-   - After timeout, new player's timer starts fresh (15 seconds)
+   - After timeout, new player's timer starts fresh (30 seconds)
    - Timeout doesn't accumulate
 
 **Integration into test suite:**
@@ -266,8 +266,8 @@ This will:
 
 Connect with two browser clients:
 
-**Client A (RED):** Waits out 15 seconds on their turn
-- Timer counts down: 15s → 0s
+**Client A (RED):** Waits out 30 seconds on their turn
+- Timer counts down: 30s → 0s
 - No action taken
 
 **Server (internal):**
@@ -309,7 +309,7 @@ Connect with two browser clients:
    - Toast notification when timeout occurs
 
 2. **Customizable timeout duration:**
-   - Currently hardcoded to 15 seconds
+   - Currently hardcoded to 30 seconds
    - Could inject via config/game settings
 
 3. **Reconnection logic:**

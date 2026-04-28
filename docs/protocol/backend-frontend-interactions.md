@@ -79,5 +79,5 @@ interface MatchState {
 ## 4. Key Logic Notes
 - **Authoritative Server**: Backend validates all actions and computes state transitions.
 - **Filtered State**: Clients only receive information visible to them (e.g., hidden opponent position).
-- **Turn Timer**: Turns last 15 seconds. Timeout results in an automatic `END_TURN`.
+- **Turn Timer**: Turns last 30 seconds. Timeout results in an automatic `END_TURN`.
 - **Deep Cover**: Blocks `LOCATE` attempts and reveals the attacker's position.
