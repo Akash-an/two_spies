@@ -103,11 +103,11 @@ const SurveillanceCommandCenterGlobal: React.FC<SurveillanceCommandCenterGlobalP
       {/* Main Layout: Sidebar + Canvas */}
       <div className="flex flex-1 mt-16">
         {/* Left Sidebar */}
-        <aside className="w-72 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 space-y-8 overflow-y-auto">
+        <aside className="w-0 md:w-60 lg:w-72 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-0 md:p-6 space-y-8 overflow-hidden md:overflow-y-auto transition-all duration-300">
           {/* Operative Info */}
           <div className="space-y-1">
-            <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Operative</p>
-            <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName}</h2>
+            <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Agent</p>
+            <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
             <p className="text-on-surface-variant font-['Inter'] text-xs">SECTOR: {sector}</p>
           </div>
 

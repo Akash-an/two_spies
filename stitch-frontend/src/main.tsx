@@ -22,6 +22,7 @@ function App() {
   const [initialMap, setInitialMap] = useState<any>(null);
   const [initialState, setInitialState] = useState<any>(null);
 
+
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
     'SCRUBBING METADATA...',
@@ -256,7 +257,7 @@ function App() {
  
         {phase === 'playing' && netRef.current && (
           <PhaserGame
-            operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
+            operativeName={playerName ? `AGENT_${playerName.toUpperCase()}` : 'AGENT_01'}
             playerName={playerName}
             webSocketClient={netRef.current}
             initialMap={initialMap}
