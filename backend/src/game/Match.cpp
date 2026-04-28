@@ -286,16 +286,19 @@ void Match::broadcast_state() {
     }
     
     long long elapsed = time_since_turn_start();
+    long long effective_limit = first_turn_grace_
+        ? (TURN_DURATION_MS + STARTUP_GRACE_MS)
+        : TURN_DURATION_MS;
     
     // Send per-player filtered state
     if (!red_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::RED, elapsed);
+        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::RED, elapsed, effective_limit);
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
         send_to(red_player_id_, msg);
     }
     if (!blue_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BLUE, elapsed);
+        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BLUE, elapsed, effective_limit);
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
         send_to(blue_player_id_, msg);

@@ -66,7 +66,7 @@ public:
     /// Returns milliseconds since turn started.
     long long time_since_turn_start() const;
 
-    /// Returns true if current turn has exceeded time limit (15 seconds).
+    /// Returns true if current turn has exceeded time limit (30 seconds).
     /// Does NOT modify state — just checks if timeout occurred.
     bool check_turn_timeout();
 
@@ -81,10 +81,13 @@ private:
     std::string blue_player_id_;
     bool started_ = false;
 
-    // Turn timer (15 seconds per turn)
-    static constexpr long long TURN_DURATION_MS = 15000;
+public:
+    // Turn timer (30 seconds per turn)
+    static constexpr long long TURN_DURATION_MS = 30000;
     // Startup grace period: first turn timer doesn't start until this many ms after match start
     static constexpr long long STARTUP_GRACE_MS = 5000;
+
+private:
     std::chrono::steady_clock::time_point turn_start_time_;
     bool first_turn_grace_ = true;  // True until first action is taken or grace period expires
 

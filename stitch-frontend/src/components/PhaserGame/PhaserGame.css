@@ -495,6 +495,62 @@
 .turn-banner.your-turn { color: #fe9800; border-color: rgba(254, 152, 0, 0.3); }
 .turn-banner.opponent-turn { color: #c1fffe; }
 
+/* ── Event banners (disappearing tactical notifications) ─── */
+.event-banners-container {
+  position: absolute;
+  top: 90px; /* Below turn banner */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  width: 100%;
+  max-width: 400px;
+}
+
+.event-banner {
+  background: rgba(12, 14, 15, 0.95);
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.15), inset 0 0 10px rgba(0, 255, 255, 0.05);
+  color: #00ffff;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: event-banner-fade-in-out 4s forwards cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.event-banner.warning {
+  border-color: rgba(254, 152, 0, 0.5);
+  color: #fe9800;
+  box-shadow: 0 0 20px rgba(254, 152, 0, 0.15), inset 0 0 10px rgba(254, 152, 0, 0.05);
+}
+
+.event-banner.error {
+  border-color: rgba(255, 68, 68, 0.5);
+  color: #ff6b6b;
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.15), inset 0 0 10px rgba(255, 68, 68, 0.05);
+}
+
+.event-banner .material-symbols-outlined {
+  font-size: 18px;
+}
+
+@keyframes event-banner-fade-in-out {
+  0% { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  10% { opacity: 1; transform: translateY(0) scale(1); }
+  85% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+}
+
 @keyframes fade-out {
   0% { opacity: 1; }
   70% { opacity: 1; }

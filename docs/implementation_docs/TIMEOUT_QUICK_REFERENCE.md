@@ -1,7 +1,7 @@
 # Turn Timeout: Quick Reference
 
 ## Problem Statement
-When a player's 15-second turn timer expired, the game would enter an indeterminate state:
+When a player's 30-second turn timer expired, the game would enter an indeterminate state:
 - Server would internally end the turn and swap control
 - But no clear message was sent to players
 - Opponent wouldn't know they had control

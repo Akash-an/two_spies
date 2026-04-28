@@ -53,6 +53,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       setShowGeneratedFrequencyModal(true);
     } else {
       console.log('[MissionDeploymentHub] ✗ No matchCode, not showing modal');
+      setShowGeneratedFrequencyModal(false);
     }
   }, [matchCode]);
 
@@ -66,6 +67,12 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       setShowLinkModal(false);
       setLinkedFrequency('');
     }
+  };
+
+  const handleCloseFrequencyModal = () => {
+    console.log('[MissionDeploymentHub] Closing frequency modal and terminating link');
+    onTerminateLink?.();
+    setShowGeneratedFrequencyModal(false);
   };
   return (
     <div className={`bg-surface text-on-surface min-h-screen flex flex-col ${className}`}>
@@ -310,7 +317,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowGeneratedFrequencyModal(false)}
+            onClick={handleCloseFrequencyModal}
           />
           {/* Modal with Radar */}
           <div className="relative z-10 w-96 h-96 flex items-center justify-center">
@@ -347,7 +354,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
 
               {/* Close Button */}
               <button
-                onClick={() => setShowGeneratedFrequencyModal(false)}
+                onClick={handleCloseFrequencyModal}
                 className="mt-8 px-8 py-2 border border-primary text-primary font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase hover:bg-primary/10 transition-colors rounded"
               >
                 CLOSE

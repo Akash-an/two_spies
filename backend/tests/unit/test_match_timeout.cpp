@@ -110,19 +110,19 @@ void test_timeout_detected_after_duration() {
     match.start(43);
     capture.clear();  // Clear initial state messages
     
-    // Wait just slightly more than TURN_DURATION_MS (15 seconds)
+    // Wait just slightly more than TURN_DURATION_MS (30 seconds)
     // For testing purposes, we could reduce this by using a mock clock,
     // but for now we'll do a shorter wait to make the test fast.
-    // NOTE: In production, this test would wait ~15 seconds.
+    // NOTE: In production, this test would wait ~30 seconds.
     // For CI/CD speed, we could inject a configurable timeout duration.
     
-    // Sleep for 15.1 seconds to exceed the timeout
-    std::cout << "(waiting ~15s for timeout) ";
-    std::this_thread::sleep_for(std::chrono::milliseconds(15100));
+    // Sleep for 30.1 seconds to exceed the timeout
+    std::cout << "(waiting ~30s for timeout) ";
+    std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     // Now check timeout — should be true
     bool has_timeout = match.check_turn_timeout();
-    assert(has_timeout && "Timeout should occur after 15 seconds");
+    assert(has_timeout && "Timeout should occur after 30 seconds");
     
     std::cout << "OK\n";
 }
@@ -147,8 +147,8 @@ void test_timeout_transfers_control_with_messages() {
     capture.clear();  // Clear initial messages
     
     // Wait for timeout
-    std::cout << "(waiting ~15s for timeout) ";
-    std::this_thread::sleep_for(std::chrono::milliseconds(15100));
+    std::cout << "(waiting ~30s for timeout) ";
+    std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     // Trigger the timeout handling by checking and handling
     bool has_timeout = match.check_turn_timeout();
@@ -207,7 +207,7 @@ void test_timeout_forfeits_remaining_actions() {
     // (We can't directly access the GameState to check actions_remaining,
     //  but we can verify the behavior through the message flow)
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(15100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     bool has_timeout = match.check_turn_timeout();
     assert(has_timeout);
@@ -245,7 +245,7 @@ void test_timeout_resets_timer_for_next_player() {
     
     // Wait for RED's timeout
     std::cout << "(waiting for RED timeout) ";
-    std::this_thread::sleep_for(std::chrono::milliseconds(15100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     bool red_timeout = match.check_turn_timeout();
     assert(red_timeout);
@@ -257,18 +257,18 @@ void test_timeout_resets_timer_for_next_player() {
     assert(!blue_immediate_timeout &&
            "After timeout transfer, new player should NOT have immediate timeout");
     
-    // If we wait another ~15 seconds, BLUE should timeout
+    // If we wait another ~30 seconds, BLUE should timeout
     std::cout << "(waiting for BLUE timeout) ";
-    std::this_thread::sleep_for(std::chrono::milliseconds(15100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     bool blue_timeout = match.check_turn_timeout();
-    assert(blue_timeout && "After 15s, BLUE should timeout");
+    assert(blue_timeout && "After 30s, BLUE should timeout");
     
     std::cout << "OK\n";
 }
 
 // Note: The remaining timeout tests are not included in the default test run
-// because they require ~15+ seconds of sleep per test, which slows down the test suite.
+// because they require ~30+ seconds of sleep per test, which slows down the test suite.
 // They are defined above and can be called individually:
 //   - test_timeout_detected_after_duration()
 //   - test_timeout_transfers_control_with_messages()
@@ -276,6 +276,6 @@ void test_timeout_resets_timer_for_next_player() {
 //   - test_timeout_resets_timer_for_next_player()
 //
 // To run these tests in a CI/CD environment, consider:
-// 1. Injecting a configurable timeout duration for testing (e.g., 100ms instead of 15s)
+// 1. Injecting a configurable timeout duration for testing (e.g., 100ms instead of 30s)
 // 2. Using a mock clock that can be advanced manually
 // 3. Running these tests in a separate test suite with longer timeout tolerances

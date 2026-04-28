@@ -18,7 +18,7 @@ const HowToPlayOverlay: React.FC<HowToPlayOverlayProps> = ({ onClose }) => {
             <ul className="howto-list">
               <li>Each turn you have <strong>2 actions</strong> (Move, Ability, or Strike).</li>
               <li>Use <strong>Move</strong> to travel to an adjacent city.</li>
-              <li>Gather <strong>Intel</strong> from marked cities to unlock abilities like <em>Locate</em> or <em>Deep Cover</em>.</li>
+              <li>Gather <strong>Intel</strong> (4/turn, +4 for new cities, +10 from markers) to unlock abilities like <em>Locate</em> or <em>Deep Cover</em>.</li>
               <li>A successful <strong>Strike</strong> ends the match instantly.</li>
               <li>Failed strikes reveal your location ONLY if the opponent has <em>Strike Report</em>.</li>
             </ul>
@@ -34,7 +34,8 @@ const HowToPlayOverlay: React.FC<HowToPlayOverlayProps> = ({ onClose }) => {
               <li>Match starts with each player placed in a hidden starting city.</li>
               <li>On your turn you receive <strong>2 actions</strong>. You may move, use an ability, or strike.</li>
               <li>Moving is only allowed to adjacent cities (see the highlighted edges).</li>
-              <li><strong>Intel</strong> spawns randomly in cities. Stay in a city with an Intel marker to collect it at the beginning of next turn.</li>
+              <li><strong>Gathering Intel:</strong> You gain <strong>4 Intel</strong> at the end of every turn. Moving to a city you haven't visited yet grants an <strong>Exploration Bonus (+4 Intel)</strong>.</li>
+              <li><strong>Intel Markers:</strong> These spawn randomly (+10 Intel). End your turn in a marked city to collect it at the start of your next turn. <strong>Warning: Claiming a marker reveals your location to the opponent!</strong></li>
               <li><strong>Locate</strong> (cost 10 Intel) reveals the opponent’s city for one turn.</li>
               <li><strong>Deep Cover</strong> (cost 30 Intel) protects you from being located and allows you to enter opponent‑controlled cities without being revealed.</li>
               <li><strong>Strike Report</strong> (cost 20 Intel) reveals the opponent's location if they attempt a strike.</li>

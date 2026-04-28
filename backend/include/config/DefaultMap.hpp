@@ -40,18 +40,19 @@ inline game::MapDef default_map() {
                {"tokyo", "sydney"},
                {"sydney", "singapore"},
                {"singapore", "bangalore"},
-               {"bangalore", "dubai"},
+               {"beijing", "dubai"},
                {"dubai", "tel-aviv"},
                {"tel-aviv", "dar_es_salaam"},
-               {"dar_es_salaam", "london"},
-               {"dar_es_salaam", "dubai"},
+               {"tel-aviv", "london"},
+               {"dar_es_salaam", "bangalore"},
                {"singapore", "tokyo"},
-               {"beijing", "bangalore"},
+               {"dubai", "bangalore"},
                {"nyc", "rio"},
                {"rio", "dar_es_salaam"},
                {"london", "moscow"},
                {"nyc", "algiers"},
-               {"rio", "tel-aviv"}};
+               {"rio", "algiers"},
+               {"dar_es_salaam", "sydney"}};
 
   return map;
 }

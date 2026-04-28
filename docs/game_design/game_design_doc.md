@@ -25,8 +25,10 @@ Victory is achieved via an accurate strike or if the opponent ends their turn in
 
 ### Resources (Intel)
 - **Starting Intel:** 2
-- **Base Income:** +4 Intel per turn.
-- **Exploration Bonus:** +4 Intel for moving to a new city (except on timeout).
+- **Base Income:** +4 Intel per turn (awarded at end of turn).
+- **Exploration Bonus:** +4 Intel for moving to a new city (city you haven't visited yet).
+- **Intel Markers:** +10 Intel for ending your turn in a city with an Intel pop-up.
+  - *Warning:* Claiming an Intel marker reveals your current position to the opponent.
 
 ---
 

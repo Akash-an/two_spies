@@ -50,6 +50,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [gameOver, setGameOver] = useState<GameOverPayload | null>(null);
   const [turnBanner, setTurnBanner] = useState<string | null>(null);
+  const [eventBanners, setEventBanners] = useState<{ id: string; text: string; type?: 'warning' | 'error' }[]>([]);
   const [localTimerMs, setLocalTimerMs] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTurnRef = useRef<PlayerSide | null>(null);
@@ -77,6 +78,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       }
       return [...prev.slice(-49), { id, text: msg, type, turn: turn ?? 0 }];
     });
+  }, []);
+
+  const addEventBanner = useCallback((text: string, type?: 'warning' | 'error') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setEventBanners(prev => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setEventBanners(prev => prev.filter(b => b.id !== id));
+    }, 4000); // 4 seconds for event banners
   }, []);
 
   // Adjacency set for the player's current city
@@ -161,6 +170,23 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
       // Detect new city destructions
       if (lastStateRef.current) {
+        // Detect important opponent events for top banner
+        if (state.player.opponentUsedLocate && !lastStateRef.current.player.opponentUsedLocate) {
+          addEventBanner('OPPONENT USED LOCATE', 'warning');
+        }
+        if (state.player.opponentUsedDeepCover && !lastStateRef.current.player.opponentUsedDeepCover) {
+          addEventBanner('OPPONENT ACTIVATED DEEP COVER', 'warning');
+        }
+        if (state.player.opponentUnlockedStrikeReport && !lastStateRef.current.player.opponentUnlockedStrikeReport) {
+          addEventBanner('OPPONENT ENABLED STRIKE REPORT', 'warning');
+        }
+        if (state.player.opponentUsedStrike && !lastStateRef.current.player.opponentUsedStrike) {
+          addEventBanner('OPPONENT ATTEMPTED A STRIKE!', 'error');
+        }
+        if (state.player.opponentUsedControl && !lastStateRef.current.player.opponentUsedControl) {
+          addEventBanner('OPPONENT TOOK CONTROL OF A CITY', 'warning');
+        }
+
         // Detect player strike report unlock
         if (state.player.strikeReportUnlocked && !lastStateRef.current.player.strikeReportUnlocked) {
           addNotification('STRIKE REPORT activated: You will now be notified of all opponent strike attempts.', undefined, state.turnNumber);
@@ -350,6 +376,16 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               {turnBanner}
             </div>
           )}
+          <div className="event-banners-container">
+            {eventBanners.map(banner => (
+              <div key={banner.id} className={`event-banner ${banner.type || ''}`}>
+                <span className="material-symbols-outlined">
+                  {banner.type === 'error' ? 'priority_high' : 'notifications_active'}
+                </span>
+                {banner.text}
+              </div>
+            ))}
+          </div>
           <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet">
             {/* Aegis Terminal Background Map */}
             <image href="/assets/plain-map.png" width={SVG_W} height={SVG_H} opacity="0.8" />

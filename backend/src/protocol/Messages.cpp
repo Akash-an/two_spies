@@ -1,4 +1,5 @@
 #include "protocol/Messages.hpp"
+#include "game/Match.hpp"
 #include <iostream>
 #include <cstdio>
 
@@ -19,6 +20,7 @@ std::optional<IncomingMessage> parse_client_message(const std::string& raw) {
         else if (type_str == "END_TURN")       msg.type = ClientMsgType::END_TURN;
         else if (type_str == "SET_PLAYER_NAME") msg.type = ClientMsgType::SET_PLAYER_NAME;
         else if (type_str == "ABORT_MATCH")     msg.type = ClientMsgType::ABORT_MATCH;
+        else if (type_str == "LEAVE_MATCH")     msg.type = ClientMsgType::LEAVE_MATCH;
         else {
             std::cerr << "[Protocol] Unknown message type: " << type_str << "\n";
             return std::nullopt;
@@ -86,7 +88,8 @@ json serialize_map(const game::MapDef& map) {
 json serialize_match_state(const std::string& session_id,
                            const game::GameState& state,
                            game::PlayerSide for_player,
-                           long long time_elapsed_ms) {
+                           long long time_elapsed_ms,
+                           long long turn_duration_ms) {
     const auto& p = state.player(for_player);
     const auto& opp = state.player(game::opposite(for_player));
 
@@ -185,7 +188,7 @@ json serialize_match_state(const std::string& session_id,
     
     // Timer information (15 seconds per turn, in milliseconds)
     result["turnStartTime"] = 0;  // server timestamp will be set client-side
-    result["turnDuration"] = 15000;  // 15 seconds in ms
+    result["turnDuration"] = turn_duration_ms;
     result["timeElapsedMs"] = time_elapsed_ms;  // time since turn started
 
     if (state.is_game_over()) {

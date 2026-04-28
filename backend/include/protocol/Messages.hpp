@@ -20,6 +20,7 @@ enum class ClientMsgType {
     END_TURN,
     SET_PLAYER_NAME,
     ABORT_MATCH,
+    LEAVE_MATCH,
 };
 
 /// Server → Client message types.
@@ -76,7 +77,8 @@ std::string make_error(const std::string& session_id,
 json serialize_match_state(const std::string& session_id,
                            const game::GameState& state,
                            game::PlayerSide for_player,
-                           long long time_elapsed_ms = 0);
+                           long long time_elapsed_ms = 0,
+                           long long turn_duration_ms = 30000);
 
 /// Serialize map definition.
 json serialize_map(const game::MapDef& map);
