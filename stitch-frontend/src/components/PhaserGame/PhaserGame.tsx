@@ -24,8 +24,6 @@ export interface PhaserGameProps {
   setActionTooltip: (val: string | null) => void;
 }
 
-type ActionMode = 'MOVE' | 'STRIKE' | null;
-
 interface Notification {
   id: string;
   text: string;
@@ -45,14 +43,21 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   setActionTooltip,
 }) => {
   const [matchState, setMatchState] = useState<MatchState | null>(initialState || null);
+  const mySide = matchState?.player.side;
+  const playerCity = matchState?.player.currentCity || null;
+  const isMyTurn = matchState ? matchState.currentTurn === mySide : false;
+  const actionsLeft = matchState?.player.actionsRemaining ?? 0;
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [actionMode, setActionMode] = useState<ActionMode>(null);
+  const [highlightedCity, setHighlightedCity] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [gameOver, setGameOver] = useState<GameOverPayload | null>(null);
   const [turnBanner, setTurnBanner] = useState<string | null>(null);
   const [eventBanners, setEventBanners] = useState<{ id: string; text: string; type?: 'warning' | 'error' }[]>([]);
   const [localTimerMs, setLocalTimerMs] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const canAct = isMyTurn && actionsLeft > 0 && !gameOver;
+  // When a city is selected, all action buttons are locked — only map clicks are active
+  const canActBtn = canAct && !selectedCity;
   const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
 
@@ -89,7 +94,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   }, []);
 
   // Adjacency set for the player's current city
-  const adjacentCities = useMemo(() => {
+  const playerAdjacentCities = useMemo(() => {
     const effectiveMap = matchState?.map || initialMap;
     if (!matchState || !effectiveMap) return new Set<string>();
     const current = matchState.player.currentCity;
@@ -100,6 +105,20 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     }
     return adj;
   }, [matchState, initialMap]);
+
+  // Adjacency set for the currently highlighted city (any city on the map)
+  const highlightedNeighbors = useMemo(() => {
+    if (!highlightedCity || !playerCity) return new Set<string>();
+    const center = playerCity;
+    const effectiveMap = matchState?.map || initialMap;
+    if (!effectiveMap) return new Set<string>();
+    const adj = new Set<string>();
+    for (const edge of effectiveMap.edges) {
+      if (edge.from === center) adj.add(edge.to);
+      if (edge.to === center) adj.add(edge.from);
+    }
+    return adj;
+  }, [highlightedCity, playerCity, matchState, initialMap]);
 
   // Set of disappeared cities
   const disappearedSet = useMemo(() => {
@@ -117,12 +136,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   useEffect(() => {
     const handleMatchState = (msg: any) => {
       const state = msg.payload as MatchState;
-      
+
       // Inject initial map if missing from state
       if (!state.map && initialMap) {
         state.map = initialMap;
       }
-      
+
       setMatchState(state);
 
       // Reset local timer from server elapsed
@@ -134,7 +153,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         setTurnBanner(isMyTurn ? 'YOUR TURN' : "OPPONENT'S TURN");
         setTimeout(() => setTurnBanner(null), 2000);
         setSelectedCity(null);
-        setActionMode(null);
+        setHighlightedCity(null);
       }
       lastTurnRef.current = state.currentTurn;
 
@@ -242,9 +261,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const isMyTurn = matchState ? matchState.currentTurn === matchState.player.side : false;
-  const actionsLeft = matchState?.player.actionsRemaining ?? 0;
-  const canAct = isMyTurn && actionsLeft > 0 && !gameOver;
+
 
   useEffect(() => {
     if (matchState) {
@@ -265,36 +282,50 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     if (abilityId) payload.abilityId = abilityId;
     webSocketClient.send(ClientMessageType.PLAYER_ACTION, payload);
     setSelectedCity(null);
-    setActionMode(null);
+    setHighlightedCity(null);
   }, [webSocketClient]);
 
   const sendEndTurn = useCallback(() => {
     webSocketClient.send(ClientMessageType.END_TURN, {});
   }, [webSocketClient]);
 
-  const handleCityClick = useCallback((cityId: string) => {
+  const handleMapClick = useCallback(() => {
+    if (!playerCity) return;
+    if (highlightedCity === playerCity) {
+      setHighlightedCity(null);
+      setSelectedCity(null);
+    } else {
+      setHighlightedCity(playerCity);
+      setSelectedCity(null);
+    }
+  }, [highlightedCity, playerCity]);
+
+  const handleCityClick = useCallback((cityId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!canAct) return;
     if (disappearedSet.has(cityId)) return;
 
-    if (actionMode === 'MOVE') {
-      if (adjacentCities.has(cityId)) {
-        sendAction(ActionKind.MOVE, cityId);
+    // If clicking the already selected movement target, execute MOVE
+    if (highlightedCity === cityId && selectedCity === cityId) {
+      sendAction(ActionKind.MOVE, cityId);
+      return;
+    }
+
+    // Toggle highlight: if already highlighted, clear it; else, highlight this city.
+    if (highlightedCity === cityId) {
+      setHighlightedCity(null);
+      setSelectedCity(null);
+    } else {
+      setHighlightedCity(cityId);
+      // Only set selectedCity if it's a valid move target (adjacent to player)
+      // and NOT the player's own city
+      if (playerAdjacentCities.has(cityId) && cityId !== playerCity) {
+        setSelectedCity(cityId);
       } else {
-        addNotification('Cannot move there — not adjacent', 'error');
+        setSelectedCity(null);
       }
-      return;
     }
-
-    if (actionMode === 'STRIKE') {
-      // Strike should target current location per GDD
-      sendAction(ActionKind.STRIKE, playerCity);
-      setActionMode(null);
-      return;
-    }
-
-    // No action mode — just select
-    setSelectedCity(prev => prev === cityId ? null : cityId);
-  }, [canAct, actionMode, adjacentCities, disappearedSet, sendAction, addNotification]);
+  }, [canAct, playerAdjacentCities, playerCity, disappearedSet, sendAction, highlightedCity, selectedCity]);
 
   // Timer display
   const timerRemaining = matchState ? Math.max(0, matchState.turnDuration - localTimerMs) : 0;
@@ -314,21 +345,20 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     );
   }
 
-  const mySide = matchState.player.side;
-  const playerCity = matchState.player.currentCity;
+  const mySideVal = matchState.player.side;
   let knownOpp = matchState.player.knownOpponentCity;
   if (!knownOpp && !matchState.opponentMovedFromStart) {
     knownOpp = matchState.player.opponentStartingCity;
   }
-  
+
   // Safe access to map (either from state or props)
   const map = matchState.map || initialMap;
   if (!map) {
-      return (
-        <div className="game-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="waiting-indicator">INITIALIZING MAP DATA...</div>
-        </div>
-      );
+    return (
+      <div className="game-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="waiting-indicator">INITIALIZING MAP DATA...</div>
+      </div>
+    );
   }
 
   const knownOppName = map.cities.find(c => c.id === knownOpp)?.name || knownOpp || 'UNKNOWN';
@@ -347,35 +377,41 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       {/* ── Header ─── */}
       <div className="game-header">
         <div className="header-left">
-          <span className={`header-side ${mySide.toLowerCase()}`}>{mySide} — {operativeName}</span>
+          <span className="header-agent">AGENT {operativeName.replace(/^OPERATIVE_/, '')}</span>
           <span className="header-turn">
-            TURN {matchState.turnNumber} · {isMyTurn ? 'YOUR MOVE' : `${matchState.opponentName}'s MOVE`}
-            {canAct && ` · ${actionsLeft} action${actionsLeft !== 1 ? 's' : ''} left`}
+            TURN {matchState.turnNumber}
           </span>
         </div>
-        <div className={`header-timer ${timerUrgent ? 'urgent' : 'normal'}`}>
-          {timerSeconds}s
+        <div className="header-center">
+          <div className={`turn-status ${isMyTurn ? 'your-turn' : 'opponent-turn'}`}>
+            {isMyTurn ? 'YOUR MOVE' : `${matchState.opponentName.replace(/^(OPERATIVE|AGENT)_/i, '').toUpperCase()}'S MOVE`}
+          </div>
+          {canAct && (
+            <div className="actions-count">
+              {actionsLeft} ACTION{actionsLeft !== 1 ? 'S' : ''} REMAINING
+            </div>
+          )}
         </div>
-        <button
-          className="help-btn-header"
-          onClick={() => setShowHowToPlay(true)}
-          onMouseEnter={() => setActionTooltip('HOW TO PLAY: Open field manual and mission objectives.')}
-          onMouseLeave={() => setActionTooltip(null)}
-          title="How to Play"
-        >
-          <span className="material-symbols-outlined">help_outline</span>
-        </button>
+        <div className="header-right">
+          <div className={`header-timer ${timerUrgent ? 'urgent' : 'normal'}`}>
+            {timerSeconds}s
+          </div>
+          <button
+            className="help-btn-header"
+            onClick={() => setShowHowToPlay(true)}
+            onMouseEnter={() => setActionTooltip('HOW TO PLAY: Open field manual and mission objectives.')}
+            onMouseLeave={() => setActionTooltip(null)}
+            title="How to Play"
+          >
+            <span className="material-symbols-outlined">help_outline</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Body: Map + Panel ─── */}
       <div className="game-body">
         {/* Map */}
         <div className="game-map">
-          {turnBanner && (
-            <div className={`turn-banner ${turnBanner === 'YOUR TURN' ? 'your-turn' : 'opponent-turn'}`}>
-              {turnBanner}
-            </div>
-          )}
           <div className="event-banners-container">
             {eventBanners.map(banner => (
               <div key={banner.id} className={`event-banner ${banner.type || ''}`}>
@@ -386,16 +422,18 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               </div>
             ))}
           </div>
-          <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet">
+          <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet" onClick={handleMapClick}>
             {/* Aegis Terminal Background Map */}
             <image href="/assets/plain-map.png" width={SVG_W} height={SVG_H} opacity="0.8" />
-            
+
             {/* Grid dots background overlay */}
             <defs>
               <pattern id="grid-dots" width="40" height="40" patternUnits="userSpaceOnUse">
                 <circle cx="20" cy="20" r="0.8" fill="#00ffff" opacity="0.1" />
               </pattern>
             </defs>
+            {/* Transparent background rect to catch deselect clicks on empty map areas */}
+            <rect width={SVG_W} height={SVG_H} fill="transparent" onClick={handleMapClick} />
             <rect width={SVG_W} height={SVG_H} fill="url(#grid-dots)" pointerEvents="none" />
 
             {/* Edges */}
@@ -404,10 +442,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const to = cityPos.get(edge.to);
               if (!from || !to) return null;
               if (disappearedSet.has(edge.from) || disappearedSet.has(edge.to)) return null;
-              const isAdj = actionMode === 'MOVE' && (
-                (edge.from === playerCity && adjacentCities.has(edge.to)) ||
-                (edge.to === playerCity && adjacentCities.has(edge.from))
-              );
+              // Highlight edges connected to the player's city when any highlight is active
+              const isAdj = highlightedCity && playerCity && (edge.from === playerCity || edge.to === playerCity);
               return (
                 <line
                   key={i}
@@ -425,8 +461,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const isDis = disappearedSet.has(city.id);
               const isPlayer = city.id === playerCity;
               const isOpp = city.id === knownOpp;
-              const isAdj = actionMode === 'MOVE' && adjacentCities.has(city.id);
-              const isSel = city.id === selectedCity;
+              // Highlight city if it is a neighbor of the highlighted city
+              const isAdj = highlightedNeighbors.has(city.id);
+              const isSel = highlightedCity && (city.id === playerCity); // Vicinity center highlight
+              const isMoveTarget = selectedCity === city.id;
               const isStartOwn = city.id === matchState.player.startingCity;
               const isStartOpp = city.id === matchState.player.opponentStartingCity;
               const controller = matchState.controlledCities[city.id];
@@ -439,22 +477,23 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               else if (isPlayer) circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
               else if (isOpp) circleClass += ' opponent';
               else if (hasIntel) circleClass += ' intel-popup';
+              else if (isMoveTarget) circleClass += ' selected';
               else if (isAdj) circleClass += ' adjacent-highlight';
-              else if (isSel) circleClass += ' selected';
+              else if (isSel) circleClass += ' inspected'; // New style for non-adjacent highlights
               else circleClass += ' default';
 
               if (!isDis && isStartOwn) circleClass += ' starting-own';
               if (!isDis && isStartOpp) circleClass += ' starting-opp';
-              
-              const isMyControl = controller === mySide;
-              const isOppControl = controller && controller !== mySide;
+
+              const isMyControl = controller === mySideVal;
+              const isOppControl = controller && controller !== mySideVal;
               if (!isDis && isMyControl) circleClass += ' controlled-mine';
               if (!isDis && isOppControl) circleClass += ' controlled-opp';
 
               const radius = isPlayer || isOpp ? 16 : isAdj ? 14 : 12;
 
               return (
-                <g key={city.id} className="city-node" onClick={() => handleCityClick(city.id)}>
+                <g key={city.id} className="city-node" onClick={(e) => handleCityClick(city.id, e)}>
                   {intelPopup && <title>{intelPopup.amount} Intel Available</title>}
                   {/* Scheduled disappear warning ring */}
                   {scheduledDisappear && !isDis && (
@@ -465,7 +504,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                     <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#fe9800" className="intel-ripple" pointerEvents="none" />
                   )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />
-                  
+
                   {/* Disappeared overlay (X) */}
                   {isDis && (
                     <>
@@ -482,50 +521,50 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                     const shoulderH = 20; // Widest part is now near the top
                     const tipY = pos.y - radius - 1;
                     const isExposed = isPlayer && !matchState.player.hasCover;
-                    
+
                     if (isPlayer && isOpp) {
                       // Both players in same city - offset side-by-side
                       const p1X = pos.x - 10;
                       const p2X = pos.x + 10;
                       markers.push(
-                        <polygon 
+                        <polygon
                           key="player"
-                          points={`${p1X},${tipY} ${p1X + markerW/2},${tipY - shoulderH} ${p1X},${tipY - markerH} ${p1X - markerW/2},${tipY - shoulderH}`} 
-                          fill="#10b981" 
+                          points={`${p1X},${tipY} ${p1X + markerW / 2},${tipY - shoulderH} ${p1X},${tipY - markerH} ${p1X - markerW / 2},${tipY - shoulderH}`}
+                          fill="#10b981"
                           stroke={isExposed ? "#fff" : "none"}
                           strokeWidth={isExposed ? "2" : "0"}
-                          pointerEvents="none" 
+                          pointerEvents="none"
                           className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
                         />
                       );
                       markers.push(
-                        <polygon 
+                        <polygon
                           key="opponent"
-                          points={`${p2X},${tipY} ${p2X + markerW/2},${tipY - shoulderH} ${p2X},${tipY - markerH} ${p2X - markerW/2},${tipY - shoulderH}`} 
-                          fill="#ff4444" 
-                          pointerEvents="none" 
+                          points={`${p2X},${tipY} ${p2X + markerW / 2},${tipY - shoulderH} ${p2X},${tipY - markerH} ${p2X - markerW / 2},${tipY - shoulderH}`}
+                          fill="#ff4444"
+                          pointerEvents="none"
                           className="marker-float"
                         />
                       );
                     } else if (isPlayer) {
                       markers.push(
-                        <polygon 
+                        <polygon
                           key="player"
-                          points={`${pos.x},${tipY} ${pos.x + markerW/2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW/2},${tipY - shoulderH}`} 
-                          fill="#10b981" 
+                          points={`${pos.x},${tipY} ${pos.x + markerW / 2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW / 2},${tipY - shoulderH}`}
+                          fill="#10b981"
                           stroke={isExposed ? "#fff" : "none"}
                           strokeWidth={isExposed ? "2" : "0"}
-                          pointerEvents="none" 
+                          pointerEvents="none"
                           className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
                         />
                       );
                     } else if (isOpp) {
                       markers.push(
-                        <polygon 
+                        <polygon
                           key="opponent"
-                          points={`${pos.x},${tipY} ${pos.x + markerW/2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW/2},${tipY - shoulderH}`} 
-                          fill="#ff4444" 
-                          pointerEvents="none" 
+                          points={`${pos.x},${tipY} ${pos.x + markerW / 2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW / 2},${tipY - shoulderH}`}
+                          fill="#ff4444"
+                          pointerEvents="none"
                           className="marker-float"
                         />
                       );
@@ -548,17 +587,20 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             })}
           </svg>
 
-          {/* Action mode hint */}
-          {actionMode && (
+          {/* City-highlight hint */}
+          {highlightedCity && highlightedCity !== playerCity && canAct && (
             <div style={{
               position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(12,14,15,0.9)', border: '1px solid rgba(0,255,255,0.3)',
-              padding: '6px 16px', fontSize: 12, color: '#ffd700', letterSpacing: '0.1em', zIndex: 30,
+              background: 'rgba(12,14,15,0.92)', border: '1px solid rgba(0,255,255,0.25)',
+              padding: '6px 18px', fontSize: 12, color: '#00ffff', letterSpacing: '0.1em', zIndex: 30,
+              whiteSpace: 'nowrap',
             }}>
-              {actionMode === 'MOVE' ? 'SELECT AN ADJACENT CITY TO MOVE' : 'READY TO STRIKE CURRENT LOCATION'}
-              <button onClick={() => setActionMode(null)} style={{
-                marginLeft: 12, background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'inherit',
-              }}>✕ CANCEL</button>
+              {selectedCity
+                ? 'CLICK AGAIN TO MOVE · click elsewhere to cancel'
+                : 'CITY not adjacent to your position'}
+              <button onClick={() => { setHighlightedCity(null); setSelectedCity(null); }} style={{
+                marginLeft: 12, background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+              }}>✕</button>
             </div>
           )}
         </div>
@@ -566,7 +608,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         {/* ── Side Panel ─── */}
         <div className="game-panel">
           <div className="panel-section">
-            <div className="panel-section-title">Operative</div>
+            <div className="panel-section-title">Agent</div>
             <div className="panel-stat">
               <span>Intel</span>
               <span className="panel-stat-value intel">{matchState.player.intel}</span>
@@ -632,8 +674,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   const isIrrelevant = n.turn < matchState.turnNumber;
                   const prefix = n.type === 'warning' ? '⚠ ' : n.type === 'error' ? '✗ ' : '› ';
                   return (
-                    <div 
-                      key={n.id} 
+                    <div
+                      key={n.id}
                       className={`notification-item ${n.type || ''} ${isLatest ? 'latest' : ''} ${isIrrelevant ? 'irrelevant' : ''}`}
                     >
                       {isLatest && <span className="latest-tag">NEW</span>}
@@ -649,20 +691,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
       {/* ── Action Bar ─── */}
       <div className="game-actions">
-        <div onMouseEnter={() => setActionTooltip('MOVE: Travel to an adjacent connected city. Grants Cover.')} onMouseLeave={() => setActionTooltip(null)}>
-          <button
-            className={`action-btn ${actionMode === 'MOVE' ? 'active' : ''}`}
-            disabled={!canAct}
-            onClick={() => setActionMode(actionMode === 'MOVE' ? null : 'MOVE')}
-          >
-            <span className="material-symbols-outlined">directions_run</span>
-            <span className="btn-label">MOVE</span>
-          </button>
-        </div>
         <div onMouseEnter={() => setActionTooltip('WAIT: Stay put and regain Cover (unless in enemy territory).')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canAct}
+            disabled={!canActBtn}
             onClick={() => sendAction(ActionKind.WAIT)}
           >
             <span className="material-symbols-outlined">hourglass_empty</span>
@@ -672,9 +704,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip('STRIKE: Attack the opponent at your current location. Reveals you ONLY if opponent has Strike Report.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canAct}
+            disabled={!canActBtn}
             onClick={() => {
-              sendAction(ActionKind.STRIKE, playerCity);
+              sendAction(ActionKind.STRIKE, playerCity || undefined);
             }}
           >
             <span className="material-symbols-outlined">ads_click</span>
@@ -684,7 +716,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip('CONTROL: Claim this city for your network. Blows Cover.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canAct}
+            disabled={!canActBtn}
             onClick={() => sendAction(ActionKind.CONTROL)}
           >
             <span className="material-symbols-outlined">token</span>
@@ -694,7 +726,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip("LOCATE: Reveal the opponent's current city. Costs 10 Intel.")} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canAct || matchState.player.intel < 10}
+            disabled={!canActBtn || matchState.player.intel < 10}
             onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.LOCATE)}
           >
             <span className="material-symbols-outlined">my_location</span>
@@ -705,7 +737,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip('DEEP COVER: Hide from Locate attempts and enter opponent-controlled cities safely. Costs 30 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canAct || matchState.player.intel < 30}
+            disabled={!canActBtn || matchState.player.intel < 30}
             onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.DEEP_COVER)}
           >
             <span className="material-symbols-outlined">visibility_off</span>
@@ -716,7 +748,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip('STRIKE REPORT: Reveal the opponent\'s location if they attempt a strike. Costs 20 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canAct || matchState.player.intel < 20 || matchState.player.strikeReportUnlocked}
+            disabled={!canActBtn || matchState.player.intel < 20 || matchState.player.strikeReportUnlocked}
             onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.STRIKE_REPORT)}
           >
             <span className="material-symbols-outlined">plagiarism</span>
@@ -727,7 +759,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip('END TURN: Pass control to the opponent. Gain +4 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn end-turn"
-            disabled={!isMyTurn || !!gameOver}
+            disabled={!isMyTurn || !!gameOver || !!selectedCity}
             onClick={sendEndTurn}
           >
             <span className="material-symbols-outlined">done_all</span>

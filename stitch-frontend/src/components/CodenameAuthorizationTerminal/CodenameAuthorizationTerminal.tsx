@@ -187,7 +187,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
               }}
               data-testid="codename-label"
             >
-              OPERATIVE CODENAME
+              AGENT CODENAME
             </label>
             <div className="relative group">
               <input
@@ -304,7 +304,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           }}
           data-testid="help-text"
         >
-          <p>Enter your operative codename or select GENERATE for a random assignment.</p>
+          <p>Enter your agent codename or select GENERATE for a random assignment.</p>
         </div>
       </div>
     </main>

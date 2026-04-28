@@ -106,10 +106,10 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </header>
 
       {/* Sidebar */}
-      <aside className="fixed left-0 top-16 h-[calc(100vh-64px)] w-72 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 space-y-8 z-40">
+      <aside className="fixed left-0 top-16 h-[calc(100vh-64px)] w-0 md:w-60 lg:w-72 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-0 md:p-6 space-y-8 z-40 overflow-hidden md:overflow-y-auto transition-all duration-300">
         <div className="space-y-1">
-          <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Operative</p>
-          <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName}</h2>
+          <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Agent</p>
+          <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
           <p className="text-on-surface-variant font-['Inter'] text-xs">SECTOR: {sector}</p>
         </div>
 
@@ -134,7 +134,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </aside>
 
       {/* Main Canvas */}
-      <main className="ml-72 pt-16 pb-20 h-screen overflow-hidden relative flex flex-col">
+      <main className="ml-0 md:ml-60 lg:ml-72 pt-16 pb-20 h-screen overflow-hidden relative flex flex-col transition-all duration-300">
         {/* Strategic Background */}
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
           <div className="w-full h-full bg-gradient-to-t from-surface via-transparent to-surface" />
@@ -224,13 +224,13 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 w-full z-50 border-t border-[#00ffff]/30 bg-[#0c0e0f]/90 backdrop-blur-md h-20 px-12 flex justify-between items-center ml-72">
+      <footer className="fixed bottom-0 left-0 w-full z-50 border-t border-[#00ffff]/30 bg-[#0c0e0f]/90 backdrop-blur-md h-20 px-6 md:px-12 flex justify-between items-center ml-0 md:ml-60 lg:ml-72 transition-all duration-300">
         <div className="flex items-center gap-8">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-primary/40 uppercase tracking-[0.3em]">Status Monitor</span>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(0,255,255,1)]" />
-              <span className="text-primary font-['Space_Grotesk'] font-black text-sm tracking-widest uppercase">OPERATIVE: {operativeName} - STATUS: READY</span>
+              <span className="text-primary font-['Space_Grotesk'] font-black text-sm tracking-widest uppercase">AGENT: {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')} - STATUS: READY</span>
             </div>
           </div>
           <div className="h-10 w-[1px] bg-outline-variant/30" />
