@@ -14,7 +14,7 @@ const HowToPlayOverlay: React.FC<HowToPlayOverlayProps> = ({ onClose }) => {
         <h2 className="howto-title">How to Play</h2>
         {!showDetails && (
           <div className="howto-brief">
-            <p>Two Spies is a turn‑based, 2‑player strategy game. Each player controls an operative moving between cities, gathering intel, and attempting a strike on the opponent’s location.</p>
+            <p>Two Spies is a turn‑based, 2‑player strategy game. Each player controls an agent moving between cities, gathering intel, and attempting a strike on the opponent’s location.</p>
             <ul className="howto-list">
               <li>Each turn you have <strong>2 actions</strong> (Move, Ability, or Strike).</li>
               <li>Use <strong>Move</strong> to travel to an adjacent city.</li>
