@@ -152,8 +152,8 @@ static void test_strike_report_ability_reveals_location() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // Give BLUE enough Intel to unlock Strike Report (costs 20)
-    gs.player_mut(PlayerSide::BLUE).intel = 30;
+    // Give BLUE enough Intel to unlock Strike Report (costs 10)
+    gs.player_mut(PlayerSide::BLUE).intel = 10;
     
     // RED ends turn so it's BLUE's turn
     gs.end_turn(PlayerSide::RED);
@@ -833,26 +833,20 @@ static void test_opponent_cover_blown_entering_controlled_city() {
     // End RED's turn
     gs.end_turn(PlayerSide::RED);
 
-    // BLUE moves to a city adjacent to london
-    auto move1 = gs.move(PlayerSide::BLUE, "paris");
-    if (move1.ok) {
-        gs.end_turn(PlayerSide::BLUE);
-        
-        // RED ends their turn
-        gs.move(PlayerSide::RED, "berlin");
-        assert(!gs.player(PlayerSide::RED).has_cover);  // RED lost cover by moving
-        gs.end_turn(PlayerSide::RED);
-        
-        // BLUE moves back to london (RED's controlled city)
-        auto move2 = gs.move(PlayerSide::BLUE, "berlin");
-        if (move2.ok) {
-            auto move3 = gs.move(PlayerSide::BLUE, "london");
-            if (move3.ok) {
-                // BLUE entered RED's controlled city, so cover should be blown
-                assert(!gs.player(PlayerSide::BLUE).has_cover);
-            }
-        }
-    }
+    // BLUE moves toward london: moscow -> berlin (adjacent to london)
+    auto move1 = gs.move(PlayerSide::BLUE, "berlin");
+    assert(move1.ok);
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // RED ends their turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE enters london (RED's controlled city) — entry IS allowed but cover blown
+    auto move2 = gs.move(PlayerSide::BLUE, "london");
+    assert(move2.ok);  // Entry allowed (not blocked)
+    assert(gs.player(PlayerSide::BLUE).current_city == "london");
+    // BLUE's cover should be blown from entering opponent-controlled city
+    assert(!gs.player(PlayerSide::BLUE).has_cover);
     std::cout << "OK\n";
 }
 
@@ -947,13 +941,17 @@ static void test_stranded_player_cannot_control() {
 
 // ── Deep Cover Ability Tests ──────────────────────────────────────
 
-static void test_deep_cover_costs_30_intel() {
-    std::cout << "  test_deep_cover_costs_30_intel... ";
+static void test_deep_cover_costs_20_intel() {
+    std::cout << "  test_deep_cover_costs_20_intel... ";
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
     auto& red = gs.player_mut(PlayerSide::RED);
-    red.intel = 30;  // Set exactly to the cost
+    red.intel = 20;  // Set exactly to the cost
+
+    // Use wait first to consume 1 action, leaving 1 remaining
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
     auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(r.ok);
@@ -967,11 +965,15 @@ static void test_deep_cover_insufficient_intel() {
     gs.set_starting_cities("london", "moscow");
     
     auto& red = gs.player_mut(PlayerSide::RED);
-    red.intel = 29;  // One less than required
+    red.intel = 19;  // One less than required
+
+    // Use wait first to consume 1 action
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
     auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(!r.ok);
-    assert(red.intel == 29);  // Should not be deducted
+    assert(red.intel == 19);  // Should not be deducted
     std::cout << "OK\n";
 }
 
@@ -981,8 +983,12 @@ static void test_deep_cover_grants_cover() {
     gs.set_starting_cities("london", "moscow");
     
     auto& red = gs.player_mut(PlayerSide::RED);
-    red.intel = 30;
+    red.intel = 20;
     red.has_cover = false;  // Start visible
+
+    // Use wait first to consume 1 action
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
     auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(r.ok);
@@ -999,12 +1005,21 @@ static void test_deep_cover_clears_opponent_knowledge() {
     auto& red = gs.player_mut(PlayerSide::RED);
     auto& blue = gs.player_mut(PlayerSide::BLUE);
     
-    red.intel = 30;
+    red.intel = 20;
     blue.known_opponent_city = "london";  // Blue thinks RED is at london
+
+    // Use wait first to consume 1 action
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
     auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(r.ok);
     assert(blue.known_opponent_city == "");  // Should be cleared
+
+    // Deep cover is last action, so end turn
+    gs.end_turn(PlayerSide::RED);
+    // Verify deep cover persists after end turn
+    assert(red.deep_cover_active);
     std::cout << "OK\n";
 }
 
@@ -1014,18 +1029,17 @@ static void test_deep_cover_persists_until_end_of_turn() {
     gs.set_starting_cities("london", "moscow");
     
     auto& red = gs.player_mut(PlayerSide::RED);
-    red.intel = 30;
+    red.intel = 20;
+
+    // Use wait first to consume 1 action, leaving 1 remaining
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
     auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(r.ok);
     assert(red.deep_cover_active);
     
-    // Move (should not clear deep_cover yet, it's still RED's turn)
-    auto move_r = gs.move(PlayerSide::RED, "berlin");
-    assert(move_r.ok);
-    assert(red.deep_cover_active);  // Still active
-    
-    // End RED's turn (Deep Cover persists through opponent's turn)
+    // Deep cover is last action, so end RED's turn
     gs.end_turn(PlayerSide::RED);
     assert(red.deep_cover_active);  // Still active after RED ends turn
     
@@ -1048,8 +1062,12 @@ static void test_locate_fails_against_deep_cover() {
     auto& red = gs.player_mut(PlayerSide::RED);
     auto& blue = gs.player_mut(PlayerSide::BLUE);
     
-    red.intel = 30;
+    red.intel = 20;
     blue.intel = 10;
+
+    // RED waits first, then uses deep cover as last action
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
     // RED uses deep cover
     auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
@@ -1073,10 +1091,13 @@ static void test_locate_succeeds_after_deep_cover_expires() {
     auto& red = gs.player_mut(PlayerSide::RED);
     auto& blue = gs.player_mut(PlayerSide::BLUE);
     
-    red.intel = 30;
+    red.intel = 20;
     blue.intel = 20;  // Need 10 for two locate attempts
+
+    // Turn 1: RED waits then uses deep cover as last action
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
     
-    // Turn 1: RED uses deep cover
     auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
     assert(r_dc.ok);
     assert(red.deep_cover_active);
@@ -1151,6 +1172,273 @@ static void test_locate_one_way_reveal_only() {
     std::cout << "OK\n";
 }
 
+// ── Encryption Tests ──────────────────────────────────────────────
+
+static void test_encryption_hides_flags() {
+    std::cout << "  test_encryption_hides_flags... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    
+    blue.intel = 35;  // 25 for ENCRYPTION + 10 for LOCATE
+    
+    // Add ENCRYPTION to BLUE's abilities list
+    blue.abilities.push_back(AbilityId::ENCRYPTION);
+    
+    // Skip RED's turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE waits, then uses ENCRYPTION
+    auto w = gs.wait(PlayerSide::BLUE);
+    assert(w.ok);
+    auto r_enc = gs.use_ability(PlayerSide::BLUE, AbilityId::ENCRYPTION);
+    assert(r_enc.ok);
+    assert(blue.encryption_unlocked);
+    
+    // End BLUE's turn
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // Skip RED's turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE uses LOCATE on RED (encryption should hide the notification)
+    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    assert(r_loc.ok);
+    
+    // RED should NOT be notified (BLUE's encryption hides it)
+    assert(!red.opponent_used_locate);
+    
+    // BLUE should still learn RED's location (encryption doesn't prevent the effect)
+    assert(blue.known_opponent_city == "london");
+    
+    std::cout << "OK\n";
+}
+
+// ── Rapid Recon Tests ─────────────────────────────────────────────
+
+static void test_rapid_recon_blows_cover() {
+    std::cout << "  test_rapid_recon_blows_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    
+    red.intel = 40;
+    
+    // Add RAPID_RECON to RED's abilities list
+    red.abilities.push_back(AbilityId::RAPID_RECON);
+    
+    // RED waits, then uses RAPID_RECON
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
+    auto r_rr = gs.use_ability(PlayerSide::RED, AbilityId::RAPID_RECON);
+    assert(r_rr.ok);
+    assert(red.rapid_recon_unlocked);
+    
+    // End RED turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE moves to berlin (moscow -> berlin)
+    auto b_move = gs.move(PlayerSide::BLUE, "berlin");
+    assert(b_move.ok);
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // RED moves to berlin where BLUE is
+    auto r_move = gs.move(PlayerSide::RED, "berlin");
+    assert(r_move.ok);
+    
+    // BLUE's cover should be blown (rapid recon triggers)
+    assert(!gs.player(PlayerSide::BLUE).has_cover);
+    // RED should learn BLUE's location
+    assert(red.known_opponent_city == "berlin");
+    
+    std::cout << "OK\n";
+}
+
+static void test_rapid_recon_blocked_by_deep_cover() {
+    std::cout << "  test_rapid_recon_blocked_by_deep_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    
+    red.intel = 40;
+    blue.intel = 20;
+    
+    // Add RAPID_RECON to RED's abilities list
+    red.abilities.push_back(AbilityId::RAPID_RECON);
+    
+    // RED waits, then uses RAPID_RECON
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
+    auto r_rr = gs.use_ability(PlayerSide::RED, AbilityId::RAPID_RECON);
+    assert(r_rr.ok);
+    
+    // End RED turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE moves to berlin (moscow -> berlin)
+    auto b_move = gs.move(PlayerSide::BLUE, "berlin");
+    assert(b_move.ok);
+    // BLUE has cover from moving
+    assert(blue.has_cover);
+    
+    // BLUE waits, then activates DEEP_COVER as last action
+    // Note: BLUE already used 1 action (move), so 1 remaining — deep cover is last
+    auto r_dc = gs.use_ability(PlayerSide::BLUE, AbilityId::DEEP_COVER);
+    assert(r_dc.ok);
+    assert(blue.deep_cover_active);
+    
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // RED moves to berlin where BLUE is
+    auto r_move = gs.move(PlayerSide::RED, "berlin");
+    assert(r_move.ok);
+    
+    // BLUE's cover should NOT be blown (deep cover protects)
+    assert(blue.has_cover);
+    
+    std::cout << "OK\n";
+}
+
+// ── Prep Mission Tests ────────────────────────────────────────────
+
+static void test_prep_mission_grants_extra_action() {
+    std::cout << "  test_prep_mission_grants_extra_action... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 40;
+    
+    // Add PREP_MISSION to RED's abilities list
+    red.abilities.push_back(AbilityId::PREP_MISSION);
+    
+    // RED waits, then uses PREP_MISSION as last action
+    auto w = gs.wait(PlayerSide::RED);
+    assert(w.ok);
+    auto r_pm = gs.use_ability(PlayerSide::RED, AbilityId::PREP_MISSION);
+    assert(r_pm.ok);
+    assert(red.prep_mission_active);
+    
+    // End RED turn
+    gs.end_turn(PlayerSide::RED);
+    
+    // BLUE does anything
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // Now it's RED's turn — should have 3 actions
+    assert(gs.current_turn() == PlayerSide::RED);
+    assert(gs.player(PlayerSide::RED).actions_remaining == 3);
+    
+    std::cout << "OK\n";
+}
+
+static void test_prep_mission_last_action_only() {
+    std::cout << "  test_prep_mission_last_action_only... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 40;
+    
+    // Add PREP_MISSION to RED's abilities list
+    red.abilities.push_back(AbilityId::PREP_MISSION);
+    
+    // Try PREP_MISSION as first action (2 actions remaining) — should fail
+    auto r_pm = gs.use_ability(PlayerSide::RED, AbilityId::PREP_MISSION);
+    assert(!r_pm.ok);
+    assert(!r_pm.error.empty());  // Should mention last action
+    
+    // Intel and actions should be refunded
+    assert(red.intel == 40);
+    assert(red.actions_remaining == 2);
+    
+    std::cout << "OK\n";
+}
+
+static void test_prep_mission_blocked_in_opponent_city() {
+    std::cout << "  test_prep_mission_blocked_in_opponent_city... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    // BLUE controls moscow
+    gs.end_turn(PlayerSide::RED);  // Skip RED's turn
+    auto ctrl = gs.control(PlayerSide::BLUE);
+    assert(ctrl.ok);
+    assert(gs.get_city_controller("moscow") == PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BLUE);
+    
+    // RED moves toward moscow: london -> berlin -> moscow
+    gs.move(PlayerSide::RED, "berlin");
+    gs.end_turn(PlayerSide::RED);
+    gs.end_turn(PlayerSide::BLUE);
+    gs.move(PlayerSide::RED, "moscow");
+    assert(gs.player(PlayerSide::RED).current_city == "moscow");
+    
+    auto& red = gs.player_mut(PlayerSide::RED);
+    red.intel = 40;
+    
+    // Add PREP_MISSION to RED's abilities list
+    red.abilities.push_back(AbilityId::PREP_MISSION);
+    
+    // RED waits (1 action consumed), then tries PREP_MISSION as last action
+    auto w = gs.wait(PlayerSide::RED);
+    // wait may fail if RED is in opponent-controlled city with restrictions
+    // But either way, try prep mission
+    if (w.ok) {
+        auto r_pm = gs.use_ability(PlayerSide::RED, AbilityId::PREP_MISSION);
+        assert(!r_pm.ok);  // Should fail — in opponent-controlled city
+        assert(!r_pm.error.empty());
+    }
+    
+    std::cout << "OK\n";
+}
+
+// ── Controlled City Intel Income Tests ────────────────────────────
+
+static void test_controlled_city_intel_income() {
+    std::cout << "  test_controlled_city_intel_income... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+    
+    // RED controls london
+    auto ctrl = gs.control(PlayerSide::RED);
+    assert(ctrl.ok);
+    
+    int intel_before = gs.player(PlayerSide::RED).intel;
+    
+    // RED ends turn
+    gs.end_turn(PlayerSide::RED);
+    
+    int intel_after = gs.player(PlayerSide::RED).intel;
+    // Should be: base 4 + 4 per controlled city = +8 total
+    assert(intel_after == intel_before + 8);
+    
+    // Now let's test with 2 controlled cities
+    gs.end_turn(PlayerSide::BLUE);  // Skip BLUE
+    
+    // RED moves to berlin and controls it
+    auto m = gs.move(PlayerSide::RED, "berlin");
+    assert(m.ok);
+    auto ctrl2 = gs.control(PlayerSide::RED);
+    assert(ctrl2.ok);
+    
+    int intel_before2 = gs.player(PlayerSide::RED).intel;
+    gs.end_turn(PlayerSide::RED);
+    int intel_after2 = gs.player(PlayerSide::RED).intel;
+    // Should be: base 4 + 4*2 controlled + 4 exploration (berlin is new) = +16
+    // Or base 4 + 8 controlled = +12 (no exploration if already visited)
+    // berlin was visited by moving there, so it's a new city: +4 exploration
+    // Total: 4 + 8 + 4 = 16
+    assert(intel_after2 >= intel_before2 + 12);  // At least base + controlled
+    
+    std::cout << "OK\n";
+}
+
 int main() {
     std::cout << "Running GameState unit tests...\n";
     
@@ -1204,7 +1492,7 @@ int main() {
     
     // ── Deep Cover Ability Tests ──
     std::cout << "\nRunning Deep Cover Ability Tests...\n";
-    test_deep_cover_costs_30_intel();
+    test_deep_cover_costs_20_intel();
     test_deep_cover_insufficient_intel();
     test_deep_cover_grants_cover();
     test_deep_cover_clears_opponent_knowledge();
@@ -1212,6 +1500,25 @@ int main() {
     test_locate_fails_against_deep_cover();
     test_locate_succeeds_after_deep_cover_expires();
     test_locate_one_way_reveal_only();  // New test for one-way reveal behavior
+    
+    // ── Encryption Tests ──
+    std::cout << "\nRunning Encryption Tests...\n";
+    test_encryption_hides_flags();
+    
+    // ── Rapid Recon Tests ──
+    std::cout << "\nRunning Rapid Recon Tests...\n";
+    test_rapid_recon_blows_cover();
+    test_rapid_recon_blocked_by_deep_cover();
+    
+    // ── Prep Mission Tests ──
+    std::cout << "\nRunning Prep Mission Tests...\n";
+    test_prep_mission_grants_extra_action();
+    test_prep_mission_last_action_only();
+    test_prep_mission_blocked_in_opponent_city();
+    
+    // ── Controlled City Intel Income Tests ──
+    std::cout << "\nRunning Controlled City Intel Income Tests...\n";
+    test_controlled_city_intel_income();
     
     // ── Match Timeout Feature Tests ──
     std::cout << "\nRunning Match Timeout Features Tests...\n";

@@ -15,12 +15,12 @@ namespace two_spies::config {
 
 inline int get_ability_cost(game::AbilityId ability) {
     static const std::unordered_map<int, int> costs = {
-        {static_cast<int>(game::AbilityId::DEEP_COVER), 30},   // Deep Cover costs 30 Intel
-        {static_cast<int>(game::AbilityId::ENCRYPTION), 0},    // To be determined
+        {static_cast<int>(game::AbilityId::DEEP_COVER), 20},    // Deep Cover costs 20 Intel
+        {static_cast<int>(game::AbilityId::ENCRYPTION), 25},   // Encryption costs 25 Intel (permanent unlock)
         {static_cast<int>(game::AbilityId::LOCATE), 10},       // Locate costs 10 Intel
-        {static_cast<int>(game::AbilityId::STRIKE_REPORT), 20}, // Strike Report costs 20 Intel
-        {static_cast<int>(game::AbilityId::RAPID_RECON), 0},   // To be determined
-        {static_cast<int>(game::AbilityId::PREP_MISSION), 0},  // To be determined
+        {static_cast<int>(game::AbilityId::STRIKE_REPORT), 10}, // Strike Report costs 10 Intel (permanent unlock)
+        {static_cast<int>(game::AbilityId::RAPID_RECON), 40},  // Rapid Recon costs 40 Intel (permanent unlock)
+        {static_cast<int>(game::AbilityId::PREP_MISSION), 40}, // Prep Mission costs 40 Intel (per-use)
     };
     
     auto it = costs.find(static_cast<int>(ability));
