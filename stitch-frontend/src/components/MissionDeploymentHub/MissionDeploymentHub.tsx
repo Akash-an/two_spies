@@ -42,6 +42,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   const [showGeneratedFrequencyModal, setShowGeneratedFrequencyModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkedFrequency, setLinkedFrequency] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Show modal when matchCode is received from backend
   useEffect(() => {
@@ -83,11 +84,17 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       }} />
 
       {/* Top AppBar */}
-      <header className="fixed top-0 w-full z-50 border-b border-[#00ffff]/20 bg-[#0c0e0f]/80 backdrop-blur-xl flex justify-between items-center px-6 h-16">
-        <div className="flex items-center gap-4">
-          <span className="text-2xl font-black text-[#00ffff] drop-shadow-[0_0_8px_rgba(0,255,255,0.5)] font-['Space_Grotesk'] tracking-widest uppercase">MISSION: NEON_PHANTOM</span>
-          <div className="h-4 w-[1px] bg-outline-variant mx-2" />
-          <h1 className="text-on-surface font-['Space_Grotesk'] font-bold tracking-widest uppercase text-lg">MISSION DEPLOYMENT HUB</h1>
+      <header className="fixed top-0 w-full z-50 border-b border-[#00ffff]/20 bg-[#0c0e0f]/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-6 h-16">
+        <div className="flex items-center gap-3 md:gap-4">
+          <button
+            className="md:hidden text-[#00ffff] p-2"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
+          </button>
+          <span className="text-xl md:text-2xl font-black text-[#00ffff] drop-shadow-[0_0_8px_rgba(0,255,255,0.5)] font-['Space_Grotesk'] tracking-widest uppercase hidden sm:block">MISSION: NEON_PHANTOM</span>
+          <div className="h-4 w-[1px] bg-outline-variant mx-1 md:mx-2 hidden sm:block" />
+          <h1 className="text-on-surface font-['Space_Grotesk'] font-bold tracking-widest uppercase text-sm md:text-lg">DEPLOYMENT HUB</h1>
         </div>
         <div className="flex items-center gap-6">
           <div className="bg-primary-container/10 px-4 py-1 border border-primary/30">
@@ -106,7 +113,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </header>
 
       {/* Sidebar */}
-      <aside className="fixed left-0 top-16 h-[calc(100vh-64px)] w-0 md:w-60 lg:w-72 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-0 md:p-6 space-y-8 z-40 overflow-hidden md:overflow-y-auto transition-all duration-300">
+      <aside className={`fixed left-0 top-16 h-[calc(100vh-64px)] ${mobileMenuOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} md:w-60 lg:w-72 md:translate-x-0 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 md:p-6 space-y-8 z-40 overflow-hidden md:overflow-y-auto transition-all duration-300`}>
         <div className="space-y-1">
           <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Agent</p>
           <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
@@ -140,7 +147,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <div className="w-full h-full bg-gradient-to-t from-surface via-transparent to-surface" />
         </div>
 
-        <div className="relative z-10 h-full p-12 flex flex-col">
+        <div className="relative z-10 h-full p-4 md:p-12 flex flex-col">
           {/* Hero Modules Container */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto w-full my-auto">
             {/* INITIATE OPERATION */}
@@ -197,7 +204,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           </div>
 
           {/* Contextual Data Feed */}
-          <div className="mt-auto grid grid-cols-3 gap-6">
+          <div className="mt-auto grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <div className="bg-surface-container/60 border border-outline-variant/20 p-4">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[10px] text-primary/60 font-bold uppercase tracking-widest">Active Intel</span>
@@ -224,7 +231,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 w-full z-50 border-t border-[#00ffff]/30 bg-[#0c0e0f]/90 backdrop-blur-md h-20 px-6 md:px-12 flex justify-between items-center ml-0 md:ml-60 lg:ml-72 transition-all duration-300">
+      <footer className="fixed bottom-0 left-0 w-full z-50 border-t border-[#00ffff]/30 bg-[#0c0e0f]/90 backdrop-blur-md h-auto min-h-20 py-4 px-6 md:px-12 flex flex-col md:row justify-between items-center ml-0 md:ml-60 lg:ml-72 transition-all duration-300">
         <div className="flex items-center gap-8">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-primary/40 uppercase tracking-[0.3em]">Status Monitor</span>

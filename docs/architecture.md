@@ -46,3 +46,5 @@ graph TD
 - **Filtered State**: Each client only receives information allowed by game rules (fog of war).
 - **Hybrid Rendering**: React manages UI overlays/menus; Phaser handles the tactical map.
 - **Isolated Sessions**: Each match is a self-contained room, enabling easier horizontal scaling.
+- **Responsive Design**: The UI uses a "Tactical Stack" approach, where components adapt from a side-by-side desktop layout to a vertically stacked mobile layout.
+
