@@ -16,6 +16,12 @@ struct IntelPopup {
     int turn_created;       // turn number when created
 };
 
+/// Represents an Action pickup spawned on the board.
+struct ActionPopup {
+    std::string city_id;    // city where Action pickup appeared
+    int turn_created;       // turn number when created
+};
+
 /// Action types the client can send.
 enum class ActionKind { MOVE, STRIKE, ABILITY, WAIT, CONTROL };
 
@@ -102,6 +108,10 @@ public:
     /// Get all active Intel pop-ups on the board
     const std::vector<IntelPopup>& intel_popups() const { return intel_popups_; }
 
+    // ── Action Pop-up Feature ──────────────────────────────────
+    /// Get all active Action pop-ups on the board
+    const std::vector<ActionPopup>& action_popups() const { return action_popups_; }
+
     // ── Shrinking Map Feature ─────────────────────────────────
     /// Get the city scheduled to disappear at the end of this action count
     const std::string& scheduled_disappear_city() const { return scheduled_disappear_city_; }
@@ -136,6 +146,11 @@ private:
     int actions_since_last_intel_popup_ = 0;       // action counter for spawning
     int next_intel_popup_threshold_ = 0;           // how many more actions until next popup (3-5)
 
+    // ── Action Pop-up Tracking ────────────────────────────────
+    std::vector<ActionPopup> action_popups_;       // active Action pop-ups on board
+    int actions_since_last_action_popup_ = 0;      // independent counter for spawning
+    int next_action_popup_threshold_ = 0;          // how many more actions until next action popup (5-8)
+
     /// Select a random city to disappear (one that hasn't disappeared yet)
     /// Ensures the remaining graph stays connected
     std::string select_random_city_to_disappear();
@@ -149,11 +164,20 @@ private:
     /// Spawn a random Intel pop-up if threshold is reached
     void try_spawn_intel_popup();
 
+    /// Spawn a random Action pop-up if threshold is reached (independent cycle)
+    void try_spawn_action_popup();
+
     /// Process Intel claiming: if player is at city with Intel, mark it for claiming
     void try_claim_intel(PlayerSide side);
 
+    /// Process Action claiming: if player is at city with Action pickup, mark it for claiming
+    void try_claim_action(PlayerSide side);
+
     /// Apply claimed Intel at start of turn (blows cover)
     void apply_claimed_intel(PlayerSide side);
+
+    /// Apply claimed Action at start of turn (blows cover, grants +1 action)
+    void apply_claimed_action(PlayerSide side);
 
     /// Check if both spies are in the same city with no cover.
     ActionResult check_same_city();

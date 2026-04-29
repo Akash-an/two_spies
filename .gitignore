@@ -28,6 +28,7 @@ node_modules/
 # -----------------------------------------------
 build/
 backend/build/
+backend/build-test/
 backend/.cache/
 backend/server.log
 *.o
