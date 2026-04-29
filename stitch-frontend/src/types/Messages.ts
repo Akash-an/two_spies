@@ -75,6 +75,12 @@ export interface IntelPopup {
   amount: number; // Intel amount (typically 10)
 }
 
+// ─── Action Pop-up ───────────────────────────────────────────────────
+
+export interface ActionPopup {
+  city: string;   // city_id where Action pickup appeared
+}
+
 // ─── Player-filtered State (server → client) ────────────────────────
 
 export interface PlayerState {
@@ -87,6 +93,9 @@ export interface PlayerState {
   knownOpponentCity?: string | null;
   abilities: AbilityId[];
   strikeReportUnlocked: boolean;
+  encryptionUnlocked: boolean;
+  rapidReconUnlocked: boolean;
+  prepMissionActive: boolean;
   opponentUsedStrike: boolean;
   opponentUsedLocate: boolean;
   opponentUsedDeepCover: boolean;
@@ -118,6 +127,7 @@ export interface MatchState {
   isPlayerStranded: boolean;
   controlledCities: Record<string, PlayerSide>;
   intelPopups: IntelPopup[];
+  actionPopups: ActionPopup[];
 }
 
 // ─── Server Messages ─────────────────────────────────────────────────

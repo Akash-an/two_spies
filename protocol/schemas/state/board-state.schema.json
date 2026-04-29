@@ -25,6 +25,25 @@
           }
         }
       }
+    },
+    "player": {
+      "type": "object",
+      "properties": {
+        "encryptionUnlocked":  { "type": "boolean", "description": "Whether player has purchased Encryption (permanent)" },
+        "rapidReconUnlocked":  { "type": "boolean", "description": "Whether player has purchased Rapid Recon (permanent)" },
+        "prepMissionActive":   { "type": "boolean", "description": "Whether Prep Mission is queued for next turn" }
+      }
+    },
+    "actionPopups": {
+      "type": "array",
+      "description": "Action markers currently on the map",
+      "items": {
+        "type": "object",
+        "required": ["city"],
+        "properties": {
+          "city": { "type": "string", "description": "City ID where the action marker is placed" }
+        }
+      }
     }
   }
 }

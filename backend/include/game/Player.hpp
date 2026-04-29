@@ -49,7 +49,7 @@ struct PlayerData {
     int actions_remaining = 2;
     bool has_cover = false;
     std::string known_opponent_city;  // empty = unknown
-    std::vector<AbilityId> abilities = { AbilityId::LOCATE, AbilityId::DEEP_COVER, AbilityId::STRIKE_REPORT };
+    std::vector<AbilityId> abilities = { AbilityId::LOCATE, AbilityId::DEEP_COVER, AbilityId::STRIKE_REPORT, AbilityId::ENCRYPTION, AbilityId::RAPID_RECON, AbilityId::PREP_MISSION };
     
     // Opponent action notifications - cleared each turn
     bool opponent_used_strike = false;  // opponent attempted a strike this turn
@@ -65,10 +65,15 @@ struct PlayerData {
 
     // Passive ability unlocks
     bool strike_report_unlocked = false; // permanent unlock for tracking opponent strikes
+    bool encryption_unlocked = false;    // permanent unlock: hides intel action flags from opponent
+    bool rapid_recon_unlocked = false;   // permanent unlock: blows opponent cover on city entry
 
     // Deep Cover ability state - cleared at the beginning of the player's next turn
     bool deep_cover_active = false;  // active until beginning of this player's next turn
     int deep_cover_used_on_turn = -1;  // tracks which turn Deep Cover was used for expiration logic
+
+    // Prep Mission ability state
+    bool prep_mission_active = false;  // if true, next turn grants 3 actions instead of 2
 
     // Tracks whether this player has ever moved away from their starting city
     bool has_moved_from_start = false;
@@ -82,6 +87,10 @@ struct PlayerData {
     // Intel pop-up claiming
     bool claimed_intel_this_turn = false;  // true if player claimed Intel at start of this turn
     std::string intel_claimed_from_city;    // city where Intel was claimed (blows cover)
+
+    // Action pop-up claiming
+    bool claimed_action_this_turn = false;  // true if player claimed Action pickup at start of this turn
+    std::string action_claimed_from_city;    // city where Action was claimed (blows cover)
 };
 
 } // namespace two_spies::game

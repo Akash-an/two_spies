@@ -117,6 +117,9 @@ json serialize_match_state(const std::string& session_id,
     }
     
     player_state["strikeReportUnlocked"] = p.strike_report_unlocked;
+    player_state["encryptionUnlocked"] = p.encryption_unlocked;
+    player_state["rapidReconUnlocked"] = p.rapid_recon_unlocked;
+    player_state["prepMissionActive"] = p.prep_mission_active;
     
     // Include opponent action notifications
     player_state["opponentUsedStrike"] = p.opponent_used_strike;
@@ -175,6 +178,15 @@ json serialize_match_state(const std::string& session_id,
         intel_popups_arr.push_back(popup_obj);
     }
     result["intelPopups"] = intel_popups_arr;
+    
+    // Action pop-ups: visible to both players
+    json action_popups_arr = json::array();
+    for (const auto& popup : state.action_popups()) {
+        json popup_obj;
+        popup_obj["city"] = popup.city_id;
+        action_popups_arr.push_back(popup_obj);
+    }
+    result["actionPopups"] = action_popups_arr;
     
     // Player feedback: did they claim Intel this turn?
     player_state["claimedIntel"] = p.claimed_intel_this_turn;

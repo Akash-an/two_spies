@@ -148,6 +148,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
       // Turn change detection
       if (lastTurnRef.current !== null && lastTurnRef.current !== state.currentTurn) {
+        const isMyTurn = state.currentTurn === state.player.side;
+        const bannerId = `turn-${Date.now()}`;
+        const bannerText = isMyTurn ? 'YOUR TURN' : "OPPONENT'S TURN";
+        setEventBanners(prev => [...prev, { id: bannerId, text: bannerText }]);
+        setTimeout(() => setEventBanners(prev => prev.filter(b => b.id !== bannerId)), 2000);
         setSelectedCity(null);
         setHighlightedCity(null);
       }
@@ -466,6 +471,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const controller = matchState.controlledCities[city.id];
               const intelPopup = matchState.intelPopups.find(p => p.city === city.id);
               const hasIntel = !!intelPopup;
+              const actionPopup = (matchState.actionPopups || []).find(p => p.city === city.id);
+              const hasAction = !!actionPopup;
               const scheduledDisappear = city.id === matchState.scheduledDisappearCity;
 
               let circleClass = 'city-circle';
@@ -473,6 +480,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               else if (isPlayer) circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
               else if (isOpp) circleClass += ' opponent';
               else if (hasIntel) circleClass += ' intel-popup';
+              else if (hasAction) circleClass += ' action-popup';
               else if (isMoveTarget) circleClass += ' selected';
               else if (isAdj) circleClass += ' adjacent-highlight';
               else if (isSel) circleClass += ' inspected'; // New style for non-adjacent highlights
@@ -491,6 +499,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               return (
                 <g key={city.id} className="city-node" onClick={(e) => handleCityClick(city.id, e)}>
                   {intelPopup && <title>{intelPopup.amount} Intel Available</title>}
+                  {actionPopup && <title>Action Pickup — +1 Action</title>}
                   {/* Scheduled disappear warning ring */}
                   {scheduledDisappear && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={14} className="scheduled-ring" />
@@ -498,6 +507,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   {/* Intel ripple animation */}
                   {hasIntel && !isPlayer && !isOpp && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#fe9800" className="intel-ripple" pointerEvents="none" />
+                  )}
+                  {/* Action popup ripple animation */}
+                  {hasAction && !isPlayer && !isOpp && !isDis && (
+                    <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#00ffff" className="intel-ripple" pointerEvents="none" />
                   )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />
 
@@ -572,6 +585,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   {hasIntel && !isDis && (
                     <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="900" pointerEvents="none">
                       {intelPopup.amount}
+                    </text>
+                  )}
+                  {/* Action pickup display */}
+                  {hasAction && !isDis && (
+                    <text x={pos.x} y={pos.y + 5} textAnchor="middle" fill="#0c0e0f" fontSize="12" fontWeight="900" pointerEvents="none">
+                      ⚡
                     </text>
                   )}
                   {/* City name */}
@@ -730,26 +749,59 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <span className="btn-cost">10</span>
           </button>
         </div>
-        <div onMouseEnter={() => setActionTooltip('DEEP COVER: Hide from Locate attempts and enter opponent-controlled cities safely. Costs 30 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+        <div onMouseEnter={() => setActionTooltip('DEEP COVER: Hide from Locate attempts and enter opponent-controlled cities safely. Must be last action. Costs 20 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canActBtn || matchState.player.intel < 30}
+            disabled={!canActBtn || matchState.player.intel < 20}
             onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.DEEP_COVER)}
           >
             <span className="material-symbols-outlined">visibility_off</span>
             <span className="btn-label">DEEP COVER</span>
-            <span className="btn-cost">30</span>
+            <span className="btn-cost">20</span>
           </button>
         </div>
-        <div onMouseEnter={() => setActionTooltip('STRIKE REPORT: Reveal the opponent\'s location if they attempt a strike. Costs 20 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+        <div onMouseEnter={() => setActionTooltip('STRIKE REPORT: Reveal the opponent\'s location if they attempt a strike. Costs 10 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canActBtn || matchState.player.intel < 20 || matchState.player.strikeReportUnlocked}
+            disabled={!canActBtn || matchState.player.intel < 10 || matchState.player.strikeReportUnlocked}
             onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.STRIKE_REPORT)}
           >
             <span className="material-symbols-outlined">plagiarism</span>
             <span className="btn-label">{matchState.player.strikeReportUnlocked ? 'REPORT ACTIVE' : 'STRIKE REPORT'}</span>
-            {!matchState.player.strikeReportUnlocked && <span className="btn-cost">20</span>}
+            {!matchState.player.strikeReportUnlocked && <span className="btn-cost">10</span>}
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('ENCRYPTION: Permanently hide what intel actions you take from your opponent. Costs 25 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canActBtn || matchState.player.intel < 25 || matchState.player.encryptionUnlocked}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.ENCRYPTION)}
+          >
+            <span className="material-symbols-outlined">enhanced_encryption</span>
+            <span className="btn-label">{matchState.player.encryptionUnlocked ? 'ENCRYPTED' : 'ENCRYPTION'}</span>
+            {!matchState.player.encryptionUnlocked && <span className="btn-cost">25</span>}
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('RAPID RECON: Permanently unlock the ability to blow opponent\'s cover by entering their city. Costs 40 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canActBtn || matchState.player.intel < 40 || matchState.player.rapidReconUnlocked}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.RAPID_RECON)}
+          >
+            <span className="material-symbols-outlined">radar</span>
+            <span className="btn-label">{matchState.player.rapidReconUnlocked ? 'RECON ACTIVE' : 'RAPID RECON'}</span>
+            {!matchState.player.rapidReconUnlocked && <span className="btn-cost">40</span>}
+          </button>
+        </div>
+        <div onMouseEnter={() => setActionTooltip('PREP MISSION: Gain an extra action next turn. Must be last action. Cannot use in opponent city. Costs 40 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canActBtn || matchState.player.intel < 40}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.PREP_MISSION)}
+          >
+            <span className="material-symbols-outlined">add_task</span>
+            <span className="btn-label">PREP MISSION</span>
+            <span className="btn-cost">40</span>
           </button>
         </div>
         <div onMouseEnter={() => setActionTooltip('END TURN: Pass control to the opponent. Gain +4 Intel.')} onMouseLeave={() => setActionTooltip(null)}>

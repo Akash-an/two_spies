@@ -192,6 +192,7 @@
 .city-circle.controlled-mine { fill: #10b981; opacity: 0.8; stroke: #10b981; stroke-width: 2; }
 .city-circle.controlled-opp { fill: #ff4444; opacity: 0.8; stroke: #ff4444; stroke-width: 2; }
 .city-circle.intel-popup { fill: #fe9800; opacity: 0.9; animation: intel-pulse-glow 2s infinite; }
+.city-circle.action-popup { fill: #00ffff; opacity: 0.9; animation: intel-pulse-glow 2s infinite; }
 
 .intel-ripple {
   animation: intel-ripple-anim 2s infinite;
