@@ -15,8 +15,8 @@ Victory is achieved via an accurate strike or if the opponent ends their turn in
 ## 2. Core Mechanics
 
 ### Turn Structure
-- **Actions:** 2 per turn (Move, Strike, Ability, or Wait).
-- **Auto-end:** Turns end after 2 actions or manual "End Turn".
+- **Actions:** 2 per turn (Move, Strike, Ability, or Wait). Prep Mission can grant 3 actions.
+- **Auto-end:** Turns end after all actions or manual "End Turn".
 
 ### Movement & Stealth
 - **Movement:** Travel to an adjacent city. Grants **Cover** (hidden state).
@@ -27,8 +27,10 @@ Victory is achieved via an accurate strike or if the opponent ends their turn in
 - **Starting Intel:** 2
 - **Base Income:** +4 Intel per turn (awarded at end of turn).
 - **Exploration Bonus:** +4 Intel for moving to a new city (city you haven't visited yet).
+- **Controlled City Income:** +4 Intel per controlled city at end of turn.
 - **Intel Markers:** +10 Intel for ending your turn in a city with an Intel pop-up.
   - *Warning:* Claiming an Intel marker reveals your current position to the opponent.
+- **Action Markers:** Separate pickups that spawn every 5–8 actions on random cities. Ending your turn on one grants +1 action next turn but blows your cover.
 
 ---
 
@@ -40,13 +42,16 @@ Victory is achieved via an accurate strike or if the opponent ends their turn in
 
 ## 4. Abilities
 
-| Ability | Cost | Effect |
-|---|---|---|
-| **Locate** | 10 | Reveals opponent's current location. Blocked by Deep Cover. |
-| **Strike** | 1 Action | Attempts elimination at **current** location. |
-| **Deep Cover** | 30 | Invisibility for current turn and opponent's next turn. |
-| **Control** | 1 Action | Take control of city. Reveals your position. |
-| **Strike Report**| 20 | Permanent. Reveals opponent's location if they miss a strike. |
+| Ability | Cost | Type | Effect |
+|---|---|---|---|
+| **Locate** | 10 | Per-use | Reveals opponent's current location. Blocked by Deep Cover. |
+| **Strike** | 1 Action | — | Attempts elimination at **current** location. |
+| **Deep Cover** | 20 | Per-use | Invisibility for current turn and opponent's next turn. Must be last action. Cannot use in opponent-controlled city. |
+| **Control** | 1 Action | — | Take control of city. Reveals your position. Generates +4 Intel/turn. |
+| **Strike Report** | 10 | Permanent | Reveals opponent's location if they miss a strike. |
+| **Encryption** | 25 | Permanent | Hides all opponent notification flags. Opponent's abilities still work, but you are not notified. |
+| **Rapid Recon** | 40 | Permanent | When entering a city where your opponent is, their cover is blown and you learn their position. Blocked by opponent's Deep Cover. |
+| **Prep Mission** | 40 | Per-use | Must be last action. Cannot use in opponent-controlled city. Grants +1 action (total 3) on your next turn. |
 
 ---
 
