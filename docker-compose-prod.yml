@@ -19,12 +19,16 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/letsencrypt"
+    networks:
+      - spies-network
     restart: always
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    networks:
+      - spies-network
     restart: always
     # No direct port exposure in production (use Traefik)
     labels:
@@ -44,6 +48,8 @@ services:
         - VITE_WS_URL=/ws
     depends_on:
       - backend
+    networks:
+      - spies-network
     restart: always
     # No direct port exposure in production (use Traefik)
     labels:
@@ -52,3 +58,7 @@ services:
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
       - "traefik.http.services.frontend.loadbalancer.server.port=4173"
+networks:
+  spies-network:
+    name: spies-network
+    driver: bridge
