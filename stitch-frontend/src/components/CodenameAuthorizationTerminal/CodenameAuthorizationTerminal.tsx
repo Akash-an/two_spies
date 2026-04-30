@@ -88,7 +88,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         data-testid="terminal-header"
       >
         <div 
-          className="text-2xl font-black tracking-widest uppercase"
+          className="text-lg md:text-2xl font-black tracking-widest uppercase"
           style={{
             color: '#00ffff',
             textShadow: '0 0 8px rgba(0,255,255,0.5)',
@@ -127,7 +127,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         <div className="my-auto w-full flex flex-col items-center py-4">
           <div className="mb-8 sm:mb-12 text-center">
           <h1 
-            className="text-4xl md:text-6xl font-black tracking-[0.2em] mb-4"
+            className="text-2xl sm:text-4xl md:text-6xl font-black tracking-[0.2em] mb-4"
             style={{
               color: '#00ffff',
               textShadow: '0 0 12px rgba(0,255,255,0.4)',
@@ -135,7 +135,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
             }}
             data-testid="terminal-title"
           >
-            CODENAME AUTHORIZATION TERMINAL
+            AUTHORIZATION TERMINAL
           </h1>
           <div 
             className="inline-flex items-center gap-3 px-4 py-1 border"
@@ -320,7 +320,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         }}
         data-testid="terminal-footer"
       >
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <p 
               className="text-xs tracking-widest mb-1 uppercase"

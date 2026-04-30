@@ -13,6 +13,9 @@ export default defineConfig({
   preview: {
     port: 4173,
     host: '0.0.0.0',
-    allowedHosts: ['spies.atyourservice-ai.com'],
+    allowedHosts: [
+      'spies.atyourservice-ai.com',
+      'staging.spies.atyourservice-ai.com'
+    ],
   },
 })

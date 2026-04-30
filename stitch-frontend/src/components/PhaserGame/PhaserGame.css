@@ -810,44 +810,95 @@
 
 /* Mobile Portrait */
 @media (max-width: 600px) {
+  .game-header {
+    height: 48px;
+    padding: 0 12px;
+    grid-template-columns: 1fr auto;
+  }
+
+  .header-center {
+    display: none;
+  }
+
+  .header-agent {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  .header-timer {
+    font-size: 16px;
+  }
+
   .game-body {
     flex-direction: column;
   }
   
+  .game-map {
+    flex: 1.2; /* Map gets more space */
+    border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+  }
+
   .game-panel {
     width: 100%;
     height: auto;
-    max-height: 30%;
+    flex: 0.8; /* Panel gets less space */
     border-left: none;
-    border-top: 1px solid rgba(0, 255, 255, 0.15);
-    flex-shrink: 1;
+    padding: 10px;
+    gap: 8px;
+    background: rgba(12, 14, 15, 0.98);
+  }
+
+  .panel-section {
+    padding-left: 8px;
+    gap: 2px;
+  }
+
+  .panel-stat {
+    font-size: 11px;
+    padding: 1px 0;
+  }
+
+  .notification-list {
+    max-height: 80px; /* Very compact on mobile */
   }
   
   .game-actions {
-    height: 70px;
-    gap: 6px;
-    padding: 0 8px;
+    height: 64px;
+    gap: 4px;
+    padding: 0 4px;
+    overflow-x: auto; /* Allow horizontal scroll if many buttons */
+    justify-content: flex-start;
   }
   
   .action-btn {
-    min-width: 50px;
-    height: 50px;
+    min-width: 56px;
+    height: 52px;
+    flex-shrink: 0;
   }
   
   .action-btn .material-symbols-outlined {
     font-size: 18px;
+    margin-bottom: 2px;
   }
   
   .btn-label {
-    display: none; /* Hide labels on very small screens to save space */
+    display: none;
   }
-  
-  .header-center {
-    display: none; /* Hide turn status in center, rely on header-left/right */
+
+  .action-divider {
+    height: 30px;
+    margin: 0 4px;
   }
-  
-  .game-header {
-    grid-template-columns: 1fr auto;
+
+  .event-banners-container {
+    top: 60px;
+    max-width: 90%;
+  }
+
+  .event-banner {
+    padding: 6px 12px;
+    font-size: 11px;
+    gap: 8px;
   }
 }
 

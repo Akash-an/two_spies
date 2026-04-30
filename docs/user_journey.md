@@ -1,6 +1,6 @@
 # Two Spies — User Journey
 
-This document describes the player experience from opening the game to completing a match.
+This document describes the player experience from opening the game to completing a match, optimized for both desktop and mobile browsers.
 
 ---
 

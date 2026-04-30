@@ -60,6 +60,13 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
 
+  // SVG viewport setup
+  const SVG_W = 1376;
+  const SVG_H = 768;
+  const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: SVG_W, h: SVG_H });
+  const isDragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
   // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
   useEffect(() => {
     if (initialState) {
@@ -124,6 +131,32 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     if (!matchState) return new Set<string>();
     return new Set(matchState.disappearedCities);
   }, [matchState]);
+
+  // Build city coordinate map (normalised 0-1 → SVG pixels)
+  const cityPos = useMemo(() => {
+    const map = matchState?.map || initialMap;
+    if (!map) return new Map<string, { x: number; y: number }>();
+    const posMap = new Map<string, { x: number; y: number }>();
+    for (const c of map.cities) {
+      posMap.set(c.id, {
+        x: c.x * SVG_W,
+        y: c.y * SVG_H,
+      });
+    }
+    return posMap;
+  }, [matchState?.map, initialMap]);
+
+  // Auto-center on player city on mobile when it changes
+  useEffect(() => {
+    if (playerCity && cityPos.has(playerCity) && window.innerWidth < 600) {
+      const pos = cityPos.get(playerCity)!;
+      setViewBox(prev => ({
+        ...prev,
+        x: pos.x - prev.w / 2,
+        y: pos.y - prev.h / 2,
+      }));
+    }
+  }, [playerCity, cityPos]);
 
   // Intel popup cities
   // const intelCitySet = useMemo(() => {
@@ -290,7 +323,18 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     webSocketClient.send(ClientMessageType.END_TURN, {});
   }, [webSocketClient]);
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   const handleMapClick = useCallback(() => {
+    if (isDragging.current) return;
     if (!playerCity) return;
     if (highlightedCity === playerCity) {
       setHighlightedCity(null);
@@ -300,6 +344,46 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       setSelectedCity(null);
     }
   }, [highlightedCity, playerCity]);
+
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    isDragging.current = false;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    lastPos.current = { x: clientX, y: clientY };
+    window.addEventListener('mousemove', handleMouseMove as any);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleMouseMove as any);
+    window.addEventListener('touchend', handleMouseUp);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - lastPos.current.x;
+    const dy = clientY - lastPos.current.y;
+
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      isDragging.current = true;
+    }
+
+    if (isDragging.current) {
+      // Scale movement by zoom level
+      const scale = viewBox.w / (window.innerWidth * 0.8); // approximate
+      setViewBox(prev => ({
+        ...prev,
+        x: prev.x - dx * scale,
+        y: prev.y - dy * scale,
+      }));
+      lastPos.current = { x: clientX, y: clientY };
+    }
+  };
+
+  const handleMouseUp = () => {
+    window.removeEventListener('mousemove', handleMouseMove as any);
+    window.removeEventListener('mouseup', handleMouseUp);
+    window.removeEventListener('touchmove', handleMouseMove as any);
+    window.removeEventListener('touchend', handleMouseUp);
+  };
 
   const handleCityClick = useCallback((cityId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -333,10 +417,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const timerSeconds = Math.ceil(timerRemaining / 1000);
   const timerUrgent = timerSeconds <= 5;
 
-  // SVG viewport setup
-  const SVG_W = 1376;
-  const SVG_H = 768;
-  const PAD = 0; // Map directly to image pixels (normalized 0-1)
 
   if (!matchState) {
     return (
@@ -364,15 +444,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
   const knownOppName = map.cities.find(c => c.id === knownOpp)?.name || knownOpp || 'UNKNOWN';
 
-  // Build city coordinate map (normalised 0-1 → SVG pixels)
-  const cityPos = new Map<string, { x: number; y: number }>();
-  for (const c of map.cities) {
-    cityPos.set(c.id, {
-      x: PAD + c.x * (SVG_W - 2 * PAD),
-      y: PAD + c.y * (SVG_H - 2 * PAD),
-    });
-  }
-
   return (
     <div className="game-container">
       {/* ── Header ─── */}
@@ -399,6 +470,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           </div>
           <button
             className="help-btn-header"
+            onClick={toggleFullscreen}
+            onMouseEnter={() => setActionTooltip('FULLSCREEN: Expand tactical view.')}
+            onMouseLeave={() => setActionTooltip(null)}
+            title="Toggle Fullscreen"
+          >
+            <span className="material-symbols-outlined">fullscreen</span>
+          </button>
+          <button
+            className="help-btn-header"
             onClick={() => setShowHowToPlay(true)}
             onMouseEnter={() => setActionTooltip('HOW TO PLAY: Open field manual and mission objectives.')}
             onMouseLeave={() => setActionTooltip(null)}
@@ -423,7 +503,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               </div>
             ))}
           </div>
-          <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} preserveAspectRatio="xMidYMid meet" onClick={handleMapClick}>
+          <svg
+            viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+            preserveAspectRatio="xMidYMid meet"
+            onClick={handleMapClick}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleMouseDown}
+            style={{ cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
+          >
             {/* Aegis Terminal Background Map */}
             <image href="/assets/plain-map.png" width={SVG_W} height={SVG_H} opacity="0.8" />
 
@@ -513,6 +600,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                     <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#00ffff" className="intel-ripple" pointerEvents="none" />
                   )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />
+                  {/* Invisible larger hit area for touch optimization */}
+                  <circle cx={pos.x} cy={pos.y} r={Math.max(radius, 24)} fill="transparent" />
 
                   {/* Disappeared overlay (X) */}
                   {isDis && (
