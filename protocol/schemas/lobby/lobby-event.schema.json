@@ -2,13 +2,97 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "two-spies/lobby-event",
   "title": "LobbyEvent",
-  "description": "Messages exchanged during lobby and matchmaking phase.",
+  "description": "Pre-match lifecycle messages exchanged during identification and match creation/joining. Naming and matchmaking use the same client envelope as gameplay actions ({ type, payload }) \u2014 this schema documents the lobby-specific subset.",
   "type": "object",
-  "required": ["type", "playerId"],
+  "required": ["type"],
   "properties": {
-    "type":      { "type": "string", "enum": ["LOBBY_JOIN", "LOBBY_LEAVE", "LOBBY_READY"] },
+    "type": {
+      "type": "string",
+      "enum": [
+        "SET_PLAYER_NAME",
+        "CREATE_MATCH",
+        "JOIN_MATCH",
+        "WAITING_FOR_OPPONENT",
+        "MATCH_CREATED",
+        "MATCH_START"
+      ]
+    },
+    "sessionId": { "type": "string" },
     "playerId":  { "type": "string", "minLength": 1 },
-    "sessionId": { "type": ["string", "null"] },
-    "displayName": { "type": "string", "maxLength": 32 }
-  }
+    "payload":   { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if":   { "properties": { "type": { "const": "SET_PLAYER_NAME" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 32 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "JOIN_MATCH" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["matchCode"],
+            "properties": {
+              "matchCode": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "MATCH_CREATED" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["matchCode"],
+            "properties": {
+              "matchCode": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "WAITING_FOR_OPPONENT" } } },
+      "then": {
+        "properties": {
+          "payload": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "MATCH_START" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["side", "map"],
+            "properties": {
+              "side": { "type": "string", "enum": ["RED", "BLUE"] },
+              "map":  {
+                "type": "object",
+                "required": ["cities", "edges"],
+                "properties": {
+                  "cities": { "type": "array" },
+                  "edges":  { "type": "array" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

@@ -1,48 +1,211 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "two-spies/board-state-update",
-  "title": "BoardStateUpdate",
-  "description": "Full board state snapshot broadcast to all clients in a session.",
+  "$id": "two-spies/match-state",
+  "title": "MatchState",
+  "description": "Server \u2192 client message envelope for state and lifecycle messages. The map is a graph of cities (id, name, x, y) connected by edges \u2014 NOT a grid. State messages are per-player filtered (fog of war): the server only sends the opponent's location when allowed by the rules (e.g. cover blown, Locate, Rapid Recon).",
   "type": "object",
-  "required": ["type", "sessionId", "turnNumber", "currentTurn", "board"],
+  "required": ["type", "payload"],
   "properties": {
-    "type":        { "type": "string", "enum": ["BOARD_STATE_UPDATE", "TURN_CHANGE", "GAME_OVER"] },
-    "sessionId":   { "type": "string" },
-    "turnNumber":  { "type": "integer", "minimum": 0 },
-    "currentTurn": { "type": "string", "enum": ["RED", "BLUE"] },
-    "gameOver":    { "type": "boolean" },
-    "winner":      { "type": "string", "enum": ["RED", "BLUE", null] },
-    "board": {
-      "type": "array",
-      "items": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "passable":  { "type": "boolean" },
-            "pieceType": { "type": ["string", "null"] },
-            "team":      { "type": ["string", "null"], "enum": ["RED", "BLUE", null] }
+    "type": {
+      "type": "string",
+      "enum": [
+        "MATCH_CREATED",
+        "MATCH_START",
+        "MATCH_STATE",
+        "TURN_CHANGE",
+        "GAME_OVER",
+        "ERROR",
+        "WAITING_FOR_OPPONENT"
+      ]
+    },
+    "sessionId": { "type": "string" },
+    "payload":   { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if":   { "properties": { "type": { "const": "MATCH_START" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["side", "map"],
+            "properties": {
+              "side": { "$ref": "#/definitions/PlayerSide" },
+              "map":  { "$ref": "#/definitions/MapDef" }
+            }
           }
         }
       }
     },
-    "player": {
-      "type": "object",
-      "properties": {
-        "encryptionUnlocked":  { "type": "boolean", "description": "Whether player has purchased Encryption (permanent)" },
-        "rapidReconUnlocked":  { "type": "boolean", "description": "Whether player has purchased Rapid Recon (permanent)" },
-        "prepMissionActive":   { "type": "boolean", "description": "Whether Prep Mission is queued for next turn" }
+    {
+      "if":   { "properties": { "type": { "const": "MATCH_STATE" } } },
+      "then": {
+        "properties": {
+          "payload": { "$ref": "#/definitions/MatchStatePayload" }
+        }
       }
     },
-    "actionPopups": {
-      "type": "array",
-      "description": "Action markers currently on the map",
-      "items": {
-        "type": "object",
-        "required": ["city"],
+    {
+      "if":   { "properties": { "type": { "const": "TURN_CHANGE" } } },
+      "then": {
         "properties": {
-          "city": { "type": "string", "description": "City ID where the action marker is placed" }
+          "payload": {
+            "type": "object",
+            "required": ["previousTurn", "currentTurn", "reason"],
+            "properties": {
+              "previousTurn": { "$ref": "#/definitions/PlayerSide" },
+              "currentTurn":  { "$ref": "#/definitions/PlayerSide" },
+              "reason":       { "type": "string" }
+            }
+          }
         }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "GAME_OVER" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["winner", "reason"],
+            "properties": {
+              "winner": { "$ref": "#/definitions/PlayerSide" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "ERROR" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["message"],
+            "properties": {
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "PlayerSide": { "type": "string", "enum": ["RED", "BLUE"] },
+    "AbilityId": {
+      "type": "string",
+      "enum": ["DEEP_COVER", "ENCRYPTION", "LOCATE", "STRIKE_REPORT", "RAPID_RECON", "PREP_MISSION"]
+    },
+    "CityDef": {
+      "type": "object",
+      "required": ["id", "name", "x", "y"],
+      "properties": {
+        "id":   { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "x":    { "type": "number", "minimum": 0, "maximum": 1, "description": "Normalised X coordinate" },
+        "y":    { "type": "number", "minimum": 0, "maximum": 1, "description": "Normalised Y coordinate" }
+      }
+    },
+    "EdgeDef": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to":   { "type": "string", "minLength": 1 }
+      }
+    },
+    "MapDef": {
+      "type": "object",
+      "required": ["cities", "edges"],
+      "properties": {
+        "cities": { "type": "array", "items": { "$ref": "#/definitions/CityDef" } },
+        "edges":  { "type": "array", "items": { "$ref": "#/definitions/EdgeDef" } }
+      }
+    },
+    "IntelPopup": {
+      "type": "object",
+      "required": ["city", "amount"],
+      "properties": {
+        "city":   { "type": "string", "description": "City id where Intel pickup is placed" },
+        "amount": { "type": "integer", "minimum": 1, "description": "Intel granted on claim (typically 10)" }
+      }
+    },
+    "ActionPopup": {
+      "type": "object",
+      "required": ["city"],
+      "properties": {
+        "city": { "type": "string", "description": "City id where Action pickup is placed" }
+      }
+    },
+    "PlayerState": {
+      "type": "object",
+      "description": "Per-player filtered view. The server omits/redacts fields the player should not see (fog of war). `knownOpponentCity` is null when the opponent is in cover and has not been revealed.",
+      "required": [
+        "side", "name", "currentCity", "intel", "actionsRemaining",
+        "hasCover", "abilities",
+        "strikeReportUnlocked", "encryptionUnlocked", "rapidReconUnlocked",
+        "prepMissionActive",
+        "startingCity", "opponentStartingCity"
+      ],
+      "properties": {
+        "side":              { "$ref": "#/definitions/PlayerSide" },
+        "name":              { "type": "string" },
+        "currentCity":       { "type": "string" },
+        "intel":             { "type": "integer", "minimum": 0 },
+        "actionsRemaining":  { "type": "integer", "minimum": 0 },
+        "hasCover":          { "type": "boolean" },
+        "knownOpponentCity": { "type": ["string", "null"] },
+        "abilities":         { "type": "array", "items": { "$ref": "#/definitions/AbilityId" } },
+        "strikeReportUnlocked": { "type": "boolean" },
+        "encryptionUnlocked":   { "type": "boolean" },
+        "rapidReconUnlocked":   { "type": "boolean" },
+        "prepMissionActive":    { "type": "boolean" },
+        "opponentUsedStrike":    { "type": "boolean", "description": "Suppressed when the actor has Encryption unlocked" },
+        "opponentUsedLocate":    { "type": "boolean", "description": "Suppressed when the actor has Encryption unlocked" },
+        "opponentUsedDeepCover": { "type": "boolean", "description": "Suppressed when the actor has Encryption unlocked" },
+        "opponentUsedControl":   { "type": "boolean", "description": "Suppressed when the actor has Encryption unlocked" },
+        "opponentClaimedIntel":  { "type": "boolean" },
+        "opponentUnlockedStrikeReport": { "type": "boolean" },
+        "opponentStrikeReportActive":   { "type": "boolean" },
+        "locateBlockedByDeepCover":     { "type": "boolean" },
+        "claimedIntel":                 { "type": "boolean" },
+        "startingCity":                 { "type": "string" },
+        "opponentStartingCity":         { "type": "string" }
+      }
+    },
+    "MatchStatePayload": {
+      "type": "object",
+      "required": [
+        "sessionId", "turnNumber", "currentTurn", "player",
+        "opponentName", "gameOver",
+        "controlledCities", "intelPopups", "actionPopups",
+        "disappearedCities", "isPlayerStranded",
+        "turnDuration", "timeElapsedMs"
+      ],
+      "properties": {
+        "sessionId":   { "type": "string" },
+        "turnNumber":  { "type": "integer", "minimum": 1 },
+        "currentTurn": { "$ref": "#/definitions/PlayerSide" },
+        "player":      { "$ref": "#/definitions/PlayerState" },
+        "opponentName":{ "type": "string" },
+        "map":         { "$ref": "#/definitions/MapDef" },
+        "gameOver":    { "type": "boolean" },
+        "winner":      { "anyOf": [ { "$ref": "#/definitions/PlayerSide" }, { "type": "null" } ] },
+        "opponentMovedFromStart":  { "type": "boolean" },
+        "scheduledDisappearCity":  { "type": ["string", "null"] },
+        "disappearedCities":       { "type": "array", "items": { "type": "string" } },
+        "isPlayerStranded":        { "type": "boolean" },
+        "controlledCities": {
+          "type": "object",
+          "description": "Map of city_id \u2192 controlling PlayerSide",
+          "additionalProperties": { "$ref": "#/definitions/PlayerSide" }
+        },
+        "intelPopups":  { "type": "array", "items": { "$ref": "#/definitions/IntelPopup" } },
+        "actionPopups": { "type": "array", "items": { "$ref": "#/definitions/ActionPopup" } },
+        "turnStartTime": { "type": "integer", "description": "Server timestamp; 0 means client should anchor locally" },
+        "turnDuration":  { "type": "integer", "minimum": 0, "description": "Per-turn budget in ms" },
+        "timeElapsedMs": { "type": "integer", "minimum": 0, "description": "Time since the current turn started, in ms" }
       }
     }
   }
