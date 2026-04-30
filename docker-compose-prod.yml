@@ -60,5 +60,4 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=4173"
 networks:
   spies-network:
-    name: spies-network
-    driver: bridge
+    external: true

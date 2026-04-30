@@ -65,7 +65,7 @@ fi
 
 # Ensure the shared network exists for prod/staging
 if [[ "$COMPOSE_FILE" != "docker-compose.yml" ]]; then
-    if ! docker network ls | grep -q "spies-network"; then
+    if ! docker network inspect spies-network >/dev/null 2>&1; then
         echo "Creating shared network 'spies-network'..."
         docker network create spies-network
     fi
