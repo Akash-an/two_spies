@@ -175,9 +175,6 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
     const std::string& striker_city = attacker.current_city;
 
     attacker.actions_remaining -= 1;
-    
-    // A strike (hit or miss) ALWAYS removes cover
-    attacker.has_cover = false;
 
     const auto& defender = player(opposite(side));
 
@@ -203,14 +200,18 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
             defender_mut.opponent_used_strike = true;    // notify opponent that a strike was attempted
         }
         
-        // Strike reveals the striker's position to the opponent ONLY IF opponent has Strike Report unlocked
+        // Per Field Manual: a missed STRIKE only blows the striker's cover
+        // (and reveals their position) if the defender has unlocked Strike
+        // Reports. Otherwise the strike attempt is "silent" — the opponent
+        // is notified a strike happened but does not learn where.
         if (defender_mut.strike_report_unlocked) {
+            attacker.has_cover = false;
             defender_mut.known_opponent_city = striker_city;
             std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
                       << " struck at " << striker_city << " but opponent was not there. Position REVEALED by Strike Report.\n";
         } else {
             std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
-                      << " struck at " << striker_city << " but opponent was not there. Opponent knows a strike occurred.\n";
+                      << " struck at " << striker_city << " but opponent was not there. Opponent knows a strike occurred but not where.\n";
         }
     }
 
@@ -447,30 +448,24 @@ ActionResult GameState::wait(PlayerSide side) {
         return result;
     }
 
+    // Per Field Manual: "You cannot wait in a Target-controlled city."
+    // Reject the action without consuming an action point.
+    {
+        auto ctrl_it = city_controllers_.find(p.current_city);
+        if (ctrl_it != city_controllers_.end() && ctrl_it->second == opposite(side)) {
+            result.error = "Cannot wait in a target-controlled city.";
+            return result;
+        }
+    }
+
     // Wait action: consume an action point without doing anything
     p.actions_remaining -= 1;
 
-    // Check if currently in an opponent-controlled city
-    bool in_opponent_controlled_city = false;
-    auto it = city_controllers_.find(p.current_city);
-    if (it != city_controllers_.end() && it->second == opposite(side)) {
-        in_opponent_controlled_city = true;
-    }
-
-    if (in_opponent_controlled_city) {
-        // Stay visible in opponent's controlled city
-        p.has_cover = false;
-        // Opponent maintains vision of us
-        auto& opponent = player_mut(opposite(side));
-        opponent.known_opponent_city = p.current_city;
-    } else {
-        // Safe city: waiting grants cover (player becomes hidden)
-        p.has_cover = true;
-        // Clear opponent's knowledge of this player's location
-        auto& opponent = player_mut(opposite(side));
-        opponent.known_opponent_city = "";
-
-    }
+    // We've already validated the city is not opponent-controlled above,
+    // so waiting here always grants cover.
+    p.has_cover = true;
+    auto& opponent = player_mut(opposite(side));
+    opponent.known_opponent_city = "";
 
     // Increment action counter for shrinking map feature
     increment_action_count();
@@ -633,6 +628,20 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
             next.deep_cover_active = false;
             next.deep_cover_used_on_turn = -1;
             std::cerr << "[DC-CLEAR] Deep Cover cleared for " << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE") << "\n";
+        }
+    }
+
+    // Per Field Manual: "Starting a turn in the same city as your Target"
+    // blows the cover of the player whose turn is starting (unless they
+    // are protected by an active Deep Cover from their previous turn).
+    {
+        auto& other = player_mut(opposite(current_turn_));
+        if (next.current_city == other.current_city && !next.deep_cover_active) {
+            next.has_cover = false;
+            other.known_opponent_city = next.current_city;
+            std::cerr << "[COVER] " << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE")
+                      << " starts turn in same city as target ("
+                      << next.current_city << ") — cover blown.\n";
         }
     }
     
