@@ -21,7 +21,17 @@ else
     echo "Starting Two Spies services (Development)..."
 fi
 
-cd "$REPO_ROOT" && docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d
+cd "$REPO_ROOT"
+
+# Ensure the shared network exists for prod/staging
+if [[ "$COMPOSE_FILE" != "docker-compose.yml" ]]; then
+    if ! docker network ls | grep -q "spies-network"; then
+        echo "Creating shared network 'spies-network'..."
+        docker network create spies-network
+    fi
+fi
+
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d
 
 echo "Services are starting..."
 if [[ "$COMPOSE_FILE" == "docker-compose-prod.yml" ]]; then
