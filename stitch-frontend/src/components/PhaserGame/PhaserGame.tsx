@@ -734,6 +734,24 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                 {matchState.player.strikeReportUnlocked ? 'ACTIVE' : 'OFFLINE'}
               </span>
             </div>
+            <div className="panel-stat" title="Hides your action notifications from opponent">
+              <span>Encryption</span>
+              <span className={`panel-stat-value ${matchState.player.encryptionUnlocked ? '' : 'dimmed'}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
+                  {matchState.player.encryptionUnlocked ? 'lock' : 'lock_open'}
+                </span>
+                {matchState.player.encryptionUnlocked ? 'ACTIVE' : 'OFFLINE'}
+              </span>
+            </div>
+            <div className="panel-stat" title="Reveals opponent when entering their city">
+              <span>Rapid Recon</span>
+              <span className={`panel-stat-value ${matchState.player.rapidReconUnlocked ? '' : 'dimmed'}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
+                  {matchState.player.rapidReconUnlocked ? 'radar' : 'sensors'}
+                </span>
+                {matchState.player.rapidReconUnlocked ? 'ACTIVE' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
 
           <div className="panel-section">
@@ -755,17 +773,27 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                 {matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}
               </span>
             </div>
+            <div className="panel-stat" title="Hides their action notifications from you">
+              <span>Encryption</span>
+              <span className={`panel-stat-value ${matchState.player.opponentEncryptionActive ? 'active-warn' : 'dimmed'}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
+                  {matchState.player.opponentEncryptionActive ? 'lock' : 'lock_open'}
+                </span>
+                {matchState.player.opponentEncryptionActive ? 'ACTIVE' : 'OFFLINE'}
+              </span>
+            </div>
+            <div className="panel-stat" title="Reveals you when you enter their city">
+              <span>Rapid Recon</span>
+              <span className={`panel-stat-value ${matchState.player.opponentRapidReconActive ? 'active-warn' : 'dimmed'}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
+                  {matchState.player.opponentRapidReconActive ? 'radar' : 'sensors'}
+                </span>
+                {matchState.player.opponentRapidReconActive ? 'ACTIVE' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
 
-          <div className="panel-section">
-            <div className="panel-section-title">Abilities</div>
-            {matchState.player.abilities.map(a => (
-              <div key={a} style={{ fontSize: 11, padding: '2px 0', color: '#c1fffe' }}>{a.replace('_', ' ')}</div>
-            ))}
-            {matchState.player.abilities.length === 0 && (
-              <div style={{ fontSize: 11, color: '#555' }}>No abilities available</div>
-            )}
-          </div>
+
 
           <div className="panel-section" style={{ flex: 1 }}>
             <div className="panel-section-title">Intel Log</div>
@@ -849,6 +877,17 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <span className="btn-cost">20</span>
           </button>
         </div>
+        <div onMouseEnter={() => setActionTooltip('PREP MISSION: Gain an extra action next turn. Must be last action. Cannot use in opponent city. Costs 40 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canActBtn || matchState.player.intel < 40}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.PREP_MISSION)}
+          >
+            <span className="material-symbols-outlined">add_task</span>
+            <span className="btn-label">PREP MISSION</span>
+            <span className="btn-cost">40</span>
+          </button>
+        </div>
         <div onMouseEnter={() => setActionTooltip('STRIKE REPORT: Reveal the opponent\'s location if they attempt a strike. Costs 10 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
@@ -880,17 +919,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <span className="material-symbols-outlined">radar</span>
             <span className="btn-label">{matchState.player.rapidReconUnlocked ? 'RECON ACTIVE' : 'RAPID RECON'}</span>
             {!matchState.player.rapidReconUnlocked && <span className="btn-cost">40</span>}
-          </button>
-        </div>
-        <div onMouseEnter={() => setActionTooltip('PREP MISSION: Gain an extra action next turn. Must be last action. Cannot use in opponent city. Costs 40 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
-          <button
-            className="action-btn"
-            disabled={!canActBtn || matchState.player.intel < 40}
-            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.PREP_MISSION)}
-          >
-            <span className="material-symbols-outlined">add_task</span>
-            <span className="btn-label">PREP MISSION</span>
-            <span className="btn-cost">40</span>
           </button>
         </div>
         <div onMouseEnter={() => setActionTooltip('END TURN: Pass control to the opponent. Gain +4 Intel.')} onMouseLeave={() => setActionTooltip(null)}>

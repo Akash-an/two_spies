@@ -104,6 +104,8 @@ export interface PlayerState {
 
   opponentUnlockedStrikeReport: boolean;
   opponentStrikeReportActive: boolean;
+  opponentEncryptionActive: boolean;
+  opponentRapidReconActive: boolean;
   locateBlockedByDeepCover: boolean;
   claimedIntel: boolean;
   startingCity: string;
