@@ -61,5 +61,4 @@ services:
 
 networks:
   spies-network:
-    name: spies-network 
-    driver: bridge
+    external: true
