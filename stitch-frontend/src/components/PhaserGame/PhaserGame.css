@@ -255,6 +255,36 @@
   50% { filter: brightness(1.8) drop-shadow(0 0 8px #10b981); }
 }
 
+/* ── Utility Buttons ─── */
+.recenter-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(12, 14, 15, 0.9);
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  color: #00ffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 40;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+.recenter-btn:hover {
+  background: rgba(0, 255, 255, 0.1);
+  border-color: #00ffff;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.panel-toggle-btn {
+  display: none; /* Desktop hidden */
+}
+
 /* ── Side panel ─── */
 .game-panel {
   width: 280px;
@@ -776,7 +806,7 @@
 /* Mobile landscape and small tablets */
 @media (max-width: 900px) {
   .game-panel {
-    width: 200px;
+    width: 220px;
     padding: 10px;
     gap: 10px;
   }
@@ -799,12 +829,59 @@
   }
   
   .action-btn {
-    min-width: 70px;
-    height: 60px;
+    min-width: 64px;
+    height: 56px;
+    padding: 4px;
+  }
+  
+  .action-btn .material-symbols-outlined {
+    font-size: 20px;
   }
   
   .btn-label {
-    font-size: 8px;
+    font-size: 7px;
+  }
+}
+
+/* Specific Landscape Mobile Optimization */
+@media (max-height: 480px) and (orientation: landscape) {
+  .game-header {
+    height: 40px;
+    padding: 0 12px;
+  }
+  
+  .turn-status {
+    font-size: 14px;
+  }
+  
+  .header-timer {
+    font-size: 14px;
+  }
+  
+  .game-panel {
+    width: 180px;
+    font-size: 10px;
+  }
+  
+  .game-actions {
+    height: 60px;
+    padding: 0 12px;
+  }
+  
+  .action-btn {
+    height: 48px;
+    min-width: 50px;
+  }
+  
+  .btn-label {
+    display: none;
+  }
+  
+  .recenter-btn {
+    bottom: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
   }
 }
 
@@ -833,6 +910,13 @@
     flex-direction: column;
   }
   
+  /* Reset to row if in landscape even if width is small (e.g. very small phone) */
+  @media (orientation: landscape) {
+    .game-body {
+      flex-direction: row;
+    }
+  }
+  
   .game-map {
     flex: 1.2; /* Map gets more space */
     border-bottom: 1px solid rgba(0, 255, 255, 0.1);
@@ -841,11 +925,60 @@
   .game-panel {
     width: 100%;
     height: auto;
-    flex: 0.8; /* Panel gets less space */
+    max-height: 50vh;
+    flex: none;
     border-left: none;
-    padding: 10px;
+    padding: 12px;
     gap: 8px;
     background: rgba(12, 14, 15, 0.98);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 40;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
+  }
+
+  .game-panel.collapsed {
+    max-height: 0;
+    padding: 0 12px;
+    overflow: hidden;
+    border-top: none;
+  }
+
+  @media (orientation: landscape) {
+    .game-panel.collapsed {
+      width: 0;
+      max-height: none;
+      padding: 0;
+      border-left: none;
+    }
+  }
+
+  .panel-toggle-btn {
+    display: flex;
+    position: absolute;
+    top: -36px;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 36px;
+    background: rgba(12, 14, 15, 0.95);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    color: #00ffff;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    z-index: 45;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    backdrop-filter: blur(8px);
+  }
+
+  .panel-toggle-btn .material-symbols-outlined {
+    font-size: 18px;
   }
 
   .panel-section {
@@ -859,7 +992,7 @@
   }
 
   .notification-list {
-    max-height: 80px; /* Very compact on mobile */
+    max-height: 120px;
   }
   
   .game-actions {

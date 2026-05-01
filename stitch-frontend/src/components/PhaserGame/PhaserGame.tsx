@@ -64,8 +64,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const SVG_W = 1376;
   const SVG_H = 768;
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: SVG_W, h: SVG_H });
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(window.innerWidth < 600);
   const isDragging = useRef(false);
+  const isPinching = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const lastTouchDist = useRef(0);
+  const lastTouchCenter = useRef({ x: 0, y: 0 });
 
   // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
   useEffect(() => {
@@ -146,17 +150,26 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     return posMap;
   }, [matchState?.map, initialMap]);
 
-  // Auto-center on player city on mobile when it changes
-  useEffect(() => {
-    if (playerCity && cityPos.has(playerCity) && window.innerWidth < 600) {
+  const handleRecenter = useCallback(() => {
+    if (playerCity && cityPos.has(playerCity)) {
       const pos = cityPos.get(playerCity)!;
       setViewBox(prev => ({
         ...prev,
         x: pos.x - prev.w / 2,
         y: pos.y - prev.h / 2,
       }));
+    } else {
+      // Default center
+      setViewBox({ x: 0, y: 0, w: SVG_W, h: SVG_H });
     }
-  }, [playerCity, cityPos]);
+  }, [playerCity, cityPos, SVG_W, SVG_H]);
+
+  // Auto-center on player city on mobile when it changes or on mount
+  useEffect(() => {
+    if (window.innerWidth < 600) {
+      handleRecenter();
+    }
+  }, [playerCity, handleRecenter]);
 
   // Intel popup cities
   // const intelCitySet = useMemo(() => {
@@ -345,44 +358,115 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     }
   }, [highlightedCity, playerCity]);
 
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = false;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    lastPos.current = { x: clientX, y: clientY };
+    lastPos.current = { x: e.clientX, y: e.clientY };
     window.addEventListener('mousemove', handleMouseMove as any);
     window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchmove', handleMouseMove as any);
-    window.addEventListener('touchend', handleMouseUp);
   };
 
-  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    const dx = clientX - lastPos.current.x;
-    const dy = clientY - lastPos.current.y;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const dx = e.clientX - lastPos.current.x;
+    const dy = e.clientY - lastPos.current.y;
 
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       isDragging.current = true;
     }
 
     if (isDragging.current) {
-      // Scale movement by zoom level
-      const scale = viewBox.w / (window.innerWidth * 0.8); // approximate
+      const scale = viewBox.w / window.innerWidth;
       setViewBox(prev => ({
         ...prev,
         x: prev.x - dx * scale,
         y: prev.y - dy * scale,
       }));
-      lastPos.current = { x: clientX, y: clientY };
+      lastPos.current = { x: e.clientX, y: e.clientY };
     }
   };
 
   const handleMouseUp = () => {
     window.removeEventListener('mousemove', handleMouseMove as any);
     window.removeEventListener('mouseup', handleMouseUp);
-    window.removeEventListener('touchmove', handleMouseMove as any);
-    window.removeEventListener('touchend', handleMouseUp);
+  };
+
+  // Touch handlers for multi-touch (pinch) and panning
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      isDragging.current = false;
+      isPinching.current = false;
+      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isPinching.current = true;
+      isDragging.current = false;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      lastTouchDist.current = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      lastTouchCenter.current = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && !isPinching.current) {
+      const dx = e.touches[0].clientX - lastPos.current.x;
+      const dy = e.touches[0].clientY - lastPos.current.y;
+
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        isDragging.current = true;
+      }
+
+      if (isDragging.current) {
+        const scale = viewBox.w / window.innerWidth;
+        setViewBox(prev => ({
+          ...prev,
+          x: prev.x - dx * scale,
+          y: prev.y - dy * scale,
+        }));
+        lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    } else if (e.touches.length === 2) {
+      e.preventDefault(); // Prevent browser zoom
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const center = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+
+      if (lastTouchDist.current > 0) {
+        const zoomRatio = lastTouchDist.current / dist;
+        const newW = Math.min(SVG_W * 2, Math.max(SVG_W / 4, viewBox.w * zoomRatio));
+        const newH = newW * (SVG_H / SVG_W);
+
+        // Adjust X/Y to zoom towards center point
+        // Calculate SVG coordinates of the touch center
+        const svgRect = e.currentTarget.getBoundingClientRect();
+        const svgCenterX = ((center.x - svgRect.left) / svgRect.width) * viewBox.w + viewBox.x;
+        const svgCenterY = ((center.y - svgRect.top) / svgRect.height) * viewBox.h + viewBox.y;
+
+        const newX = svgCenterX - ((center.x - svgRect.left) / svgRect.width) * newW;
+        const newY = svgCenterY - ((center.y - svgRect.top) / svgRect.height) * newH;
+
+        setViewBox({
+          x: newX,
+          y: newY,
+          w: newW,
+          h: newH
+        });
+      }
+
+      lastTouchDist.current = dist;
+      lastTouchCenter.current = center;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    isPinching.current = false;
+    lastTouchDist.current = 0;
   };
 
   const handleCityClick = useCallback((cityId: string, e: React.MouseEvent) => {
@@ -508,7 +592,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             preserveAspectRatio="xMidYMid meet"
             onClick={handleMapClick}
             onMouseDown={handleMouseDown}
-            onTouchStart={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             style={{ cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
           >
             {/* Aegis Terminal Background Map */}
@@ -707,10 +793,30 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               }}>✕</button>
             </div>
           )}
+          {/* Recenter Button */}
+          <button
+            className="recenter-btn"
+            onClick={handleRecenter}
+            onMouseEnter={() => setActionTooltip('RECENTER: Focus on your operative.')}
+            onMouseLeave={() => setActionTooltip(null)}
+          >
+            <span className="material-symbols-outlined">my_location</span>
+          </button>
+
+          {/* Side Panel Toggle (Mobile) */}
+          <button
+            className="panel-toggle-btn"
+            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+          >
+            <span className="material-symbols-outlined">
+              {isPanelCollapsed ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
+            </span>
+            <span className="panel-toggle-label">{isPanelCollapsed ? 'EXPAND INTEL' : 'COLLAPSE'}</span>
+          </button>
         </div>
 
         {/* ── Side Panel ─── */}
-        <div className="game-panel">
+        <div className={`game-panel ${isPanelCollapsed ? 'collapsed' : ''}`}>
           <div className="panel-section">
             <div className="panel-section-title">Agent</div>
             <div className="panel-stat">
