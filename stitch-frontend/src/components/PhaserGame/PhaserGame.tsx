@@ -526,7 +526,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     );
   }
 
-  const knownOppName = map.cities.find(c => c.id === knownOpp)?.name || knownOpp || 'UNKNOWN';
 
   return (
     <div className="game-container">
@@ -803,125 +802,89 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <span className="material-symbols-outlined">my_location</span>
           </button>
 
-          {/* Side Panel Toggle (Mobile) */}
+          {/* Tactical Log Overlay (Bottom Left) */}
+          <div className="tactical-log-overlay">
+            <div className="log-header">TACTICAL LOG</div>
+            <div className="log-content">
+              {notifications.length === 0 ? (
+                <div className="log-empty">&gt; AWAITING INTEL...</div>
+              ) : (
+                [...notifications].slice(-5).reverse().map((n, i) => (
+                  <div key={n.id} className={`log-entry ${n.type || ''} ${i === 0 ? 'latest' : ''}`}>
+                    <span className="log-turn">T{n.turn}</span>
+                    <span className="log-text">{n.text}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           <button
             className="panel-toggle-btn"
             onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
           >
             <span className="material-symbols-outlined">
-              {isPanelCollapsed ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
+              {isPanelCollapsed ? 'chevron_right' : 'chevron_left'}
             </span>
-            <span className="panel-toggle-label">{isPanelCollapsed ? 'EXPAND INTEL' : 'COLLAPSE'}</span>
           </button>
         </div>
 
-        {/* ── Side Panel ─── */}
-        <div className={`game-panel ${isPanelCollapsed ? 'collapsed' : ''}`}>
-          <div className="panel-section">
-            <div className="panel-section-title">Agent</div>
-            <div className="panel-stat">
-              <span>Intel</span>
-              <span className="panel-stat-value intel">{matchState.player.intel}</span>
+        {/* ── Side Panel (Thin/Symbolic) ─── */}
+        <div className={`game-panel thin ${isPanelCollapsed ? 'collapsed' : ''}`}>
+          {/* Agent Section */}
+          <div className="panel-group" title="AGENT STATUS">
+            <div className="panel-symbol-large" title={`Intel: ${matchState.player.intel}`}>
+              <span className="material-symbols-outlined intel-icon">database</span>
+              <div className="symbol-value">{matchState.player.intel}</div>
             </div>
-            <div className="panel-stat">
-              <span>Cover</span>
-              <span className="panel-stat-value">{matchState.player.hasCover ? 'ACTIVE' : 'EXPOSED'}</span>
-            </div>
-            <div className="panel-stat">
-              <span>Location</span>
-              <span className="panel-stat-value">{map.cities.find(c => c.id === playerCity)?.name || playerCity}</span>
-            </div>
-            <div className="panel-stat" title="Monitors opponent strike attempts">
-              <span>Strike Report</span>
-              <span className={`panel-stat-value ${matchState.player.strikeReportUnlocked ? '' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.strikeReportUnlocked ? 'security' : 'shield'}
-                </span>
-                {matchState.player.strikeReportUnlocked ? 'ACTIVE' : 'OFFLINE'}
+            
+            <div className="panel-symbol" title={matchState.player.hasCover ? 'COVER: ACTIVE' : 'COVER: EXPOSED'}>
+              <span className={`material-symbols-outlined ${matchState.player.hasCover ? 'active' : 'warn'}`}>
+                {matchState.player.hasCover ? 'security' : 'warning'}
               </span>
             </div>
-            <div className="panel-stat" title="Hides your action notifications from opponent">
-              <span>Encryption</span>
-              <span className={`panel-stat-value ${matchState.player.encryptionUnlocked ? '' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.encryptionUnlocked ? 'lock' : 'lock_open'}
-                </span>
-                {matchState.player.encryptionUnlocked ? 'ACTIVE' : 'OFFLINE'}
+
+            <div className="symbol-divider"></div>
+
+            <div className="panel-symbol" title={`Strike Report: ${matchState.player.strikeReportUnlocked ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.strikeReportUnlocked ? 'active' : 'dimmed'}`}>
+                plagiarism
               </span>
             </div>
-            <div className="panel-stat" title="Reveals opponent when entering their city">
-              <span>Rapid Recon</span>
-              <span className={`panel-stat-value ${matchState.player.rapidReconUnlocked ? '' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.rapidReconUnlocked ? 'radar' : 'sensors'}
-                </span>
-                {matchState.player.rapidReconUnlocked ? 'ACTIVE' : 'OFFLINE'}
+            
+            <div className="panel-symbol" title={`Encryption: ${matchState.player.encryptionUnlocked ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.encryptionUnlocked ? 'active' : 'dimmed'}`}>
+                enhanced_encryption
+              </span>
+            </div>
+            
+            <div className="panel-symbol" title={`Rapid Recon: ${matchState.player.rapidReconUnlocked ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.rapidReconUnlocked ? 'active' : 'dimmed'}`}>
+                radar
               </span>
             </div>
           </div>
 
-          <div className="panel-section">
-            <div className="panel-section-title">Opponent</div>
-            <div className="panel-stat">
-              <span>Name</span>
-              <span className="panel-stat-value">{matchState.opponentName || '???'}</span>
-            </div>
-            <div className="panel-stat">
-              <span>Known Location</span>
-              <span className="panel-stat-value">{knownOppName}</span>
-            </div>
-            <div className="panel-stat" title="Monitors your strike attempts">
-              <span>Strike Report</span>
-              <span className={`panel-stat-value ${matchState.player.opponentStrikeReportActive ? 'active-warn' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.opponentStrikeReportActive ? 'security' : 'shield'}
-                </span>
-                {matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}
+          <div className="section-divider"></div>
+
+          {/* Opponent Section */}
+          <div className="panel-group" title="OPPONENT STATUS">
+            <div className="panel-symbol" title={`Opponent Strike Report: ${matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.opponentStrikeReportActive ? 'warn' : 'dimmed'}`}>
+                plagiarism
               </span>
             </div>
-            <div className="panel-stat" title="Hides their action notifications from you">
-              <span>Encryption</span>
-              <span className={`panel-stat-value ${matchState.player.opponentEncryptionActive ? 'active-warn' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.opponentEncryptionActive ? 'lock' : 'lock_open'}
-                </span>
-                {matchState.player.opponentEncryptionActive ? 'ACTIVE' : 'OFFLINE'}
+            
+            <div className="panel-symbol" title={`Opponent Encryption: ${matchState.player.opponentEncryptionActive ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.opponentEncryptionActive ? 'warn' : 'dimmed'}`}>
+                enhanced_encryption
               </span>
             </div>
-            <div className="panel-stat" title="Reveals you when you enter their city">
-              <span>Rapid Recon</span>
-              <span className={`panel-stat-value ${matchState.player.opponentRapidReconActive ? 'active-warn' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.opponentRapidReconActive ? 'radar' : 'sensors'}
-                </span>
-                {matchState.player.opponentRapidReconActive ? 'ACTIVE' : 'OFFLINE'}
+            
+            <div className="panel-symbol" title={`Opponent Rapid Recon: ${matchState.player.opponentRapidReconActive ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.opponentRapidReconActive ? 'warn' : 'dimmed'}`}>
+                radar
               </span>
-            </div>
-          </div>
-
-
-
-          <div className="panel-section" style={{ flex: 1 }}>
-            <div className="panel-section-title">Intel Log</div>
-            <div className="notification-list">
-              {notifications.length === 0 ? (
-                <div style={{ opacity: 0.4 }}>&gt; AWAITING INTEL...</div>
-              ) : (
-                [...notifications].reverse().map((n, i) => {
-                  const isLatest = i === 0;
-                  const isIrrelevant = n.turn < matchState.turnNumber;
-                  const prefix = n.type === 'warning' ? '⚠ ' : n.type === 'error' ? '✗ ' : '› ';
-                  return (
-                    <div
-                      key={n.id}
-                      className={`notification-item ${n.type || ''} ${isLatest ? 'latest' : ''} ${isIrrelevant ? 'irrelevant' : ''}`}
-                    >
-                      {isLatest && <span className="latest-tag">NEW</span>}
-                      <span className="notification-turn">T{n.turn}</span> {prefix}{n.text}
-                    </div>
-                  );
-                })
-              )}
             </div>
           </div>
         </div>
