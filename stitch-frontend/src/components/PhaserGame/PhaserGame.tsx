@@ -330,11 +330,13 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     webSocketClient.send(ClientMessageType.PLAYER_ACTION, payload);
     setSelectedCity(null);
     setHighlightedCity(null);
-  }, [webSocketClient]);
+    setActionTooltip(null);
+  }, [webSocketClient, setActionTooltip]);
 
   const sendEndTurn = useCallback(() => {
     webSocketClient.send(ClientMessageType.END_TURN, {});
-  }, [webSocketClient]);
+    setActionTooltip(null);
+  }, [webSocketClient, setActionTooltip]);
 
   const toggleFullscreen = async () => {
     try {
