@@ -64,8 +64,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const SVG_W = 1376;
   const SVG_H = 768;
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: SVG_W, h: SVG_H });
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(window.innerWidth < 600);
   const isDragging = useRef(false);
+  const isPinching = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const lastTouchDist = useRef(0);
+  const lastTouchCenter = useRef({ x: 0, y: 0 });
 
   // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
   useEffect(() => {
@@ -146,17 +150,26 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     return posMap;
   }, [matchState?.map, initialMap]);
 
-  // Auto-center on player city on mobile when it changes
-  useEffect(() => {
-    if (playerCity && cityPos.has(playerCity) && window.innerWidth < 600) {
+  const handleRecenter = useCallback(() => {
+    if (playerCity && cityPos.has(playerCity)) {
       const pos = cityPos.get(playerCity)!;
       setViewBox(prev => ({
         ...prev,
         x: pos.x - prev.w / 2,
         y: pos.y - prev.h / 2,
       }));
+    } else {
+      // Default center
+      setViewBox({ x: 0, y: 0, w: SVG_W, h: SVG_H });
     }
-  }, [playerCity, cityPos]);
+  }, [playerCity, cityPos, SVG_W, SVG_H]);
+
+  // Auto-center on player city on mobile when it changes or on mount
+  useEffect(() => {
+    if (window.innerWidth < 600) {
+      handleRecenter();
+    }
+  }, [playerCity, handleRecenter]);
 
   // Intel popup cities
   // const intelCitySet = useMemo(() => {
@@ -317,19 +330,31 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     webSocketClient.send(ClientMessageType.PLAYER_ACTION, payload);
     setSelectedCity(null);
     setHighlightedCity(null);
-  }, [webSocketClient]);
+    setActionTooltip(null);
+  }, [webSocketClient, setActionTooltip]);
 
   const sendEndTurn = useCallback(() => {
     webSocketClient.send(ClientMessageType.END_TURN, {});
-  }, [webSocketClient]);
+    setActionTooltip(null);
+  }, [webSocketClient, setActionTooltip]);
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.lock) {
+          await orientation.lock('landscape').catch(() => {});
+        }
+      } else {
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          orientation.unlock();
+        }
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
     }
   };
 
@@ -345,44 +370,115 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     }
   }, [highlightedCity, playerCity]);
 
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = false;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    lastPos.current = { x: clientX, y: clientY };
+    lastPos.current = { x: e.clientX, y: e.clientY };
     window.addEventListener('mousemove', handleMouseMove as any);
     window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchmove', handleMouseMove as any);
-    window.addEventListener('touchend', handleMouseUp);
   };
 
-  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    const dx = clientX - lastPos.current.x;
-    const dy = clientY - lastPos.current.y;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const dx = e.clientX - lastPos.current.x;
+    const dy = e.clientY - lastPos.current.y;
 
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       isDragging.current = true;
     }
 
     if (isDragging.current) {
-      // Scale movement by zoom level
-      const scale = viewBox.w / (window.innerWidth * 0.8); // approximate
+      const scale = viewBox.w / window.innerWidth;
       setViewBox(prev => ({
         ...prev,
         x: prev.x - dx * scale,
         y: prev.y - dy * scale,
       }));
-      lastPos.current = { x: clientX, y: clientY };
+      lastPos.current = { x: e.clientX, y: e.clientY };
     }
   };
 
   const handleMouseUp = () => {
     window.removeEventListener('mousemove', handleMouseMove as any);
     window.removeEventListener('mouseup', handleMouseUp);
-    window.removeEventListener('touchmove', handleMouseMove as any);
-    window.removeEventListener('touchend', handleMouseUp);
+  };
+
+  // Touch handlers for multi-touch (pinch) and panning
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      isDragging.current = false;
+      isPinching.current = false;
+      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      isPinching.current = true;
+      isDragging.current = false;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      lastTouchDist.current = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      lastTouchCenter.current = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && !isPinching.current) {
+      const dx = e.touches[0].clientX - lastPos.current.x;
+      const dy = e.touches[0].clientY - lastPos.current.y;
+
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        isDragging.current = true;
+      }
+
+      if (isDragging.current) {
+        const scale = viewBox.w / window.innerWidth;
+        setViewBox(prev => ({
+          ...prev,
+          x: prev.x - dx * scale,
+          y: prev.y - dy * scale,
+        }));
+        lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    } else if (e.touches.length === 2) {
+      e.preventDefault(); // Prevent browser zoom
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const center = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+
+      if (lastTouchDist.current > 0) {
+        const zoomRatio = lastTouchDist.current / dist;
+        const newW = Math.min(SVG_W * 2, Math.max(SVG_W / 4, viewBox.w * zoomRatio));
+        const newH = newW * (SVG_H / SVG_W);
+
+        // Adjust X/Y to zoom towards center point
+        // Calculate SVG coordinates of the touch center
+        const svgRect = e.currentTarget.getBoundingClientRect();
+        const svgCenterX = ((center.x - svgRect.left) / svgRect.width) * viewBox.w + viewBox.x;
+        const svgCenterY = ((center.y - svgRect.top) / svgRect.height) * viewBox.h + viewBox.y;
+
+        const newX = svgCenterX - ((center.x - svgRect.left) / svgRect.width) * newW;
+        const newY = svgCenterY - ((center.y - svgRect.top) / svgRect.height) * newH;
+
+        setViewBox({
+          x: newX,
+          y: newY,
+          w: newW,
+          h: newH
+        });
+      }
+
+      lastTouchDist.current = dist;
+      lastTouchCenter.current = center;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    isPinching.current = false;
+    lastTouchDist.current = 0;
   };
 
   const handleCityClick = useCallback((cityId: string, e: React.MouseEvent) => {
@@ -442,7 +538,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     );
   }
 
-  const knownOppName = map.cities.find(c => c.id === knownOpp)?.name || knownOpp || 'UNKNOWN';
 
   return (
     <div className="game-container">
@@ -475,7 +570,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             onMouseLeave={() => setActionTooltip(null)}
             title="Toggle Fullscreen"
           >
-            <span className="material-symbols-outlined">fullscreen</span>
+            <span className="material-symbols-outlined">
+              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+            </span>
           </button>
           <button
             className="help-btn-header"
@@ -508,7 +605,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             preserveAspectRatio="xMidYMid meet"
             onClick={handleMapClick}
             onMouseDown={handleMouseDown}
-            onTouchStart={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             style={{ cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
           >
             {/* Aegis Terminal Background Map */}
@@ -707,87 +806,99 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               }}>✕</button>
             </div>
           )}
+          {/* Recenter Button */}
+          <button
+            className="recenter-btn"
+            onClick={handleRecenter}
+            onMouseEnter={() => setActionTooltip('RECENTER: Focus on your operative.')}
+            onMouseLeave={() => setActionTooltip(null)}
+          >
+            <span className="material-symbols-outlined">my_location</span>
+          </button>
+
+          {/* Tactical Log Overlay (Bottom Left) */}
+          <div className="tactical-log-overlay">
+            <div className="log-header">TACTICAL LOG</div>
+            <div className="log-content">
+              {notifications.length === 0 ? (
+                <div className="log-empty">&gt; AWAITING INTEL...</div>
+              ) : (
+                [...notifications].slice(-5).reverse().map((n, i) => (
+                  <div key={n.id} className={`log-entry ${n.type || ''} ${i === 0 ? 'latest' : ''}`}>
+                    <span className="log-turn">T{n.turn}</span>
+                    <span className="log-text">{n.text}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <button
+            className="panel-toggle-btn"
+            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+          >
+            <span className="material-symbols-outlined">
+              {isPanelCollapsed ? 'chevron_right' : 'chevron_left'}
+            </span>
+          </button>
         </div>
 
-        {/* ── Side Panel ─── */}
-        <div className="game-panel">
-          <div className="panel-section">
-            <div className="panel-section-title">Agent</div>
-            <div className="panel-stat">
-              <span>Intel</span>
-              <span className="panel-stat-value intel">{matchState.player.intel}</span>
+        {/* ── Side Panel (Thin/Symbolic) ─── */}
+        <div className={`game-panel thin ${isPanelCollapsed ? 'collapsed' : ''}`}>
+          {/* Agent Section */}
+          <div className="panel-group" title="AGENT STATUS">
+            <div className="panel-symbol-large" title={`Intel: ${matchState.player.intel}`}>
+              <span className="material-symbols-outlined intel-icon">monitoring</span>
+              <div className="symbol-value">{matchState.player.intel}</div>
             </div>
-            <div className="panel-stat">
-              <span>Cover</span>
-              <span className="panel-stat-value">{matchState.player.hasCover ? 'ACTIVE' : 'EXPOSED'}</span>
+            
+            <div className="panel-symbol" title={matchState.player.hasCover ? 'COVER: ACTIVE' : 'COVER: EXPOSED'}>
+              <span className={`material-symbols-outlined ${matchState.player.hasCover ? 'active' : 'warn'}`}>
+                {matchState.player.hasCover ? 'security' : 'warning'}
+              </span>
             </div>
-            <div className="panel-stat">
-              <span>Location</span>
-              <span className="panel-stat-value">{map.cities.find(c => c.id === playerCity)?.name || playerCity}</span>
+
+            <div className="symbol-divider"></div>
+
+            <div className="panel-symbol" title={`Strike Report: ${matchState.player.strikeReportUnlocked ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.strikeReportUnlocked ? 'active' : 'dimmed'}`}>
+                plagiarism
+              </span>
             </div>
-            <div className="panel-stat" title="Monitors opponent strike attempts">
-              <span>Strike Report</span>
-              <span className={`panel-stat-value ${matchState.player.strikeReportUnlocked ? '' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.strikeReportUnlocked ? 'security' : 'shield'}
-                </span>
-                {matchState.player.strikeReportUnlocked ? 'ACTIVE' : 'OFFLINE'}
+            
+            <div className="panel-symbol" title={`Encryption: ${matchState.player.encryptionUnlocked ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.encryptionUnlocked ? 'active' : 'dimmed'}`}>
+                enhanced_encryption
+              </span>
+            </div>
+            
+            <div className="panel-symbol" title={`Rapid Recon: ${matchState.player.rapidReconUnlocked ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.rapidReconUnlocked ? 'active' : 'dimmed'}`}>
+                radar
               </span>
             </div>
           </div>
 
-          <div className="panel-section">
-            <div className="panel-section-title">Opponent</div>
-            <div className="panel-stat">
-              <span>Name</span>
-              <span className="panel-stat-value">{matchState.opponentName || '???'}</span>
-            </div>
-            <div className="panel-stat">
-              <span>Known Location</span>
-              <span className="panel-stat-value">{knownOppName}</span>
-            </div>
-            <div className="panel-stat" title="Monitors your strike attempts">
-              <span>Strike Report</span>
-              <span className={`panel-stat-value ${matchState.player.opponentStrikeReportActive ? 'active-warn' : 'dimmed'}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
-                  {matchState.player.opponentStrikeReportActive ? 'security' : 'shield'}
-                </span>
-                {matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}
+          <div className="section-divider"></div>
+
+          {/* Opponent Section */}
+          <div className="panel-group" title="OPPONENT STATUS">
+            <div className="panel-symbol" title={`Opponent Strike Report: ${matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.opponentStrikeReportActive ? 'warn' : 'dimmed'}`}>
+                plagiarism
               </span>
             </div>
-          </div>
-
-          <div className="panel-section">
-            <div className="panel-section-title">Abilities</div>
-            {matchState.player.abilities.map(a => (
-              <div key={a} style={{ fontSize: 11, padding: '2px 0', color: '#c1fffe' }}>{a.replace('_', ' ')}</div>
-            ))}
-            {matchState.player.abilities.length === 0 && (
-              <div style={{ fontSize: 11, color: '#555' }}>No abilities available</div>
-            )}
-          </div>
-
-          <div className="panel-section" style={{ flex: 1 }}>
-            <div className="panel-section-title">Intel Log</div>
-            <div className="notification-list">
-              {notifications.length === 0 ? (
-                <div style={{ opacity: 0.4 }}>&gt; AWAITING INTEL...</div>
-              ) : (
-                [...notifications].reverse().map((n, i) => {
-                  const isLatest = i === 0;
-                  const isIrrelevant = n.turn < matchState.turnNumber;
-                  const prefix = n.type === 'warning' ? '⚠ ' : n.type === 'error' ? '✗ ' : '› ';
-                  return (
-                    <div
-                      key={n.id}
-                      className={`notification-item ${n.type || ''} ${isLatest ? 'latest' : ''} ${isIrrelevant ? 'irrelevant' : ''}`}
-                    >
-                      {isLatest && <span className="latest-tag">NEW</span>}
-                      <span className="notification-turn">T{n.turn}</span> {prefix}{n.text}
-                    </div>
-                  );
-                })
-              )}
+            
+            <div className="panel-symbol" title={`Opponent Encryption: ${matchState.player.opponentEncryptionActive ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.opponentEncryptionActive ? 'warn' : 'dimmed'}`}>
+                enhanced_encryption
+              </span>
+            </div>
+            
+            <div className="panel-symbol" title={`Opponent Rapid Recon: ${matchState.player.opponentRapidReconActive ? 'ACTIVE' : 'OFFLINE'}`}>
+              <span className={`material-symbols-outlined ${matchState.player.opponentRapidReconActive ? 'warn' : 'dimmed'}`}>
+                radar
+              </span>
             </div>
           </div>
         </div>
@@ -849,6 +960,17 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <span className="btn-cost">20</span>
           </button>
         </div>
+        <div onMouseEnter={() => setActionTooltip('PREP MISSION: Gain an extra action next turn. Must be last action. Cannot use in opponent city. Costs 40 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
+          <button
+            className="action-btn"
+            disabled={!canActBtn || matchState.player.intel < 40}
+            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.PREP_MISSION)}
+          >
+            <span className="material-symbols-outlined">add_task</span>
+            <span className="btn-label">PREP MISSION</span>
+            <span className="btn-cost">40</span>
+          </button>
+        </div>
         <div onMouseEnter={() => setActionTooltip('STRIKE REPORT: Reveal the opponent\'s location if they attempt a strike. Costs 10 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
@@ -880,17 +1002,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             <span className="material-symbols-outlined">radar</span>
             <span className="btn-label">{matchState.player.rapidReconUnlocked ? 'RECON ACTIVE' : 'RAPID RECON'}</span>
             {!matchState.player.rapidReconUnlocked && <span className="btn-cost">40</span>}
-          </button>
-        </div>
-        <div onMouseEnter={() => setActionTooltip('PREP MISSION: Gain an extra action next turn. Must be last action. Cannot use in opponent city. Costs 40 Intel.')} onMouseLeave={() => setActionTooltip(null)}>
-          <button
-            className="action-btn"
-            disabled={!canActBtn || matchState.player.intel < 40}
-            onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.PREP_MISSION)}
-          >
-            <span className="material-symbols-outlined">add_task</span>
-            <span className="btn-label">PREP MISSION</span>
-            <span className="btn-cost">40</span>
           </button>
         </div>
         <div onMouseEnter={() => setActionTooltip('END TURN: Pass control to the opponent. Gain +4 Intel.')} onMouseLeave={() => setActionTooltip(null)}>

@@ -130,6 +130,8 @@ json serialize_match_state(const std::string& session_id,
 
     player_state["opponentUnlockedStrikeReport"] = p.opponent_unlocked_strike_report;
     player_state["opponentStrikeReportActive"] = opp.strike_report_unlocked;
+    player_state["opponentEncryptionActive"] = opp.encryption_unlocked;
+    player_state["opponentRapidReconActive"] = opp.rapid_recon_unlocked;
     
     // Include player action feedback
     fprintf(stderr, "[!!!] Serializing: player=%s locate_blocked=%d\n",

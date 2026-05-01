@@ -58,7 +58,7 @@ services:
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
       - "traefik.http.services.frontend.loadbalancer.server.port=4173"
+
 networks:
   spies-network:
-    name: spies-network
-    driver: bridge
+    external: true

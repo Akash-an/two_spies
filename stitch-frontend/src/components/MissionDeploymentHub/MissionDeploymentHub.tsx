@@ -75,6 +75,26 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
     onTerminateLink?.();
     setShowGeneratedFrequencyModal(false);
   };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.lock) {
+          await orientation.lock('landscape').catch(() => {});
+        }
+      } else {
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          orientation.unlock();
+        }
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
+    }
+  };
   return (
     <div className={`bg-surface text-on-surface min-h-screen flex flex-col ${className}`}>
       {/* Scanline overlay */}
@@ -102,6 +122,15 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           </div>
           <button
             className="help-btn-header"
+            onClick={toggleFullscreen}
+            title="Toggle Tactical View"
+          >
+            <span className="material-symbols-outlined">
+              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+            </span>
+          </button>
+          <button
+            className="help-btn-header"
             onClick={onOpenHowToPlay}
             onMouseEnter={() => setActionTooltip?.('HOW TO PLAY: Open field manual and mission objectives.')}
             onMouseLeave={() => setActionTooltip?.(null)}
@@ -113,7 +142,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </header>
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-16 h-[calc(100vh-64px)] ${mobileMenuOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} md:w-60 lg:w-72 md:translate-x-0 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 md:p-6 space-y-8 z-40 overflow-hidden md:overflow-y-auto transition-all duration-300`}>
+      <aside className={`fixed left-0 top-16 h-[calc(100vh-64px)] ${mobileMenuOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} md:w-60 lg:w-72 md:translate-x-0 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 md:p-6 space-y-8 z-40 overflow-y-auto transition-all duration-300`}>
         <div className="space-y-1">
           <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Agent</p>
           <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
@@ -141,13 +170,13 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </aside>
 
       {/* Main Canvas */}
-      <main className="ml-0 md:ml-60 lg:ml-72 pt-16 pb-20 h-screen overflow-hidden relative flex flex-col transition-all duration-300">
+      <main className="ml-0 md:ml-60 lg:ml-72 pt-16 pb-20 h-screen overflow-y-auto relative flex flex-col transition-all duration-300">
         {/* Strategic Background */}
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
           <div className="w-full h-full bg-gradient-to-t from-surface via-transparent to-surface" />
         </div>
 
-        <div className="relative z-10 h-full p-4 md:p-12 flex flex-col">
+        <div className="relative z-10 min-h-full p-4 md:p-12 flex flex-col">
           {/* Hero Modules Container */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto w-full my-auto">
             {/* INITIATE OPERATION */}

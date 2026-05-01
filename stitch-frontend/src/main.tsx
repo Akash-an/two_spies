@@ -8,6 +8,7 @@ import { ClientMessageType, ServerMessageType } from './types/Messages';
 import type { PlayerSide } from './types/Messages';
 import './styles/index.css';
 import HowToPlayOverlay from './components/PhaserGame/HowToPlayOverlay';
+import OrientationGuard from './components/OrientationGuard/OrientationGuard';
 
 type GamePhase = 'entering-name' | 'deployment' | 'playing';
 
@@ -31,19 +32,31 @@ function App() {
   const [showHowToPlay, setShowHowToPlay] = useState<boolean>(false);
   const [actionTooltip, setActionTooltip] = useState<string | null>(null);
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSetActionTooltip = (text: string | null) => {
-    // Clear any pending timer
+    // Clear any pending show/hide timers
     if (tooltipTimerRef.current) {
       clearTimeout(tooltipTimerRef.current);
       tooltipTimerRef.current = null;
     }
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
 
     if (text) {
-      // Set a new timer for 1 second
+      // Set a new timer for 1 second to show (peek effect)
       tooltipTimerRef.current = setTimeout(() => {
         setActionTooltip(text);
         tooltipTimerRef.current = null;
+
+        // On mobile/touch specifically, we want an auto-dismiss
+        // But let's apply it globally for safety: clear after 4s
+        dismissTimerRef.current = setTimeout(() => {
+          setActionTooltip(null);
+          dismissTimerRef.current = null;
+        }, 4000);
       }, 1000);
     } else {
       // Clear immediately if mouse leaves
@@ -208,6 +221,7 @@ function App() {
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
+      <OrientationGuard />
       {phase === 'entering-name' && (
         <CodenameAuthorizationTerminal
           operativeCodename={playerName}
