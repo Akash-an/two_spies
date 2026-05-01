@@ -8,6 +8,7 @@ import { ClientMessageType, ServerMessageType } from './types/Messages';
 import type { PlayerSide } from './types/Messages';
 import './styles/index.css';
 import HowToPlayOverlay from './components/PhaserGame/HowToPlayOverlay';
+import OrientationGuard from './components/OrientationGuard/OrientationGuard';
 
 type GamePhase = 'entering-name' | 'deployment' | 'playing';
 
@@ -208,6 +209,7 @@ function App() {
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
+      <OrientationGuard />
       {phase === 'entering-name' && (
         <CodenameAuthorizationTerminal
           operativeCodename={playerName}

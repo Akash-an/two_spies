@@ -336,13 +336,19 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     webSocketClient.send(ClientMessageType.END_TURN, {});
   }, [webSocketClient]);
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.lock) {
+          await orientation.lock('landscape').catch(() => {});
+        }
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
     }
   };
 
