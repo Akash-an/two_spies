@@ -345,6 +345,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           await orientation.lock('landscape').catch(() => {});
         }
       } else {
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          orientation.unlock();
+        }
         await document.exitFullscreen();
       }
     } catch (err) {
@@ -564,7 +568,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             onMouseLeave={() => setActionTooltip(null)}
             title="Toggle Fullscreen"
           >
-            <span className="material-symbols-outlined">fullscreen</span>
+            <span className="material-symbols-outlined">
+              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+            </span>
           </button>
           <button
             className="help-btn-header"
@@ -840,7 +846,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           {/* Agent Section */}
           <div className="panel-group" title="AGENT STATUS">
             <div className="panel-symbol-large" title={`Intel: ${matchState.player.intel}`}>
-              <span className="material-symbols-outlined intel-icon">database</span>
+              <span className="material-symbols-outlined intel-icon">monitoring</span>
               <div className="symbol-value">{matchState.player.intel}</div>
             </div>
             

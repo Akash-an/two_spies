@@ -75,6 +75,26 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
     onTerminateLink?.();
     setShowGeneratedFrequencyModal(false);
   };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.lock) {
+          await orientation.lock('landscape').catch(() => {});
+        }
+      } else {
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          orientation.unlock();
+        }
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
+    }
+  };
   return (
     <div className={`bg-surface text-on-surface min-h-screen flex flex-col ${className}`}>
       {/* Scanline overlay */}
@@ -100,6 +120,15 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <div className="bg-primary-container/10 px-4 py-1 border border-primary/30">
             <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter">STATUS: ACTIVE</span>
           </div>
+          <button
+            className="help-btn-header"
+            onClick={toggleFullscreen}
+            title="Toggle Tactical View"
+          >
+            <span className="material-symbols-outlined">
+              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+            </span>
+          </button>
           <button
             className="help-btn-header"
             onClick={onOpenHowToPlay}

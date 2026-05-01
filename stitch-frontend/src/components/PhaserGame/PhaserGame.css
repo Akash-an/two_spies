@@ -338,6 +338,7 @@
   color: #00ffff;
   position: relative;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .panel-symbol-large:hover {
@@ -352,12 +353,11 @@
 }
 
 .intel-icon {
-  color: #fe9800;
-  font-size: 20px;
+  font-size: 22px; /* Slightly larger to balance the new number size */
 }
 
 .symbol-value {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 900;
   font-family: 'JetBrains Mono', monospace;
   margin-top: -2px;
@@ -369,8 +369,21 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  cursor: help;
+  cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.panel-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+/* Ensure all interactive elements with tooltips in the side panel use the pointer cursor */
+.game-panel [title] {
+  cursor: pointer !important;
 }
 
 .panel-symbol span {
@@ -623,10 +636,12 @@
 }
 
 .action-btn:disabled {
-  opacity: 0.2;
+  opacity: 0.3;
   filter: grayscale(1);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
   cursor: not-allowed;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .action-btn.active {
