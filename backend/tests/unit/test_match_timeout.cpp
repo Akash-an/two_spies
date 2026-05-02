@@ -78,8 +78,8 @@ void test_timeout_not_triggered_before_timeout() {
     // Add two players
     auto red_side = match.add_player("red_player");
     auto blue_side = match.add_player("blue_player");
-    assert(red_side == PlayerSide::RED);
-    assert(blue_side == PlayerSide::BLUE);
+    assert(red_side == PlayerSide::ALPHA);
+    assert(blue_side == PlayerSide::BETA);
     
     // Start the match
     match.start(42);  // deterministic seed
@@ -103,8 +103,8 @@ void test_timeout_detected_after_duration() {
     // Add two players
     auto red_side = match.add_player("red_player_2");
     auto blue_side = match.add_player("blue_player_2");
-    assert(red_side == PlayerSide::RED);
-    assert(blue_side == PlayerSide::BLUE);
+    assert(red_side == PlayerSide::ALPHA);
+    assert(blue_side == PlayerSide::BETA);
     
     // Start the match
     match.start(43);
@@ -139,10 +139,10 @@ void test_timeout_transfers_control_with_messages() {
     // Add two players
     auto red_side = match.add_player("red_player_3");
     auto blue_side = match.add_player("blue_player_3");
-    assert(red_side == PlayerSide::RED);
-    assert(blue_side == PlayerSide::BLUE);
+    assert(red_side == PlayerSide::ALPHA);
+    assert(blue_side == PlayerSide::BETA);
     
-    // Start the match (RED starts first)
+    // Start the match (ALPHA starts first)
     match.start(44);
     capture.clear();  // Clear initial messages
     
@@ -164,9 +164,9 @@ void test_timeout_transfers_control_with_messages() {
     
     // Verify both players received TURN_CHANGE
     assert(capture.has_turn_change_for_player("red_player_3") &&
-           "RED player should receive TURN_CHANGE");
+           "ALPHA player should receive TURN_CHANGE");
     assert(capture.has_turn_change_for_player("blue_player_3") &&
-           "BLUE player should receive TURN_CHANGE");
+           "BETA player should receive TURN_CHANGE");
     
     // Verify the TURN_CHANGE payload includes "timeout" reason
     bool found_timeout_reason = false;
@@ -243,26 +243,26 @@ void test_timeout_resets_timer_for_next_player() {
     match.start(46);
     capture.clear();
     
-    // Wait for RED's timeout
-    std::cout << "(waiting for RED timeout) ";
+    // Wait for ALPHA's timeout
+    std::cout << "(waiting for ALPHA timeout) ";
     std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     bool red_timeout = match.check_turn_timeout();
     assert(red_timeout);
     match.handle_turn_timeout();
     
-    // Now control has switched to BLUE
+    // Now control has switched to BETA
     // If we immediately check timeout, it should be false because the timer was just reset
     bool blue_immediate_timeout = match.check_turn_timeout();
     assert(!blue_immediate_timeout &&
            "After timeout transfer, new player should NOT have immediate timeout");
     
-    // If we wait another ~30 seconds, BLUE should timeout
-    std::cout << "(waiting for BLUE timeout) ";
+    // If we wait another ~30 seconds, BETA should timeout
+    std::cout << "(waiting for BETA timeout) ";
     std::this_thread::sleep_for(std::chrono::milliseconds(30100));
     
     bool blue_timeout = match.check_turn_timeout();
-    assert(blue_timeout && "After 30s, BLUE should timeout");
+    assert(blue_timeout && "After 30s, BETA should timeout");
     
     std::cout << "OK\n";
 }

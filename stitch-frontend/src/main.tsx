@@ -221,7 +221,7 @@ function App() {
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
-      <OrientationGuard />
+      {phase === 'playing' && <OrientationGuard allowDismiss={true} />}
       {phase === 'entering-name' && (
         <CodenameAuthorizationTerminal
           operativeCodename={playerName}

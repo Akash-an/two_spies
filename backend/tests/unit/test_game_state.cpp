@@ -10,6 +10,14 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <unordered_set>
+#include "game/Match.hpp"
+
+#define REQUIRE(cond) \
+    if (!(cond)) { \
+        std::cerr << "Requirement failed: " << #cond << " at " << __FILE__ << ":" << __LINE__ << std::endl; \
+        std::exit(1); \
+    }
 
 using namespace two_spies::game;
 
@@ -20,6 +28,7 @@ void test_timeout_transfers_control_with_messages();
 void test_timeout_forfeits_remaining_actions();
 void test_timeout_resets_timer_for_next_player();
 void test_match_auto_end_turn();
+void test_powerup_no_stacking();
 
 static MapDef test_map() {
     MapDef map;
@@ -50,10 +59,33 @@ static void test_starting_cities() {
     std::cout << "  test_starting_cities... ";
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
-    assert(gs.player(PlayerSide::RED).current_city == "london");
-    assert(gs.player(PlayerSide::BLUE).current_city == "moscow");
+    assert(gs.player(PlayerSide::ALPHA).current_city == "london");
+    assert(gs.player(PlayerSide::BETA).current_city == "moscow");
     assert(gs.turn_number() == 1);
-    assert(gs.current_turn() == PlayerSide::RED);
+    std::cout << "OK\n";
+}
+
+static void test_starting_turn_randomization() {
+    std::cout << "  test_starting_turn_randomization... ";
+    
+    std::unordered_set<PlayerSide> starting_sides;
+    
+    // Run multiple matches with different seeds to see if both players get a turn
+    for (unsigned int seed = 0; seed < 100; ++seed) {
+        Match match("test-session", test_map(), [](const std::string&, const std::string&){});
+        match.add_player("p1"); // ALPHA
+        match.add_player("p2"); // BETA
+        
+        match.start(seed);
+        starting_sides.insert(match.state().current_turn());
+        
+        if (starting_sides.size() == 2) break;
+    }
+    
+    // Verify that we saw both ALPHA and BETA start at least once
+    assert(starting_sides.count(PlayerSide::ALPHA) > 0);
+    assert(starting_sides.count(PlayerSide::BETA) > 0);
+    
     std::cout << "OK\n";
 }
 
@@ -62,14 +94,14 @@ static void test_move_valid() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    auto r = gs.move(PlayerSide::RED, "berlin");
+    auto r = gs.move(PlayerSide::ALPHA, "berlin");
     if (!r.ok) {
         std::cerr << "Move failed: " << r.error << std::endl;
     }
     assert(r.ok);
-    assert(gs.player(PlayerSide::RED).current_city == "berlin");
-    assert(gs.player(PlayerSide::RED).actions_remaining == 1);
-    assert(gs.player(PlayerSide::RED).has_cover == true);
+    assert(gs.player(PlayerSide::ALPHA).current_city == "berlin");
+    assert(gs.player(PlayerSide::ALPHA).actions_remaining == 1);
+    assert(gs.player(PlayerSide::ALPHA).has_cover == true);
     std::cout << "OK\n";
 }
 
@@ -78,10 +110,10 @@ static void test_move_not_adjacent() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    auto r = gs.move(PlayerSide::RED, "moscow");
+    auto r = gs.move(PlayerSide::ALPHA, "moscow");
     assert(!r.ok);
     assert(!r.error.empty());
-    assert(gs.player(PlayerSide::RED).current_city == "london");
+    assert(gs.player(PlayerSide::ALPHA).current_city == "london");
     std::cout << "OK\n";
 }
 
@@ -90,7 +122,7 @@ static void test_move_wrong_turn() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    auto r = gs.move(PlayerSide::BLUE, "cairo");
+    auto r = gs.move(PlayerSide::BETA, "cairo");
     assert(!r.ok);
     assert(r.error == "Not your turn.");
     std::cout << "OK\n";
@@ -101,17 +133,17 @@ static void test_strike_hit() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED moves to berlin, then moscow
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "moscow");
+    // ALPHA moves to berlin, then moscow
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "moscow");
 
-    // RED strikes where they are (moscow), where BLUE is — HIT
-    auto r = gs.strike(PlayerSide::RED, "moscow");
+    // ALPHA strikes where they are (moscow), where BETA is — HIT
+    auto r = gs.strike(PlayerSide::ALPHA, "moscow");
     assert(r.ok);
     assert(r.game_over);
-    assert(r.winner == PlayerSide::RED);
+    assert(r.winner == PlayerSide::ALPHA);
     assert(gs.is_game_over());
     std::cout << "OK\n";
 }
@@ -121,14 +153,14 @@ static void test_strike_miss() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED strikes london — MISS (BLUE is in moscow)
-    auto r = gs.strike(PlayerSide::RED, "london");
+    // ALPHA strikes london — MISS (BETA is in moscow)
+    auto r = gs.strike(PlayerSide::ALPHA, "london");
     assert(r.ok);
     assert(!r.game_over);
     // Striker LOSES cover on a failed strike
-    assert(!gs.player(PlayerSide::RED).has_cover);
+    assert(!gs.player(PlayerSide::ALPHA).has_cover);
     // Opponent is notified a strike was attempted
-    assert(gs.player(PlayerSide::BLUE).opponent_used_strike);
+    assert(gs.player(PlayerSide::BETA).opponent_used_strike);
     std::cout << "OK\n";
 }
 
@@ -138,11 +170,11 @@ static void test_strike_miss_does_not_reveal_location_without_report() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED is in london, strikes (misses)
-    gs.strike(PlayerSide::RED, "london");  // MISS
+    // ALPHA is in london, strikes (misses)
+    gs.strike(PlayerSide::ALPHA, "london");  // MISS
 
-    // BLUE MUST NOT have learned where RED is
-    assert(gs.player(PlayerSide::BLUE).known_opponent_city == "");
+    // BETA MUST NOT have learned where ALPHA is
+    assert(gs.player(PlayerSide::BETA).known_opponent_city == "");
     std::cout << "OK\n";
 }
 
@@ -152,25 +184,25 @@ static void test_strike_report_ability_reveals_location() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // Give BLUE enough Intel to unlock Strike Report (costs 10)
-    gs.player_mut(PlayerSide::BLUE).intel = 10;
+    // Give BETA enough Intel to unlock Strike Report (costs 10)
+    gs.player_mut(PlayerSide::BETA).intel = 10;
     
-    // RED ends turn so it's BLUE's turn
-    gs.end_turn(PlayerSide::RED);
+    // ALPHA ends turn so it's BETA's turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE unlocks Strike Report
-    auto r1 = gs.use_ability(PlayerSide::BLUE, AbilityId::STRIKE_REPORT, "");
+    // BETA unlocks Strike Report
+    auto r1 = gs.use_ability(PlayerSide::BETA, AbilityId::STRIKE_REPORT, "");
     assert(r1.ok);
-    assert(gs.player(PlayerSide::BLUE).strike_report_unlocked);
+    assert(gs.player(PlayerSide::BETA).strike_report_unlocked);
     
-    // BLUE ends turn
-    gs.end_turn(PlayerSide::BLUE);
+    // BETA ends turn
+    gs.end_turn(PlayerSide::BETA);
     
-    // RED is in london, strikes (misses)
-    gs.strike(PlayerSide::RED, "london");  // MISS
+    // ALPHA is in london, strikes (misses)
+    gs.strike(PlayerSide::ALPHA, "london");  // MISS
 
-    // BLUE MUST have learned where RED is (london) because they have Strike Report unlocked
-    assert(gs.player(PlayerSide::BLUE).known_opponent_city == "london");
+    // BETA MUST have learned where ALPHA is (london) because they have Strike Report unlocked
+    assert(gs.player(PlayerSide::BETA).known_opponent_city == "london");
     std::cout << "OK\n";
 }
 
@@ -180,20 +212,20 @@ static void test_strike_hit_no_spurious_notification() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED moves to moscow
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "moscow");
+    // ALPHA moves to moscow
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "moscow");
 
-    // RED strikes moscow where BLUE actually is — HIT
-    auto r = gs.strike(PlayerSide::RED, "moscow");
+    // ALPHA strikes moscow where BETA actually is — HIT
+    auto r = gs.strike(PlayerSide::ALPHA, "moscow");
     assert(r.ok);
     assert(r.game_over);
-    assert(r.winner == PlayerSide::RED);
+    assert(r.winner == PlayerSide::ALPHA);
     // A hit ends the game immediately; the notification flag is irrelevant but
     // must not be set (the opponent has already lost — no banner needed).
-    assert(!gs.player(PlayerSide::BLUE).opponent_used_strike);
+    assert(!gs.player(PlayerSide::BETA).opponent_used_strike);
     std::cout << "OK\n";
 }
 
@@ -202,13 +234,13 @@ static void test_end_turn() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    auto r = gs.end_turn(PlayerSide::RED);
+    auto r = gs.end_turn(PlayerSide::ALPHA);
     assert(r.ok);
-    assert(gs.current_turn() == PlayerSide::BLUE);
+    assert(gs.current_turn() == PlayerSide::BETA);
     assert(gs.turn_number() == 2);
-    assert(gs.player(PlayerSide::BLUE).actions_remaining == 2);
-    // RED gets Intel: base 1 + bonus (london is bonus) = 2 + 2 = 4
-    assert(gs.player(PlayerSide::RED).intel >= 3);
+    assert(gs.player(PlayerSide::BETA).actions_remaining == 2);
+    // ALPHA gets Intel: base 1 + bonus (london is bonus) = 2 + 2 = 4
+    assert(gs.player(PlayerSide::ALPHA).intel >= 3);
     std::cout << "OK\n";
 }
 
@@ -220,14 +252,14 @@ static void test_intel_base_increase_no_movement() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    int initial_intel = gs.player(PlayerSide::RED).intel;
+    int initial_intel = gs.player(PlayerSide::ALPHA).intel;
     assert(initial_intel == 2);  // Starting Intel is 2
 
-    // RED ends turn WITHOUT moving
-    auto r = gs.end_turn(PlayerSide::RED);
+    // ALPHA ends turn WITHOUT moving
+    auto r = gs.end_turn(PlayerSide::ALPHA);
     assert(r.ok);
 
-    int final_intel = gs.player(PlayerSide::RED).intel;
+    int final_intel = gs.player(PlayerSide::ALPHA).intel;
     assert(final_intel == initial_intel + 4);  // Should be 2 + 4 = 6
     std::cout << "OK\n";
 }
@@ -237,19 +269,19 @@ static void test_intel_no_bonus_on_timeout() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    int initial_intel = gs.player(PlayerSide::RED).intel;
+    int initial_intel = gs.player(PlayerSide::ALPHA).intel;
     assert(initial_intel == 2);
 
-    // RED moves to a new city
-    auto move_r = gs.move(PlayerSide::RED, "berlin");
+    // ALPHA moves to a new city
+    auto move_r = gs.move(PlayerSide::ALPHA, "berlin");
     assert(move_r.ok);
-    assert(gs.player(PlayerSide::RED).moved_to_new_city_this_turn == true);
+    assert(gs.player(PlayerSide::ALPHA).moved_to_new_city_this_turn == true);
 
-    // RED's turn times out (skip_exploration_bonus = true)
-    auto timeout_end = gs.end_turn(PlayerSide::RED, true);
+    // ALPHA's turn times out (skip_exploration_bonus = true)
+    auto timeout_end = gs.end_turn(PlayerSide::ALPHA, true);
     assert(timeout_end.ok);
 
-    int final_intel = gs.player(PlayerSide::RED).intel;
+    int final_intel = gs.player(PlayerSide::ALPHA).intel;
     // Should be: initial 2 + base 4 only (NO bonus because skip_exploration_bonus=true)
     assert(final_intel == initial_intel + 4);
     assert(final_intel == 6);
@@ -261,18 +293,18 @@ static void test_intel_with_new_city_movement() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    int initial_intel = gs.player(PlayerSide::RED).intel;
+    int initial_intel = gs.player(PlayerSide::ALPHA).intel;
     assert(initial_intel == 2);
 
-    // RED moves to a NEW city (Berlin is adjacent to London)
-    auto move_r = gs.move(PlayerSide::RED, "berlin");
+    // ALPHA moves to a NEW city (Berlin is adjacent to London)
+    auto move_r = gs.move(PlayerSide::ALPHA, "berlin");
     assert(move_r.ok);
 
-    // RED ends turn
-    auto end_r = gs.end_turn(PlayerSide::RED);
+    // ALPHA ends turn
+    auto end_r = gs.end_turn(PlayerSide::ALPHA);
     assert(end_r.ok);
 
-    int final_intel = gs.player(PlayerSide::RED).intel;
+    int final_intel = gs.player(PlayerSide::ALPHA).intel;
     // Should be: initial 2 + base 4 (end_turn) + exploration bonus 4 = 10
     assert(final_intel == initial_intel + 4 + 4);
     assert(final_intel == 10);
@@ -284,19 +316,19 @@ static void test_intel_no_bonus_revisiting_city() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED: Move to a new city (Berlin)
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);  // 2 + 4 + 4 = 10
+    // ALPHA: Move to a new city (Berlin)
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);  // 2 + 4 + 4 = 10
 
-    // BLUE: Do something
-    gs.end_turn(PlayerSide::BLUE);  // 2 + 4 = 6
+    // BETA: Do something
+    gs.end_turn(PlayerSide::BETA);  // 2 + 4 = 6
 
-    // RED: Move back to starting city (London) — but we already know it
-    int red_intel_before_revisit = gs.player(PlayerSide::RED).intel;
-    gs.move(PlayerSide::RED, "london");
-    gs.end_turn(PlayerSide::RED);
+    // ALPHA: Move back to starting city (London) — but we already know it
+    int red_intel_before_revisit = gs.player(PlayerSide::ALPHA).intel;
+    gs.move(PlayerSide::ALPHA, "london");
+    gs.end_turn(PlayerSide::ALPHA);
 
-    int red_intel_after_revisit = gs.player(PlayerSide::RED).intel;
+    int red_intel_after_revisit = gs.player(PlayerSide::ALPHA).intel;
     // Should be: red_intel_before_revisit + 4 (base only, no bonus because London was already visited)
     assert(red_intel_after_revisit == red_intel_before_revisit + 4);
     std::cout << "OK\n";
@@ -307,19 +339,19 @@ static void test_intel_moved_to_new_city_flag_resets() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED moves to a new city
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);  // Bonus awarded and flag reset
+    // ALPHA moves to a new city
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);  // Bonus awarded and flag reset
 
-    // BLUE takes a turn
-    gs.end_turn(PlayerSide::BLUE);
+    // BETA takes a turn
+    gs.end_turn(PlayerSide::BETA);
 
-    // RED stays in same city and ends turn
-    int intel_before = gs.player(PlayerSide::RED).intel;
-    auto r = gs.end_turn(PlayerSide::RED);  // Should NOT grant bonus again
+    // ALPHA stays in same city and ends turn
+    int intel_before = gs.player(PlayerSide::ALPHA).intel;
+    auto r = gs.end_turn(PlayerSide::ALPHA);  // Should NOT grant bonus again
     assert(r.ok);
 
-    int intel_after = gs.player(PlayerSide::RED).intel;
+    int intel_after = gs.player(PlayerSide::ALPHA).intel;
     // Should be only base +4 (no bonus, because flag was reset)
     assert(intel_after == intel_before + 4);
     std::cout << "OK\n";
@@ -331,33 +363,33 @@ static void test_intel_multiple_turns_accumulation() {
     gs.set_starting_cities("london", "moscow");
 
     // Track total and expected
-    int red_intel = gs.player(PlayerSide::RED).intel;  // Start: 2
+    int red_intel = gs.player(PlayerSide::ALPHA).intel;  // Start: 2
     assert(red_intel == 2);
 
-    // Turn 1: RED moves to new city (Berlin)
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    red_intel = gs.player(PlayerSide::RED).intel;
+    // Turn 1: ALPHA moves to new city (Berlin)
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    red_intel = gs.player(PlayerSide::ALPHA).intel;
     assert(red_intel == 10);  // 2 + 4 (base) + 4 (bonus)
 
-    // Turn 1: BLUE moves to new city (Tokyo)
-    auto r_tokyo = gs.move(PlayerSide::BLUE, "tokyo");
+    // Turn 1: BETA moves to new city (Tokyo)
+    auto r_tokyo = gs.move(PlayerSide::BETA, "tokyo");
     assert(r_tokyo.ok);
-    gs.end_turn(PlayerSide::BLUE);
-    int blue_intel = gs.player(PlayerSide::BLUE).intel;
+    gs.end_turn(PlayerSide::BETA);
+    int blue_intel = gs.player(PlayerSide::BETA).intel;
     assert(blue_intel == 10);  // Same logic
 
-    // Turn 2: RED moves to another new city (Cairo)
-    auto r_cairo_move = gs.move(PlayerSide::RED, "cairo");
+    // Turn 2: ALPHA moves to another new city (Cairo)
+    auto r_cairo_move = gs.move(PlayerSide::ALPHA, "cairo");
     if (!r_cairo_move.ok) {
         std::cerr << "Cairo move failed: " << r_cairo_move.error << std::endl;
     }
     assert(r_cairo_move.ok);
-    gs.end_turn(PlayerSide::RED);
-    red_intel = gs.player(PlayerSide::RED).intel;
+    gs.end_turn(PlayerSide::ALPHA);
+    red_intel = gs.player(PlayerSide::ALPHA).intel;
 
     // Previous red_intel = 10.
-    // RED moves to Cairo (new city), then ends turn.
+    // ALPHA moves to Cairo (new city), then ends turn.
     // Intel gain: 4 (base) + 4 (exploration) = 8
     // New total: 10 + 8 = 18
     assert(red_intel == 18);
@@ -370,11 +402,11 @@ static void test_no_actions_remaining() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    gs.move(PlayerSide::RED, "berlin");
-    gs.move(PlayerSide::RED, "moscow");
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.move(PlayerSide::ALPHA, "moscow");
 
     // Third action should fail
-    auto r = gs.move(PlayerSide::RED, "tokyo");
+    auto r = gs.move(PlayerSide::ALPHA, "tokyo");
     assert(!r.ok);
     assert(r.error == "No actions remaining — end your turn.");
     std::cout << "OK\n";
@@ -410,72 +442,72 @@ static void test_turn_alternation() {
     // london–paris are adjacent; london–moscow are NOT adjacent
     gs.set_starting_cities("london", "moscow");
 
-    // ── Turn 1: RED's turn ───────────────────────────────────────
-    assert(gs.current_turn() == PlayerSide::RED);
+    // ── Turn 1: ALPHA's turn ───────────────────────────────────────
+    assert(gs.current_turn() == PlayerSide::ALPHA);
 
-    // BLUE must NOT be able to act while it is RED's turn
+    // BETA must NOT be able to act while it is ALPHA's turn
     {
-        auto r = gs.move(PlayerSide::BLUE, "cairo");
+        auto r = gs.move(PlayerSide::BETA, "cairo");
         assert(!r.ok);
         assert(r.error == "Not your turn.");
     }
     {
-        auto r = gs.strike(PlayerSide::BLUE, "london");
+        auto r = gs.strike(PlayerSide::BETA, "london");
         assert(!r.ok);
         assert(r.error == "Not your turn.");
     }
     {
-        auto r = gs.end_turn(PlayerSide::BLUE);
+        auto r = gs.end_turn(PlayerSide::BETA);
         assert(!r.ok);
         assert(r.error == "Not your turn.");
     }
 
-    // RED CAN act
+    // ALPHA CAN act
     {
-        auto r = gs.move(PlayerSide::RED, "berlin");
+        auto r = gs.move(PlayerSide::ALPHA, "berlin");
         assert(r.ok);
     }
 
-    // RED ends their turn
+    // ALPHA ends their turn
     {
-        auto r = gs.end_turn(PlayerSide::RED);
+        auto r = gs.end_turn(PlayerSide::ALPHA);
         assert(r.ok);
     }
 
-    // ── Turn 2: BLUE's turn ──────────────────────────────────────
-    assert(gs.current_turn() == PlayerSide::BLUE);
+    // ── Turn 2: BETA's turn ──────────────────────────────────────
+    assert(gs.current_turn() == PlayerSide::BETA);
     assert(gs.turn_number() == 2);
 
-    // RED must NOT be able to act while it is BLUE's turn
+    // ALPHA must NOT be able to act while it is BETA's turn
     {
-        auto r = gs.move(PlayerSide::RED, "nyc");
+        auto r = gs.move(PlayerSide::ALPHA, "nyc");
         assert(!r.ok);
         assert(r.error == "Not your turn.");
     }
     {
-        auto r = gs.end_turn(PlayerSide::RED);
+        auto r = gs.end_turn(PlayerSide::ALPHA);
         assert(!r.ok);
         assert(r.error == "Not your turn.");
     }
 
-    // BLUE CAN act
+    // BETA CAN act
     {
-        auto r = gs.move(PlayerSide::BLUE, "berlin");
+        auto r = gs.move(PlayerSide::BETA, "berlin");
         assert(r.ok);
-        assert(gs.player(PlayerSide::BLUE).current_city == "berlin");
+        assert(gs.player(PlayerSide::BETA).current_city == "berlin");
     }
 
-    // BLUE ends their turn
+    // BETA ends their turn
     {
-        auto r = gs.end_turn(PlayerSide::BLUE);
+        auto r = gs.end_turn(PlayerSide::BETA);
         assert(r.ok);
     }
 
-    // ── Turn 3: back to RED ───────────────────────────────────────
-    assert(gs.current_turn() == PlayerSide::RED);
+    // ── Turn 3: back to ALPHA ───────────────────────────────────────
+    assert(gs.current_turn() == PlayerSide::ALPHA);
     assert(gs.turn_number() == 3);
-    // RED's actions should have been reset to 2
-    assert(gs.player(PlayerSide::RED).actions_remaining == 2);
+    // ALPHA's actions should have been reset to 2
+    assert(gs.player(PlayerSide::ALPHA).actions_remaining == 2);
 
     std::cout << "OK\n";
 }
@@ -495,8 +527,8 @@ static void test_starting_cities_not_adjacent() {
 
     // london and moscow are NOT adjacent — must succeed
     gs.set_starting_cities("london", "moscow");
-    assert(gs.player(PlayerSide::RED).current_city == "london");
-    assert(gs.player(PlayerSide::BLUE).current_city == "moscow");
+    assert(gs.player(PlayerSide::ALPHA).current_city == "london");
+    assert(gs.player(PlayerSide::BETA).current_city == "moscow");
 
     std::cout << "OK\n";
 }
@@ -515,20 +547,20 @@ static void test_city_scheduling_at_action_4() {
     assert(gs.disappeared_cities().empty());
 
     // Perform 3 moves (actions 1-3)
-    gs.move(PlayerSide::RED, "berlin");       // action 1
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    gs.move(PlayerSide::ALPHA, "berlin");       // action 1
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);      // action 2
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "london"); // action 3
-    gs.end_turn(PlayerSide::RED);
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "london"); // action 3
+    gs.end_turn(PlayerSide::ALPHA);
 
     // At action 3, still nothing scheduled
     assert(gs.scheduled_disappear_city().empty());
     assert(gs.disappeared_cities().empty());
 
     // Perform 4th action
-    auto r_moscow = gs.move(PlayerSide::BLUE, "moscow");
+    auto r_moscow = gs.move(PlayerSide::BETA, "moscow");
     assert(r_moscow.ok);     // action 4 — scheduling occurs
     
     // Now a city should be scheduled
@@ -545,24 +577,24 @@ static void test_city_disappears_at_action_6() {
     gs.set_starting_cities("london", "moscow");
 
     // Perform exactly 6 actions with moves to trigger city disappearance
-    gs.move(PlayerSide::RED, "berlin");       // action 1
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    gs.move(PlayerSide::ALPHA, "berlin");       // action 1
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);      // action 2
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "london"); // action 3
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "moscow");     // action 4 — scheduling
-    gs.end_turn(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "london"); // action 3
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "moscow");     // action 4 — scheduling
+    gs.end_turn(PlayerSide::BETA);
 
     std::string scheduled_city = gs.scheduled_disappear_city();
     assert(!scheduled_city.empty());
     assert(gs.disappeared_cities().empty());
 
     // Actions 5 and 6
-    gs.move(PlayerSide::RED, "berlin");         // action 5
-    gs.end_turn(PlayerSide::RED);
-    auto r_tokyo_move = gs.move(PlayerSide::BLUE, "tokyo");     // action 6 — disappearance!
+    gs.move(PlayerSide::ALPHA, "berlin");         // action 5
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_tokyo_move = gs.move(PlayerSide::BETA, "tokyo");     // action 6 — disappearance!
     assert(r_tokyo_move.ok);
     
     // City should now be disappeared
@@ -577,29 +609,29 @@ static void test_stranded_player_detection() {
     gs.set_starting_cities("london", "moscow");
 
     // Initially no one is stranded
-    assert(!gs.is_player_stranded(PlayerSide::RED));
-    assert(!gs.is_player_stranded(PlayerSide::BLUE));
+    assert(!gs.is_player_stranded(PlayerSide::ALPHA));
+    assert(!gs.is_player_stranded(PlayerSide::BETA));
 
-    // Get RED to a city and have it disappear while RED is there
-    // We'll manually place RED in a city and trigger disappearance
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    // Get ALPHA to a city and have it disappear while ALPHA is there
+    // We'll manually place ALPHA in a city and trigger disappearance
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "london");
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "moscow");    // action 4 — scheduling
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "tokyo");    // action 6 — disappearance
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "london");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "moscow");    // action 4 — scheduling
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "tokyo");    // action 6 — disappearance
 
     // If berlin was scheduled and red moved out, red is not stranded
     // If red is in a disappeared city now, they would be stranded
     // For this test, we just verify the function is callable and returns reasonable values
-    bool red_stranded = gs.is_player_stranded(PlayerSide::RED);
-    bool blue_stranded = gs.is_player_stranded(PlayerSide::BLUE);
+    bool red_stranded = gs.is_player_stranded(PlayerSide::ALPHA);
+    bool blue_stranded = gs.is_player_stranded(PlayerSide::BETA);
     assert(!red_stranded || red_stranded);  // sanity check (true or false is valid)
     assert(!blue_stranded || blue_stranded);
 
@@ -616,18 +648,18 @@ static void test_movement_blocked_to_disappeared_city() {
     // We verify the function exists and basic state tracking works.
     
     // Trigger disappearance by performing enough moves
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "london");
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "moscow");    // action 4
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "tokyo");    // action 6 — disappearance
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "london");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "moscow");    // action 4
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "tokyo");    // action 6 — disappearance
     
     // Verify that cities have disappeared
     assert(!gs.disappeared_cities().empty());
@@ -645,7 +677,7 @@ static void test_graph_connectivity_preserved() {
     
     // Perform moves to trigger disappearances
     for (int i = 0; i < 12; ++i) {
-        PlayerSide side = (i % 2 == 0) ? PlayerSide::RED : PlayerSide::BLUE;
+        PlayerSide side = (i % 2 == 0) ? PlayerSide::ALPHA : PlayerSide::BETA;
         auto current_city = gs.player(side).current_city;
         auto& adj_cities = gs.graph().adjacent(current_city);
         
@@ -683,11 +715,11 @@ static void test_stranded_player_only_can_move() {
     // 4. MOVE is allowed for stranded players
     
     // For now, we do a simpler verification: the methods exist and return reasonable values
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
     
     // Try wait action (should succeed unless stranded)
-    auto wait_result = gs.wait(PlayerSide::BLUE);
+    auto wait_result = gs.wait(PlayerSide::BETA);
     assert(wait_result.ok);  // Not stranded, so wait should work
 
     std::cout << "OK\n";
@@ -704,14 +736,14 @@ static void test_action_count_increments() {
     // - At action 6, it disappears
     
     // Perform 4 actions total
-    gs.move(PlayerSide::RED, "berlin");       // 1
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    gs.move(PlayerSide::ALPHA, "berlin");       // 1
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);      // 2
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "london"); // 3
-    gs.end_turn(PlayerSide::RED);
-    auto r_moscow_move = gs.move(PlayerSide::BLUE, "moscow");      // 4 — should trigger scheduling
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "london"); // 3
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_moscow_move = gs.move(PlayerSide::BETA, "moscow");      // 4 — should trigger scheduling
     assert(r_moscow_move.ok);
     
     // After 4th action, city should be scheduled
@@ -728,7 +760,7 @@ static void test_multiple_disappearance_cycles() {
     // Verify multiple cycles of disappearance (at actions 6, 12, 18, etc.)
     
     for (int move_num = 0; move_num < 14; ++move_num) {
-        PlayerSide side = (move_num % 2 == 0) ? PlayerSide::RED : PlayerSide::BLUE;
+        PlayerSide side = (move_num % 2 == 0) ? PlayerSide::ALPHA : PlayerSide::BETA;
         auto current_city = gs.player(side).current_city;
         auto& adj_cities = gs.graph().adjacent(current_city);
         
@@ -763,13 +795,13 @@ static void test_control_takes_ownership_of_city() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED controls their starting city
-    auto r = gs.control(PlayerSide::RED);
+    // ALPHA controls their starting city
+    auto r = gs.control(PlayerSide::ALPHA);
     assert(r.ok);
     
-    // Verify city is now controlled by RED
-    assert(gs.get_city_controller("london") == PlayerSide::RED);
-    assert(gs.player(PlayerSide::RED).actions_remaining == 1);
+    // Verify city is now controlled by ALPHA
+    assert(gs.get_city_controller("london") == PlayerSide::ALPHA);
+    assert(gs.player(PlayerSide::ALPHA).actions_remaining == 1);
     std::cout << "OK\n";
 }
 
@@ -778,15 +810,15 @@ static void test_control_blows_own_cover() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED gains cover first
-    auto move_r = gs.move(PlayerSide::RED, "berlin");
+    // ALPHA gains cover first
+    auto move_r = gs.move(PlayerSide::ALPHA, "berlin");
     assert(move_r.ok);
-    assert(gs.player(PlayerSide::RED).has_cover);
+    assert(gs.player(PlayerSide::ALPHA).has_cover);
 
-    // RED uses CONTROL and loses cover
-    auto control_r = gs.control(PlayerSide::RED);
+    // ALPHA uses CONTROL and loses cover
+    auto control_r = gs.control(PlayerSide::ALPHA);
     assert(control_r.ok);
-    assert(!gs.player(PlayerSide::RED).has_cover);
+    assert(!gs.player(PlayerSide::ALPHA).has_cover);
     std::cout << "OK\n";
 }
 
@@ -795,12 +827,12 @@ static void test_control_notifies_opponent() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED controls and opponent should be notified of location
-    auto r = gs.control(PlayerSide::RED);
+    // ALPHA controls and opponent should be notified of location
+    auto r = gs.control(PlayerSide::ALPHA);
     assert(r.ok);
     
-    // BLUE should know RED's location via known_opponent_city
-    assert(gs.player(PlayerSide::BLUE).known_opponent_city == "london");
+    // BETA should know ALPHA's location via known_opponent_city
+    assert(gs.player(PlayerSide::BETA).known_opponent_city == "london");
     std::cout << "OK\n";
 }
 
@@ -809,12 +841,12 @@ static void test_control_disabled_if_already_controlling() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED controls london
-    auto r1 = gs.control(PlayerSide::RED);
+    // ALPHA controls london
+    auto r1 = gs.control(PlayerSide::ALPHA);
     assert(r1.ok);
 
-    // RED tries to control london again (with only 1 action left)
-    auto r2 = gs.control(PlayerSide::RED);
+    // ALPHA tries to control london again (with only 1 action left)
+    auto r2 = gs.control(PlayerSide::ALPHA);
     assert(!r2.ok);
     assert(!r2.error.empty());  // Should get "Already controlling this city"
     std::cout << "OK\n";
@@ -825,28 +857,28 @@ static void test_opponent_cover_blown_entering_controlled_city() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED controls london
-    auto control_r = gs.control(PlayerSide::RED);
+    // ALPHA controls london
+    auto control_r = gs.control(PlayerSide::ALPHA);
     assert(control_r.ok);
-    assert(gs.get_city_controller("london") == PlayerSide::RED);
+    assert(gs.get_city_controller("london") == PlayerSide::ALPHA);
 
-    // End RED's turn
-    gs.end_turn(PlayerSide::RED);
+    // End ALPHA's turn
+    gs.end_turn(PlayerSide::ALPHA);
 
-    // BLUE moves toward london: moscow -> berlin (adjacent to london)
-    auto move1 = gs.move(PlayerSide::BLUE, "berlin");
+    // BETA moves toward london: moscow -> berlin (adjacent to london)
+    auto move1 = gs.move(PlayerSide::BETA, "berlin");
     assert(move1.ok);
-    gs.end_turn(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BETA);
     
-    // RED ends their turn
-    gs.end_turn(PlayerSide::RED);
+    // ALPHA ends their turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE enters london (RED's controlled city) — entry IS allowed but cover blown
-    auto move2 = gs.move(PlayerSide::BLUE, "london");
+    // BETA enters london (ALPHA's controlled city) — entry IS allowed but cover blown
+    auto move2 = gs.move(PlayerSide::BETA, "london");
     assert(move2.ok);  // Entry allowed (not blocked)
-    assert(gs.player(PlayerSide::BLUE).current_city == "london");
-    // BLUE's cover should be blown from entering opponent-controlled city
-    assert(!gs.player(PlayerSide::BLUE).has_cover);
+    assert(gs.player(PlayerSide::BETA).current_city == "london");
+    // BETA's cover should be blown from entering opponent-controlled city
+    assert(!gs.player(PlayerSide::BETA).has_cover);
     std::cout << "OK\n";
 }
 
@@ -855,19 +887,19 @@ static void test_control_persists_for_game_duration() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED controls london
-    auto r = gs.control(PlayerSide::RED);
+    // ALPHA controls london
+    auto r = gs.control(PlayerSide::ALPHA);
     assert(r.ok);
-    assert(gs.get_city_controller("london") == PlayerSide::RED);
+    assert(gs.get_city_controller("london") == PlayerSide::ALPHA);
 
-    // End RED's turn and let BLUE take some actions
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    // End ALPHA's turn and let BETA take some actions
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);
-    gs.end_turn(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BETA);
 
-    // RED's turn again — london should still be controlled by RED
-    assert(gs.get_city_controller("london") == PlayerSide::RED);
+    // ALPHA's turn again — london should still be controlled by ALPHA
+    assert(gs.get_city_controller("london") == PlayerSide::ALPHA);
     std::cout << "OK\n";
 }
 
@@ -876,30 +908,30 @@ static void test_control_can_be_taken_over_by_opponent() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
 
-    // RED controls london (their starting city)
-    auto r1 = gs.control(PlayerSide::RED);
+    // ALPHA controls london (their starting city)
+    auto r1 = gs.control(PlayerSide::ALPHA);
     assert(r1.ok);
-    assert(gs.get_city_controller("london") == PlayerSide::RED);
+    assert(gs.get_city_controller("london") == PlayerSide::ALPHA);
 
-    // End turns and have BLUE move towards london
-    gs.end_turn(PlayerSide::RED);
+    // End turns and have BETA move towards london
+    gs.end_turn(PlayerSide::ALPHA);
     
-    auto move1 = gs.move(PlayerSide::BLUE, "paris");
+    auto move1 = gs.move(PlayerSide::BETA, "paris");
     if (move1.ok) {
-        gs.end_turn(PlayerSide::BLUE);
+        gs.end_turn(PlayerSide::BETA);
         
-        // RED moves to nyc too
-        auto move2 = gs.move(PlayerSide::RED, "nyc");
+        // ALPHA moves to nyc too
+        auto move2 = gs.move(PlayerSide::ALPHA, "nyc");
         if (move2.ok) {
-            gs.end_turn(PlayerSide::RED);
+            gs.end_turn(PlayerSide::ALPHA);
             
-            // BLUE moves to london
-            auto move3 = gs.move(PlayerSide::BLUE, "london");
+            // BETA moves to london
+            auto move3 = gs.move(PlayerSide::BETA, "london");
             if (move3.ok) {
-                // Now BLUE controls london (takes it from RED)
-                auto r2 = gs.control(PlayerSide::BLUE);
+                // Now BETA controls london (takes it from ALPHA)
+                auto r2 = gs.control(PlayerSide::BETA);
                 if (r2.ok) {
-                    assert(gs.get_city_controller("london") == PlayerSide::BLUE);
+                    assert(gs.get_city_controller("london") == PlayerSide::BETA);
                 }
             }
         }
@@ -914,25 +946,25 @@ static void test_stranded_player_cannot_control() {
 
     // Perform moves to trigger disappearance and stranding
     // At action 6, a city disappears
-    gs.move(PlayerSide::RED, "berlin");       // 1
-    gs.end_turn(PlayerSide::RED);
-    auto r_berlin = gs.move(PlayerSide::BLUE, "berlin");
+    gs.move(PlayerSide::ALPHA, "berlin");       // 1
+    gs.end_turn(PlayerSide::ALPHA);
+    auto r_berlin = gs.move(PlayerSide::BETA, "berlin");
     assert(r_berlin.ok);     // 2
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "london"); // 3
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "moscow");     // 4 — schedule triggers
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "berlin");      // 5
-    gs.end_turn(PlayerSide::RED);
-    gs.move(PlayerSide::BLUE, "tokyo");               // 6 — disappearance triggers
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "london"); // 3
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "moscow");     // 4 — schedule triggers
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "berlin");      // 5
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.move(PlayerSide::BETA, "tokyo");               // 6 — disappearance triggers
 
     // After move 6, check if any city disappeared
     auto disappeared = gs.disappeared_cities();
     
     // If a city disappeared and a player is stranded there, they can't use CONTROL
-    auto r = gs.control(PlayerSide::BLUE);
-    if (gs.is_player_stranded(PlayerSide::BLUE)) {
+    auto r = gs.control(PlayerSide::BETA);
+    if (gs.is_player_stranded(PlayerSide::BETA)) {
         assert(!r.ok);
         assert(!r.error.empty());
     }
@@ -946,14 +978,14 @@ static void test_deep_cover_costs_20_intel() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 20;  // Set exactly to the cost
 
     // Use wait first to consume 1 action, leaving 1 remaining
-    auto w = gs.wait(PlayerSide::RED);
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    auto r = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(r.ok);
     assert(red.intel == 0);  // Should have exactly 0 intel left
     std::cout << "OK\n";
@@ -964,14 +996,14 @@ static void test_deep_cover_insufficient_intel() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 19;  // One less than required
 
     // Use wait first to consume 1 action
-    auto w = gs.wait(PlayerSide::RED);
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    auto r = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(!r.ok);
     assert(red.intel == 19);  // Should not be deducted
     std::cout << "OK\n";
@@ -982,15 +1014,15 @@ static void test_deep_cover_grants_cover() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 20;
     red.has_cover = false;  // Start visible
 
     // Use wait first to consume 1 action
-    auto w = gs.wait(PlayerSide::RED);
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    auto r = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(r.ok);
     assert(red.has_cover);  // Should now have cover
     assert(red.deep_cover_active);  // Deep cover should be active
@@ -1002,22 +1034,22 @@ static void test_deep_cover_clears_opponent_knowledge() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
-    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
     
     red.intel = 20;
-    blue.known_opponent_city = "london";  // Blue thinks RED is at london
+    blue.known_opponent_city = "london";  // Blue thinks ALPHA is at london
 
     // Use wait first to consume 1 action
-    auto w = gs.wait(PlayerSide::RED);
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    auto r = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(r.ok);
     assert(blue.known_opponent_city == "");  // Should be cleared
 
     // Deep cover is last action, so end turn
-    gs.end_turn(PlayerSide::RED);
+    gs.end_turn(PlayerSide::ALPHA);
     // Verify deep cover persists after end turn
     assert(red.deep_cover_active);
     std::cout << "OK\n";
@@ -1028,29 +1060,29 @@ static void test_deep_cover_persists_until_end_of_turn() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 20;
 
     // Use wait first to consume 1 action, leaving 1 remaining
-    auto w = gs.wait(PlayerSide::RED);
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    auto r = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    auto r = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(r.ok);
     assert(red.deep_cover_active);
     
-    // Deep cover is last action, so end RED's turn
-    gs.end_turn(PlayerSide::RED);
-    assert(red.deep_cover_active);  // Still active after RED ends turn
+    // Deep cover is last action, so end ALPHA's turn
+    gs.end_turn(PlayerSide::ALPHA);
+    assert(red.deep_cover_active);  // Still active after ALPHA ends turn
     
-    // BLUE takes action
-    auto blue_move = gs.move(PlayerSide::BLUE, "berlin");
+    // BETA takes action
+    auto blue_move = gs.move(PlayerSide::BETA, "berlin");
     assert(blue_move.ok);
-    assert(red.deep_cover_active);  // RED's deep cover persists during BLUE's turn
+    assert(red.deep_cover_active);  // ALPHA's deep cover persists during BETA's turn
     
-    // BLUE ends turn - NOW Deep Cover clears for RED (at start of RED's next turn)
-    gs.end_turn(PlayerSide::BLUE);
-    assert(!red.deep_cover_active);  // Deep Cover cleared at beginning of RED's next turn
+    // BETA ends turn - NOW Deep Cover clears for ALPHA (at start of ALPHA's next turn)
+    gs.end_turn(PlayerSide::BETA);
+    assert(!red.deep_cover_active);  // Deep Cover cleared at beginning of ALPHA's next turn
     std::cout << "OK\n";
 }
 
@@ -1059,27 +1091,27 @@ static void test_locate_fails_against_deep_cover() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
-    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
     
     red.intel = 20;
     blue.intel = 10;
 
-    // RED waits first, then uses deep cover as last action
-    auto w = gs.wait(PlayerSide::RED);
+    // ALPHA waits first, then uses deep cover as last action
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    // RED uses deep cover
-    auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    // ALPHA uses deep cover
+    auto r_dc = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(r_dc.ok);
     
-    gs.end_turn(PlayerSide::RED);
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE tries to locate RED (should fail)
-    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    // BETA tries to locate ALPHA (should fail)
+    auto r_loc = gs.use_ability(PlayerSide::BETA, AbilityId::LOCATE);
     assert(r_loc.ok);  // Ability succeeds (costs Intel, uses action)
-    assert(blue.known_opponent_city == "");  // But doesn't reveal RED
-    assert(!red.opponent_used_locate);  // RED is not notified
+    assert(blue.known_opponent_city == "");  // But doesn't reveal ALPHA
+    assert(!red.opponent_used_locate);  // ALPHA is not notified
     std::cout << "OK\n";
 }
 
@@ -1088,43 +1120,43 @@ static void test_locate_succeeds_after_deep_cover_expires() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
-    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
     
     red.intel = 20;
     blue.intel = 20;  // Need 10 for two locate attempts
 
-    // Turn 1: RED waits then uses deep cover as last action
-    auto w = gs.wait(PlayerSide::RED);
+    // Turn 1: ALPHA waits then uses deep cover as last action
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
     
-    auto r_dc = gs.use_ability(PlayerSide::RED, AbilityId::DEEP_COVER);
+    auto r_dc = gs.use_ability(PlayerSide::ALPHA, AbilityId::DEEP_COVER);
     assert(r_dc.ok);
     assert(red.deep_cover_active);
     
-    gs.end_turn(PlayerSide::RED);
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // Turn 2: BLUE tries to locate (should fail - RED has deep cover)
-    auto r_loc_fail = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    // Turn 2: BETA tries to locate (should fail - ALPHA has deep cover)
+    auto r_loc_fail = gs.use_ability(PlayerSide::BETA, AbilityId::LOCATE);
     assert(r_loc_fail.ok);  // Ability succeeds (costs Intel, uses action)
-    assert(blue.known_opponent_city == "");  // But doesn't reveal RED
+    assert(blue.known_opponent_city == "");  // But doesn't reveal ALPHA
     
-    // Red's deep cover persists through BLUE's turn
+    // Red's deep cover persists through BETA's turn
     assert(red.deep_cover_active);
     
-    gs.end_turn(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BETA);
     
-    // Turn 3: RED's new turn starts - deep_cover is cleared at beginning
+    // Turn 3: ALPHA's new turn starts - deep_cover is cleared at beginning
     assert(!red.deep_cover_active);
     
-    // RED ends turn (just empty turn to advance to BLUE's turn)
-    gs.end_turn(PlayerSide::RED);
+    // ALPHA ends turn (just empty turn to advance to BETA's turn)
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // Turn 4: BLUE tries to locate again (now should succeed - deep cover expired)
-    auto r_loc_success = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    // Turn 4: BETA tries to locate again (now should succeed - deep cover expired)
+    auto r_loc_success = gs.use_ability(PlayerSide::BETA, AbilityId::LOCATE);
     assert(r_loc_success.ok);
-    assert(blue.known_opponent_city == "london");  // Should reveal RED now
-    assert(red.opponent_used_locate);  // RED is notified
+    assert(blue.known_opponent_city == "london");  // Should reveal ALPHA now
+    assert(red.opponent_used_locate);  // ALPHA is notified
     
     std::cout << "OK\n";
 }
@@ -1134,40 +1166,40 @@ static void test_locate_one_way_reveal_only() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
-    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
     
     red.intel = 20;
     blue.intel = 30;
     
     // Move both players to known positions
-    auto r_move = gs.move(PlayerSide::RED, "berlin");
+    auto r_move = gs.move(PlayerSide::ALPHA, "berlin");
     assert(r_move.ok);
     assert(red.current_city == "berlin");
     
-    gs.end_turn(PlayerSide::RED);
+    gs.end_turn(PlayerSide::ALPHA);
     
-    auto b_move = gs.move(PlayerSide::BLUE, "berlin");
+    auto b_move = gs.move(PlayerSide::BETA, "berlin");
     assert(b_move.ok);
     assert(blue.current_city == "berlin");
     
-    // BLUE uses LOCATE on RED
+    // BETA uses LOCATE on ALPHA
     blue.intel = 30;  // Ensure enough intel
-    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    auto r_loc = gs.use_ability(PlayerSide::BETA, AbilityId::LOCATE);
     assert(r_loc.ok);  // Ability succeeds
     
-    // Verify BLUE learns RED's location
-    assert(blue.known_opponent_city == "berlin");  // BLUE knows RED's location
+    // Verify BETA learns ALPHA's location
+    assert(blue.known_opponent_city == "berlin");  // BETA knows ALPHA's location
     
-    // Verify RED is notified
-    assert(red.opponent_used_locate);  // RED is notified that LOCATE was used
+    // Verify ALPHA is notified
+    assert(red.opponent_used_locate);  // ALPHA is notified that LOCATE was used
     
-    // Verify RED does NOT learn BLUE's location (one-way reveal)
-    assert(red.known_opponent_city == "");  // RED should not know BLUE's location
+    // Verify ALPHA does NOT learn BETA's location (one-way reveal)
+    assert(red.known_opponent_city == "");  // ALPHA should not know BETA's location
     
-    // Verify BLUE does not become visible to RED (only opponent becomes visible)
-    // This is checked via: RED doesn't learn the city, and BLUE's cover status
-    // should not affect RED's view of BLUE negatively
+    // Verify BETA does not become visible to ALPHA (only opponent becomes visible)
+    // This is checked via: ALPHA doesn't learn the city, and BETA's cover status
+    // should not affect ALPHA's view of BETA negatively
     
     std::cout << "OK\n";
 }
@@ -1179,38 +1211,38 @@ static void test_encryption_hides_flags() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
-    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
     
     blue.intel = 35;  // 25 for ENCRYPTION + 10 for LOCATE
     
-    // Add ENCRYPTION to BLUE's abilities list
+    // Add ENCRYPTION to BETA's abilities list
     blue.abilities.push_back(AbilityId::ENCRYPTION);
     
-    // Skip RED's turn
-    gs.end_turn(PlayerSide::RED);
+    // Skip ALPHA's turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE waits, then uses ENCRYPTION
-    auto w = gs.wait(PlayerSide::BLUE);
+    // BETA waits, then uses ENCRYPTION
+    auto w = gs.wait(PlayerSide::BETA);
     assert(w.ok);
-    auto r_enc = gs.use_ability(PlayerSide::BLUE, AbilityId::ENCRYPTION);
+    auto r_enc = gs.use_ability(PlayerSide::BETA, AbilityId::ENCRYPTION);
     assert(r_enc.ok);
     assert(blue.encryption_unlocked);
     
-    // End BLUE's turn
-    gs.end_turn(PlayerSide::BLUE);
+    // End BETA's turn
+    gs.end_turn(PlayerSide::BETA);
     
-    // Skip RED's turn
-    gs.end_turn(PlayerSide::RED);
+    // Skip ALPHA's turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE uses LOCATE on RED (encryption should hide the notification)
-    auto r_loc = gs.use_ability(PlayerSide::BLUE, AbilityId::LOCATE);
+    // BETA uses LOCATE on ALPHA (encryption should hide the notification)
+    auto r_loc = gs.use_ability(PlayerSide::BETA, AbilityId::LOCATE);
     assert(r_loc.ok);
     
-    // RED should NOT be notified (BLUE's encryption hides it)
+    // ALPHA should NOT be notified (BETA's encryption hides it)
     assert(!red.opponent_used_locate);
     
-    // BLUE should still learn RED's location (encryption doesn't prevent the effect)
+    // BETA should still learn ALPHA's location (encryption doesn't prevent the effect)
     assert(blue.known_opponent_city == "london");
     
     std::cout << "OK\n";
@@ -1223,35 +1255,35 @@ static void test_rapid_recon_blows_cover() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     
     red.intel = 40;
     
-    // Add RAPID_RECON to RED's abilities list
+    // Add RAPID_RECON to ALPHA's abilities list
     red.abilities.push_back(AbilityId::RAPID_RECON);
     
-    // RED waits, then uses RAPID_RECON
-    auto w = gs.wait(PlayerSide::RED);
+    // ALPHA waits, then uses RAPID_RECON
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
-    auto r_rr = gs.use_ability(PlayerSide::RED, AbilityId::RAPID_RECON);
+    auto r_rr = gs.use_ability(PlayerSide::ALPHA, AbilityId::RAPID_RECON);
     assert(r_rr.ok);
     assert(red.rapid_recon_unlocked);
     
-    // End RED turn
-    gs.end_turn(PlayerSide::RED);
+    // End ALPHA turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE moves to berlin (moscow -> berlin)
-    auto b_move = gs.move(PlayerSide::BLUE, "berlin");
+    // BETA moves to berlin (moscow -> berlin)
+    auto b_move = gs.move(PlayerSide::BETA, "berlin");
     assert(b_move.ok);
-    gs.end_turn(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BETA);
     
-    // RED moves to berlin where BLUE is
-    auto r_move = gs.move(PlayerSide::RED, "berlin");
+    // ALPHA moves to berlin where BETA is
+    auto r_move = gs.move(PlayerSide::ALPHA, "berlin");
     assert(r_move.ok);
     
-    // BLUE's cover should be blown (rapid recon triggers)
-    assert(!gs.player(PlayerSide::BLUE).has_cover);
-    // RED should learn BLUE's location
+    // BETA's cover should be blown (rapid recon triggers)
+    assert(!gs.player(PlayerSide::BETA).has_cover);
+    // ALPHA should learn BETA's location
     assert(red.known_opponent_city == "berlin");
     
     std::cout << "OK\n";
@@ -1262,43 +1294,43 @@ static void test_rapid_recon_blocked_by_deep_cover() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
-    auto& blue = gs.player_mut(PlayerSide::BLUE);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
     
     red.intel = 40;
     blue.intel = 20;
     
-    // Add RAPID_RECON to RED's abilities list
+    // Add RAPID_RECON to ALPHA's abilities list
     red.abilities.push_back(AbilityId::RAPID_RECON);
     
-    // RED waits, then uses RAPID_RECON
-    auto w = gs.wait(PlayerSide::RED);
+    // ALPHA waits, then uses RAPID_RECON
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
-    auto r_rr = gs.use_ability(PlayerSide::RED, AbilityId::RAPID_RECON);
+    auto r_rr = gs.use_ability(PlayerSide::ALPHA, AbilityId::RAPID_RECON);
     assert(r_rr.ok);
     
-    // End RED turn
-    gs.end_turn(PlayerSide::RED);
+    // End ALPHA turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE moves to berlin (moscow -> berlin)
-    auto b_move = gs.move(PlayerSide::BLUE, "berlin");
+    // BETA moves to berlin (moscow -> berlin)
+    auto b_move = gs.move(PlayerSide::BETA, "berlin");
     assert(b_move.ok);
-    // BLUE has cover from moving
+    // BETA has cover from moving
     assert(blue.has_cover);
     
-    // BLUE waits, then activates DEEP_COVER as last action
-    // Note: BLUE already used 1 action (move), so 1 remaining — deep cover is last
-    auto r_dc = gs.use_ability(PlayerSide::BLUE, AbilityId::DEEP_COVER);
+    // BETA waits, then activates DEEP_COVER as last action
+    // Note: BETA already used 1 action (move), so 1 remaining — deep cover is last
+    auto r_dc = gs.use_ability(PlayerSide::BETA, AbilityId::DEEP_COVER);
     assert(r_dc.ok);
     assert(blue.deep_cover_active);
     
-    gs.end_turn(PlayerSide::BLUE);
+    gs.end_turn(PlayerSide::BETA);
     
-    // RED moves to berlin where BLUE is
-    auto r_move = gs.move(PlayerSide::RED, "berlin");
+    // ALPHA moves to berlin where BETA is
+    auto r_move = gs.move(PlayerSide::ALPHA, "berlin");
     assert(r_move.ok);
     
-    // BLUE's cover should NOT be blown (deep cover protects)
+    // BETA's cover should NOT be blown (deep cover protects)
     assert(blue.has_cover);
     
     std::cout << "OK\n";
@@ -1311,28 +1343,28 @@ static void test_prep_mission_grants_extra_action() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 40;
     
-    // Add PREP_MISSION to RED's abilities list
+    // Add PREP_MISSION to ALPHA's abilities list
     red.abilities.push_back(AbilityId::PREP_MISSION);
     
-    // RED waits, then uses PREP_MISSION as last action
-    auto w = gs.wait(PlayerSide::RED);
+    // ALPHA waits, then uses PREP_MISSION as last action
+    auto w = gs.wait(PlayerSide::ALPHA);
     assert(w.ok);
-    auto r_pm = gs.use_ability(PlayerSide::RED, AbilityId::PREP_MISSION);
+    auto r_pm = gs.use_ability(PlayerSide::ALPHA, AbilityId::PREP_MISSION);
     assert(r_pm.ok);
     assert(red.prep_mission_active);
     
-    // End RED turn
-    gs.end_turn(PlayerSide::RED);
+    // End ALPHA turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    // BLUE does anything
-    gs.end_turn(PlayerSide::BLUE);
+    // BETA does anything
+    gs.end_turn(PlayerSide::BETA);
     
-    // Now it's RED's turn — should have 3 actions
-    assert(gs.current_turn() == PlayerSide::RED);
-    assert(gs.player(PlayerSide::RED).actions_remaining == 3);
+    // Now it's ALPHA's turn — should have 3 actions
+    assert(gs.current_turn() == PlayerSide::ALPHA);
+    assert(gs.player(PlayerSide::ALPHA).actions_remaining == 3);
     
     std::cout << "OK\n";
 }
@@ -1342,14 +1374,14 @@ static void test_prep_mission_last_action_only() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 40;
     
-    // Add PREP_MISSION to RED's abilities list
+    // Add PREP_MISSION to ALPHA's abilities list
     red.abilities.push_back(AbilityId::PREP_MISSION);
     
     // Try PREP_MISSION as first action (2 actions remaining) — should fail
-    auto r_pm = gs.use_ability(PlayerSide::RED, AbilityId::PREP_MISSION);
+    auto r_pm = gs.use_ability(PlayerSide::ALPHA, AbilityId::PREP_MISSION);
     assert(!r_pm.ok);
     assert(!r_pm.error.empty());  // Should mention last action
     
@@ -1365,32 +1397,32 @@ static void test_prep_mission_blocked_in_opponent_city() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    // BLUE controls moscow
-    gs.end_turn(PlayerSide::RED);  // Skip RED's turn
-    auto ctrl = gs.control(PlayerSide::BLUE);
+    // BETA controls moscow
+    gs.end_turn(PlayerSide::ALPHA);  // Skip ALPHA's turn
+    auto ctrl = gs.control(PlayerSide::BETA);
     assert(ctrl.ok);
-    assert(gs.get_city_controller("moscow") == PlayerSide::BLUE);
-    gs.end_turn(PlayerSide::BLUE);
+    assert(gs.get_city_controller("moscow") == PlayerSide::BETA);
+    gs.end_turn(PlayerSide::BETA);
     
-    // RED moves toward moscow: london -> berlin -> moscow
-    gs.move(PlayerSide::RED, "berlin");
-    gs.end_turn(PlayerSide::RED);
-    gs.end_turn(PlayerSide::BLUE);
-    gs.move(PlayerSide::RED, "moscow");
-    assert(gs.player(PlayerSide::RED).current_city == "moscow");
+    // ALPHA moves toward moscow: london -> berlin -> moscow
+    gs.move(PlayerSide::ALPHA, "berlin");
+    gs.end_turn(PlayerSide::ALPHA);
+    gs.end_turn(PlayerSide::BETA);
+    gs.move(PlayerSide::ALPHA, "moscow");
+    assert(gs.player(PlayerSide::ALPHA).current_city == "moscow");
     
-    auto& red = gs.player_mut(PlayerSide::RED);
+    auto& red = gs.player_mut(PlayerSide::ALPHA);
     red.intel = 40;
     
-    // Add PREP_MISSION to RED's abilities list
+    // Add PREP_MISSION to ALPHA's abilities list
     red.abilities.push_back(AbilityId::PREP_MISSION);
     
-    // RED waits (1 action consumed), then tries PREP_MISSION as last action
-    auto w = gs.wait(PlayerSide::RED);
-    // wait may fail if RED is in opponent-controlled city with restrictions
+    // ALPHA waits (1 action consumed), then tries PREP_MISSION as last action
+    auto w = gs.wait(PlayerSide::ALPHA);
+    // wait may fail if ALPHA is in opponent-controlled city with restrictions
     // But either way, try prep mission
     if (w.ok) {
-        auto r_pm = gs.use_ability(PlayerSide::RED, AbilityId::PREP_MISSION);
+        auto r_pm = gs.use_ability(PlayerSide::ALPHA, AbilityId::PREP_MISSION);
         assert(!r_pm.ok);  // Should fail — in opponent-controlled city
         assert(!r_pm.error.empty());
     }
@@ -1405,31 +1437,31 @@ static void test_controlled_city_intel_income() {
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
     
-    // RED controls london
-    auto ctrl = gs.control(PlayerSide::RED);
+    // ALPHA controls london
+    auto ctrl = gs.control(PlayerSide::ALPHA);
     assert(ctrl.ok);
     
-    int intel_before = gs.player(PlayerSide::RED).intel;
+    int intel_before = gs.player(PlayerSide::ALPHA).intel;
     
-    // RED ends turn
-    gs.end_turn(PlayerSide::RED);
+    // ALPHA ends turn
+    gs.end_turn(PlayerSide::ALPHA);
     
-    int intel_after = gs.player(PlayerSide::RED).intel;
+    int intel_after = gs.player(PlayerSide::ALPHA).intel;
     // Should be: base 4 + 4 per controlled city = +8 total
     assert(intel_after == intel_before + 8);
     
     // Now let's test with 2 controlled cities
-    gs.end_turn(PlayerSide::BLUE);  // Skip BLUE
+    gs.end_turn(PlayerSide::BETA);  // Skip BETA
     
-    // RED moves to berlin and controls it
-    auto m = gs.move(PlayerSide::RED, "berlin");
+    // ALPHA moves to berlin and controls it
+    auto m = gs.move(PlayerSide::ALPHA, "berlin");
     assert(m.ok);
-    auto ctrl2 = gs.control(PlayerSide::RED);
+    auto ctrl2 = gs.control(PlayerSide::ALPHA);
     assert(ctrl2.ok);
     
-    int intel_before2 = gs.player(PlayerSide::RED).intel;
-    gs.end_turn(PlayerSide::RED);
-    int intel_after2 = gs.player(PlayerSide::RED).intel;
+    int intel_before2 = gs.player(PlayerSide::ALPHA).intel;
+    gs.end_turn(PlayerSide::ALPHA);
+    int intel_after2 = gs.player(PlayerSide::ALPHA).intel;
     // Should be: base 4 + 4*2 controlled + 4 exploration (berlin is new) = +16
     // Or base 4 + 8 controlled = +12 (no exploration if already visited)
     // berlin was visited by moving there, so it's a new city: +4 exploration
@@ -1439,11 +1471,69 @@ static void test_controlled_city_intel_income() {
     std::cout << "OK\n";
 }
 
+static void test_wait_at_start_grants_cover() {
+    std::cout << "  test_wait_at_start_grants_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // At start, players have NO cover
+    assert(!gs.player(PlayerSide::ALPHA).has_cover);
+
+    // ALPHA waits as their first action
+    auto r = gs.wait(PlayerSide::ALPHA);
+    assert(r.ok);
+
+    // After waiting, ALPHA should HAVE cover
+    if (!gs.player(PlayerSide::ALPHA).has_cover) {
+        std::cerr << "FAIL: Player used WAIT but has_cover is still false!" << std::endl;
+        assert(false);
+    }
+    std::cout << "OK\n";
+}
+
+static void test_initial_knowledge_reveal() {
+    std::cout << "  test_initial_knowledge_reveal... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // ALPHA starts in london, BETA starts in moscow.
+    // ALPHA should know BETA is in moscow.
+    // BETA should know ALPHA is in london.
+    // Note: This test will fail until GameState::set_starting_cities is fixed.
+    REQUIRE(gs.player(PlayerSide::ALPHA).known_opponent_city == "moscow");
+    REQUIRE(gs.player(PlayerSide::BETA).known_opponent_city == "london");
+    
+    std::cout << "OK\n";
+}
+
+static void test_wait_clears_knowledge() {
+    std::cout << "  test_wait_clears_knowledge... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // ALPHA starts revealed in london.
+    // gs.player(PlayerSide::BETA).known_opponent_city = "london"; // Manual override until set_starting_cities is fixed
+
+    // ALPHA waits as their first action
+    gs.wait(PlayerSide::ALPHA);
+
+    // After waiting, ALPHA should HAVE cover and BETA should NO LONGER know ALPHA's location
+    REQUIRE(gs.player(PlayerSide::ALPHA).has_cover);
+    REQUIRE(gs.player(PlayerSide::BETA).known_opponent_city == "");
+
+    std::cout << "OK\n";
+}
+
+
+
 int main() {
     std::cout << "Running GameState unit tests...\n";
     
     // ── Original tests ──
     test_starting_cities();
+    test_wait_at_start_grants_cover();
+    test_initial_knowledge_reveal();
+    test_wait_clears_knowledge();
     test_move_valid();
     test_move_not_adjacent();
     test_move_wrong_turn();
@@ -1532,7 +1622,11 @@ int main() {
     
     std::cout << "\nRunning Auto End Turn Tests...\n";
     test_match_auto_end_turn();
+
+    std::cout << "\nRunning Power-up Spawn Tests...\n";
+    test_powerup_no_stacking();
+    test_starting_turn_randomization();
     
-    std::cout << "\nAll tests passed!\n";
+    std::cout << "\nAll tests passed!" << std::endl;
     return 0;
 }

@@ -135,12 +135,12 @@ json serialize_match_state(const std::string& session_id,
     
     // Include player action feedback
     fprintf(stderr, "[!!!] Serializing: player=%s locate_blocked=%d\n",
-            p.side == game::PlayerSide::RED ? "RED" : "BLUE", p.locate_blocked_by_deep_cover);
+            p.side == game::PlayerSide::ALPHA ? "ALPHA" : "BETA", p.locate_blocked_by_deep_cover);
     player_state["locateBlockedByDeepCover"] = p.locate_blocked_by_deep_cover;
     
     // DEBUG: Print to stderr what we're serializing
     if (p.locate_blocked_by_deep_cover) {
-        std::cerr << "[SERIALIZE] Player " << (p.side == game::PlayerSide::RED ? "RED" : "BLUE") 
+        std::cerr << "[SERIALIZE] Player " << (p.side == game::PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << ": locateBlockedByDeepCover=" << p.locate_blocked_by_deep_cover << "\n";
     }
     

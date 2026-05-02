@@ -10,8 +10,8 @@ namespace two_spies::game {
 GameState::GameState(const MapDef& map)
     : graph_(map), rng_(std::chrono::system_clock::now().time_since_epoch().count())
 {
-    red_.side = PlayerSide::RED;
-    blue_.side = PlayerSide::BLUE;
+    alpha_.side = PlayerSide::ALPHA;
+    beta_.side = PlayerSide::BETA;
 
     // Initialize Intel pop-up threshold (3-5 actions)
     std::uniform_int_distribution<> dist(3, 5);
@@ -22,36 +22,44 @@ GameState::GameState(const MapDef& map)
     next_action_popup_threshold_ = action_dist(rng_);
 }
 
-void GameState::set_starting_cities(const std::string& red_city, const std::string& blue_city) {
-    if (!graph_.has_city(red_city) || !graph_.has_city(blue_city)) {
+void GameState::set_starting_cities(const std::string& alpha_city, const std::string& beta_city) {
+    if (!graph_.has_city(alpha_city) || !graph_.has_city(beta_city)) {
         throw std::invalid_argument("Starting city does not exist on the map");
     }
-    if (red_city == blue_city) {
+    if (alpha_city == beta_city) {
         throw std::invalid_argument("Starting cities must be distinct");
     }
-    if (graph_.are_adjacent(red_city, blue_city)) {
+    if (graph_.are_adjacent(alpha_city, beta_city)) {
         throw std::invalid_argument("Starting cities cannot be adjacent");
     }
-    red_.current_city = red_city;
-    red_.starting_city = red_city;
-    red_.visited_cities.insert(red_city);  // Starting city is visited
-    red_.has_cover = false;  // Start visible to opponent
-    blue_.current_city = blue_city; 
-    blue_.starting_city = blue_city;
-    blue_.visited_cities.insert(blue_city);  // Starting city is visited
-    blue_.has_cover = false;  // Start visible to opponent
-    red_.actions_remaining = 2;
-    blue_.actions_remaining = 2;
-    red_.intel = 2;
-    blue_.intel = 2;
+    alpha_.current_city = alpha_city;
+    alpha_.starting_city = alpha_city;
+    alpha_.visited_cities.insert(alpha_city);  // Starting city is visited
+    alpha_.has_cover = false;  // Start visible to opponent
+    beta_.current_city = beta_city; 
+    beta_.starting_city = beta_city;
+    beta_.visited_cities.insert(beta_city);  // Starting city is visited
+    beta_.has_cover = false;  // Start visible to opponent
+    alpha_.actions_remaining = 2;
+    beta_.actions_remaining = 2;
+    alpha_.intel = 2;
+    beta_.intel = 2;
+
+    // Initial reveal: players start the game knowing each other's location
+    alpha_.known_opponent_city = beta_city;
+    beta_.known_opponent_city = alpha_city;
+}
+
+void GameState::set_starting_turn(PlayerSide side) {
+    current_turn_ = side;
 }
 
 const PlayerData& GameState::player(PlayerSide side) const {
-    return side == PlayerSide::RED ? red_ : blue_;
+    return side == PlayerSide::ALPHA ? alpha_ : beta_;
 }
 
 PlayerData& GameState::player_mut(PlayerSide side) {
-    return side == PlayerSide::RED ? red_ : blue_;
+    return side == PlayerSide::ALPHA ? alpha_ : beta_;
 }
 
 // ── MOVE ─────────────────────────────────────────────────────────────
@@ -122,7 +130,7 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
         if (!opponent.deep_cover_active) {
             opponent.has_cover = false;
             p.known_opponent_city = target_city;  // Mover learns opponent's location
-            std::cerr << "[RAPID_RECON] Player " << (side == PlayerSide::RED ? "RED" : "BLUE")
+            std::cerr << "[RAPID_RECON] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA")
                       << " entered opponent's city " << target_city << " — opponent cover blown!\n";
         }
     }
@@ -191,7 +199,7 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
         result.winner = side;
         result.game_over_reason = game_over_reason_;
         
-        std::cerr << "[STRIKE] HIT! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+        std::cerr << "[STRIKE] HIT! Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " eliminated opponent at " << striker_city << "\n";
     } else {
         // MISS — striker becomes visible by attempting a strike
@@ -206,10 +214,10 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
         // Strike reveals the striker's position to the opponent ONLY IF opponent has Strike Report unlocked
         if (defender_mut.strike_report_unlocked) {
             defender_mut.known_opponent_city = striker_city;
-            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " struck at " << striker_city << " but opponent was not there. Position REVEALED by Strike Report.\n";
         } else {
-            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+            std::cerr << "[STRIKE] MISS! Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " struck at " << striker_city << " but opponent was not there. Opponent knows a strike occurred.\n";
         }
     }
@@ -324,7 +332,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     opp_mut.opponent_used_locate = false;  // They don't get notified
                     p.locate_blocked_by_deep_cover = true;  // Notify THIS player that their Locate failed
                     fprintf(stderr, "[!!!] SET locate_blocked_by_deep_cover=TRUE for player %s\n", 
-                            side == PlayerSide::RED ? "RED" : "BLUE");
+                            side == PlayerSide::ALPHA ? "ALPHA" : "BETA");
                     // Both players stay in their current visibility state
                 } else {
                     // Normal locate behavior
@@ -347,7 +355,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
             if (!p.encryption_unlocked) {
                 opponent.opponent_unlocked_strike_report = true;
             }
-            std::cerr << "[ABILITY] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+            std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " unlocked STRIKE_REPORT.\n";
             break;
         case AbilityId::ENCRYPTION:
@@ -366,7 +374,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     p.abilities.erase(abil_it);
                 }
             }
-            std::cerr << "[ABILITY] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+            std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " unlocked ENCRYPTION.\n";
             break;
         case AbilityId::RAPID_RECON:
@@ -385,7 +393,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     p.abilities.erase(abil_it);
                 }
             }
-            std::cerr << "[ABILITY] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+            std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " unlocked RAPID_RECON.\n";
             break;
         case AbilityId::PREP_MISSION:
@@ -409,7 +417,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                 }
             }
             p.prep_mission_active = true;
-            std::cerr << "[ABILITY] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+            std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " activated PREP_MISSION — next turn will have 3 actions.\n";
             break;
     }
@@ -589,7 +597,7 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     if (next.prep_mission_active) {
         next.actions_remaining = 3;  // Prep Mission grants +1 extra action
         next.prep_mission_active = false;
-        std::cerr << "[PREP_MISSION] Player " << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE")
+        std::cerr << "[PREP_MISSION] Player " << (current_turn_ == PlayerSide::ALPHA ? "ALPHA" : "BETA")
                   << " starts turn with 3 actions (Prep Mission active).\n";
     } else {
         next.actions_remaining = 2;
@@ -626,13 +634,13 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     if (next.deep_cover_active && next.deep_cover_used_on_turn >= 0) {
         int turns_since_use = turn_number_ - next.deep_cover_used_on_turn;
         std::cerr << "[DC-CHECK] turn_number_=" << turn_number_ 
-                  << " next_player=" << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE")
+                  << " next_player=" << (current_turn_ == PlayerSide::ALPHA ? "ALPHA" : "BETA")
                   << " deep_cover_  used_on_turn=" << next.deep_cover_used_on_turn
                   << " turns_since=" << turns_since_use << "\n";
         if (turns_since_use >= 2) {
             next.deep_cover_active = false;
             next.deep_cover_used_on_turn = -1;
-            std::cerr << "[DC-CLEAR] Deep Cover cleared for " << (current_turn_ == PlayerSide::RED ? "RED" : "BLUE") << "\n";
+            std::cerr << "[DC-CLEAR] Deep Cover cleared for " << (current_turn_ == PlayerSide::ALPHA ? "ALPHA" : "BETA") << "\n";
         }
     }
     
@@ -662,19 +670,19 @@ void GameState::abort(PlayerSide side) {
 ActionResult GameState::check_same_city() {
     ActionResult result;
 
-    if (red_.current_city == blue_.current_city) {
+    if (alpha_.current_city == beta_.current_city) {
         // If neither has cover → the one who moved into the city loses
         // (per GDD §6: ending turn in same city without cover = loss)
         // During a move (mid-turn), we check if the mover has cover.
         // The mover just gained cover from moving, so they're safe.
         // But if the OTHER player is here without cover, they lose.
-        auto& other_side = (current_turn_ == PlayerSide::RED) ? blue_ : red_;
+        auto& other_side = (current_turn_ == PlayerSide::ALPHA) ? beta_ : alpha_;
         if (!other_side.has_cover) {
             // The player whose turn it is NOT loses
             game_over_ = true;
             winner_ = current_turn_;
             game_over_reason_ = std::string("Cover blown! ") +
-                to_string(opposite(current_turn_)) + " was caught in " + red_.current_city;
+                to_string(opposite(current_turn_)) + " was caught in " + alpha_.current_city;
             result.ok = true;
             result.game_over = true;
             result.winner = current_turn_;
@@ -845,9 +853,9 @@ PlayerSide GameState::get_city_controller(const std::string& city) const {
     if (it != city_controllers_.end()) {
         return it->second;
     }
-    // Return a default PlayerSide value (RED) if no controller found
+    // Return a default PlayerSide value (ALPHA) if no controller found
     // Caller should check if city is actually controlled using city_controllers() map
-    return PlayerSide::RED;  // This value indicates "not controlled" when used with the map check
+    return PlayerSide::ALPHA;  // This value indicates "not controlled" when used with the map check
 }
 
 // ── Intel Pop-up Management ──────────────────────────────────────────
@@ -865,7 +873,17 @@ void GameState::try_spawn_intel_popup() {
         
         for (const auto& city : all_cities) {
             if (disappeared_cities_.find(city) == disappeared_cities_.end()) {
-                valid_cities.push_back(city);
+                // Check no existing Intel popup at this city
+                bool has_intel = std::any_of(intel_popups_.begin(), intel_popups_.end(),
+                    [&city](const IntelPopup& p) { return p.city_id == city; });
+                
+                // Check no existing Action popup at this city
+                bool has_action = std::any_of(action_popups_.begin(), action_popups_.end(),
+                    [&city](const ActionPopup& p) { return p.city_id == city; });
+
+                if (!has_intel && !has_action) {
+                    valid_cities.push_back(city);
+                }
             }
         }
         
@@ -907,7 +925,7 @@ void GameState::try_claim_intel(PlayerSide side) {
         p.claimed_intel_this_turn = true;
         p.intel_claimed_from_city = it->city_id;
         
-        std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+        std::cerr << "[INTEL] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " will claim " << it->amount << " Intel at city " << it->city_id << "\n";
         
         // Remove the pop-up
@@ -932,7 +950,7 @@ void GameState::apply_claimed_intel(PlayerSide side) {
             opp.opponent_claimed_intel = true;  // notify opponent that player claimed intel
         }
         
-        std::cerr << "[INTEL] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+        std::cerr << "[INTEL] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " claimed Intel at " << p.intel_claimed_from_city 
                   << ". New Intel: " << p.intel << ". Cover blown."
                   << " Opponent now sees at: " << p.current_city << "\n";
@@ -955,10 +973,15 @@ void GameState::try_spawn_action_popup() {
         
         for (const auto& city : all_cities) {
             if (disappeared_cities_.find(city) == disappeared_cities_.end()) {
-                // Check no existing action popup at this city
-                bool has_popup = std::any_of(action_popups_.begin(), action_popups_.end(),
+                // Check no existing Action popup at this city
+                bool has_action = std::any_of(action_popups_.begin(), action_popups_.end(),
                     [&city](const ActionPopup& p) { return p.city_id == city; });
-                if (!has_popup) {
+                
+                // Check no existing Intel popup at this city
+                bool has_intel = std::any_of(intel_popups_.begin(), intel_popups_.end(),
+                    [&city](const IntelPopup& p) { return p.city_id == city; });
+
+                if (!has_action && !has_intel) {
                     valid_cities.push_back(city);
                 }
             }
@@ -997,7 +1020,7 @@ void GameState::try_claim_action(PlayerSide side) {
         p.claimed_action_this_turn = true;
         p.action_claimed_from_city = it->city_id;
         
-        std::cerr << "[ACTION] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+        std::cerr << "[ACTION] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " will claim Action pickup at city " << it->city_id << "\n";
         
         // Remove the pop-up
@@ -1019,7 +1042,7 @@ void GameState::apply_claimed_action(PlayerSide side) {
         auto& opp = player_mut(opposite(side));
         opp.known_opponent_city = p.current_city;
         
-        std::cerr << "[ACTION] Player " << (side == PlayerSide::RED ? "RED" : "BLUE") 
+        std::cerr << "[ACTION] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " claimed Action pickup at " << p.action_claimed_from_city 
                   << ". Actions now: " << p.actions_remaining << ". Cover blown.\n";
         

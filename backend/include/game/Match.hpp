@@ -77,8 +77,8 @@ private:
     mutable std::mutex mutex_;
 
     // Player bookkeeping
-    std::string red_player_id_;
-    std::string blue_player_id_;
+    std::string alpha_player_id_;
+    std::string beta_player_id_;
     bool started_ = false;
 
 public:

@@ -31,7 +31,7 @@ These tests validate core game mechanics and remain fully functional:
 | `test_end_turn` | Turn transitions work correctly |
 | `test_no_actions_remaining` | Actions reset on new turn |
 | `test_city_graph_adjacency` | Graph adjacency queries work |
-| `test_turn_alternation` | Turns alternate between RED and BLUE |
+| `test_turn_alternation` | Turns alternate between ALPHA and BETA |
 | `test_starting_cities_not_adjacent` | Initial validation rejects adjacent cities |
 
 ---
