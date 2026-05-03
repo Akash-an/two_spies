@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { audioManager } from '../../audio/AudioManager';
 import './CodenameAuthorizationTerminal.css';
 
 export interface CodenameAuthorizationProps {
@@ -49,6 +50,8 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
+    audioManager.init();
+    audioManager.play('ui_click');
     const nameToSubmit = input.trim() || generateRandomName();
     if (nameToSubmit) {
       onEstablish?.(nameToSubmit);

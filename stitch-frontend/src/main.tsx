@@ -22,6 +22,7 @@ function App() {
   const [, setPlayerSide] = useState<PlayerSide | null>(null);
   const [initialMap, setInitialMap] = useState<any>(null);
   const [initialState, setInitialState] = useState<any>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
 
   const [logs, setLogs] = useState<string[]>([
@@ -145,6 +146,7 @@ function App() {
           console.error('[App] Server error:', msg);
           const errorMessage = (msg.payload as any)?.message || 'Unknown error';
           setLogs((p) => [...p, `SERVER ERROR: ${errorMessage}`]);
+          setJoinError(errorMessage);
           setIsLoading(false);
         });
 
@@ -208,6 +210,7 @@ function App() {
     console.log('[App] Joining frequency:', frequency);
     setLogs((p) => [...p, `JOINING FREQUENCY: ${frequency}`]);
     setIsLoading(true);
+    setJoinError(null);
     // Send JOIN_MATCH to backend
     if (netRef.current && netRef.current.isConnected()) {
       netRef.current.send(ClientMessageType.JOIN_MATCH, { code: frequency });
@@ -215,6 +218,7 @@ function App() {
       // Wait for MATCH_START event from backend to transition to game
     } else {
       setLogs((p) => [...p, `ERROR: Not connected to server`]);
+      setJoinError('Not connected to server');
       setIsLoading(false);
     }
   };
@@ -264,6 +268,8 @@ function App() {
               setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
            }}
            loading={isLoading}
+           joinError={joinError}
+           onClearError={() => setJoinError(null)}
            onOpenHowToPlay={() => setShowHowToPlay(true)}
            setActionTooltip={handleSetActionTooltip}
          />

@@ -10,6 +10,7 @@ import {
   PlayerSide,
   MapDef,
 } from '../../types/Messages';
+import { audioManager } from '../../audio/AudioManager';
 import './PhaserGame.css';
 
 export interface PhaserGameProps {
@@ -57,6 +58,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const canAct = isMyTurn && actionsLeft > 0 && !gameOver;
   // When a city is selected, all action buttons are locked — only map clicks are active
   const canActBtn = canAct && !selectedCity;
+  const isCityControlledByMe = matchState && playerCity ? matchState.controlledCities[playerCity] === mySide : false;
+  const isOpponentLocated = !!matchState?.player.knownOpponentCity;
   const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
 
@@ -71,6 +74,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const lastPos = useRef({ x: 0, y: 0 });
   const lastTouchDist = useRef(0);
   const lastTouchCenter = useRef({ x: 0, y: 0 });
+  const [isMuted, setIsMuted] = useState(() => audioManager.isMuted());
+
+  const toggleMute = useCallback(() => {
+    setIsMuted(audioManager.toggleMute());
+  }, []);
 
   // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
   useEffect(() => {
@@ -196,6 +204,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       // Turn change detection
       if (lastTurnRef.current !== null && lastTurnRef.current !== state.currentTurn) {
         const isMyTurn = state.currentTurn === state.player.side;
+        if (isMyTurn) {
+          audioManager.play('turn_start');
+        }
         const bannerId = `turn-${Date.now()}`;
         const bannerText = isMyTurn ? 'YOUR TURN' : "OPPONENT'S TURN";
         setEventBanners(prev => [...prev, { id: bannerId, text: bannerText }]);
@@ -283,10 +294,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     const handleGameOver = (msg: any) => {
       setGameOver(msg.payload as GameOverPayload);
       addNotification(`Game Over: ${msg.payload.winner} wins — ${msg.payload.reason}`);
+      audioManager.play('success'); // General notification for game over
     };
 
     const handleError = (msg: any) => {
       addNotification(msg.payload?.message || 'Unknown error', 'error');
+      audioManager.play('error');
     };
 
     webSocketClient.on(ServerMessageType.MATCH_STATE, handleMatchState);
@@ -325,6 +338,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   }, [matchState, isMyTurn, actionsLeft, canAct, gameOver]);
 
   const sendAction = useCallback((action: string, targetCity?: string, abilityId?: string) => {
+    audioManager.play('ui_click');
     const payload: Record<string, string> = { action };
     if (targetCity) payload.targetCity = targetCity;
     if (abilityId) payload.abilityId = abilityId;
@@ -335,6 +349,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   }, [webSocketClient, setActionTooltip]);
 
   const sendEndTurn = useCallback(() => {
+    audioManager.play('ui_click');
     webSocketClient.send(ClientMessageType.END_TURN, {});
     setActionTooltip(null);
   }, [webSocketClient, setActionTooltip]);
@@ -362,6 +377,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const handleMapClick = useCallback(() => {
     if (isDragging.current) return;
     if (!playerCity) return;
+    audioManager.play('ui_hover');
     if (highlightedCity === playerCity) {
       setHighlightedCity(null);
       setSelectedCity(null);
@@ -561,6 +577,17 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <div className={`header-timer ${timerUrgent ? 'urgent' : 'normal'}`}>
             {timerSeconds}s
           </div>
+          <button
+            className="help-btn-header"
+            onClick={toggleMute}
+            onMouseEnter={() => setActionTooltip('TOGGLE AUDIO: Mute or unmute game sounds.')}
+            onMouseLeave={() => setActionTooltip(null)}
+            title={isMuted ? "Unmute Audio" : "Mute Audio"}
+          >
+            <span className="material-symbols-outlined">
+              {isMuted ? 'volume_off' : 'volume_up'}
+            </span>
+          </button>
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
@@ -939,7 +966,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip('CONTROL: Claim this city for your network. Blows Cover.')} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canActBtn}
+            disabled={!canActBtn || isCityControlledByMe}
             onClick={() => sendAction(ActionKind.CONTROL)}
           >
             <span className="material-symbols-outlined">token</span>
@@ -949,7 +976,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         <div onMouseEnter={() => setActionTooltip("LOCATE: Reveal the opponent's current city. Costs 10 Intel.")} onMouseLeave={() => setActionTooltip(null)}>
           <button
             className="action-btn"
-            disabled={!canActBtn || matchState.player.intel < 10}
+            disabled={!canActBtn || matchState.player.intel < 10 || isOpponentLocated}
             onClick={() => sendAction(ActionKind.ABILITY, undefined, AbilityId.LOCATE)}
           >
             <span className="material-symbols-outlined">my_location</span>
