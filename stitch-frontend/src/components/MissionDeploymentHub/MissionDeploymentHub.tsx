@@ -17,10 +17,12 @@ export interface MissionDeploymentHubProps {
   matchCode?: string | null;
   className?: string;
   loading?: boolean;
-  onOpenHowToPlay?: () => void;
-  setActionTooltip?: (val: string | null) => void;
+  onOpenHowToPlay: () => void;
+  setActionTooltip: (val: string | null) => void;
   joinError?: string | null;
   onClearError?: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 
 const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
@@ -43,6 +45,8 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   setActionTooltip,
   joinError = null,
   onClearError,
+  isMuted,
+  onToggleMute,
 }) => {
   const [showGeneratedFrequencyModal, setShowGeneratedFrequencyModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -125,6 +129,17 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <div className="bg-primary-container/10 px-4 py-1 border border-primary/30">
             <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter">STATUS: ACTIVE</span>
           </div>
+          <button
+            className="help-btn-header"
+            onClick={onToggleMute}
+            onMouseEnter={() => setActionTooltip?.(isMuted ? 'UNMUTE AUDIO' : 'MUTE AUDIO')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          >
+            <span className="material-symbols-outlined">
+              {isMuted ? 'volume_off' : 'volume_up'}
+            </span>
+          </button>
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}

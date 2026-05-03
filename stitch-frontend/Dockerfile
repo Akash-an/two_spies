@@ -12,7 +12,9 @@ COPY . .
 
 # Environment variable for WebSocket URL (baked into the build)
 ARG VITE_WS_URL=wss://spies.atyourservice-ai.com/ws
+ARG VITE_DROP_CONSOLE=false
 ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_DROP_CONSOLE=$VITE_DROP_CONSOLE
 
 # Build the production application
 RUN npm run build

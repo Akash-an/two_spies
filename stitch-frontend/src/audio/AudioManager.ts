@@ -62,21 +62,24 @@ class AudioManager {
     }
   }
 
+  private muted = false;
+
   /**
    * Toggle global mute state
    */
   public toggleMute(): boolean {
-    const isMuted = !Howler.mute(); // Returns the NEW state
-    Howler.mute(isMuted);
-    return isMuted;
+    this.muted = !this.muted;
+    Howler.mute(this.muted);
+    return this.muted;
   }
 
   /**
    * Check global mute state
    */
   public isMuted(): boolean {
-    return Howler._muted;
+    return this.muted;
   }
+
   
   /**
    * Set global volume (0.0 to 1.0)

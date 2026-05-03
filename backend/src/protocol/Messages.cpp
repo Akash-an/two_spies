@@ -106,7 +106,16 @@ json serialize_match_state(const std::string& session_id,
     player_state["currentCity"] = p.current_city;
     player_state["intel"] = p.intel;
     player_state["actionsRemaining"] = p.actions_remaining;
-    player_state["hasCover"] = p.has_cover;
+    
+    // Determine the local player's perceived cover status
+    if (!p.has_cover && !p.cover_blown_stealthily) {
+        player_state["coverStatus"] = "EXPOSED";
+    } else if (opp.encryption_unlocked) {
+        player_state["coverStatus"] = "UNKNOWN";
+    } else {
+        player_state["coverStatus"] = "ACTIVE";
+    }
+
     player_state["abilities"] = abilities_arr;
 
     // Only include opponent's known city if revealed
@@ -127,15 +136,15 @@ json serialize_match_state(const std::string& session_id,
     player_state["opponentUsedDeepCover"] = p.opponent_used_deep_cover;
     player_state["opponentUsedControl"] = p.opponent_used_control;
     player_state["opponentClaimedIntel"] = p.opponent_claimed_intel;
+    player_state["opponentUsedEncryption"] = p.opponent_used_encryption;
+    player_state["opponentUsedPrepMission"] = p.opponent_used_prep_mission;
 
     player_state["opponentUnlockedStrikeReport"] = p.opponent_unlocked_strike_report;
-    player_state["opponentStrikeReportActive"] = opp.strike_report_unlocked;
+    player_state["opponentStrikeReportActive"] = opp.strike_report_revealed;
     player_state["opponentEncryptionActive"] = opp.encryption_unlocked;
-    player_state["opponentRapidReconActive"] = opp.rapid_recon_unlocked;
+    player_state["opponentRapidReconActive"] = opp.rapid_recon_revealed;
     
     // Include player action feedback
-    fprintf(stderr, "[!!!] Serializing: player=%s locate_blocked=%d\n",
-            p.side == game::PlayerSide::ALPHA ? "ALPHA" : "BETA", p.locate_blocked_by_deep_cover);
     player_state["locateBlockedByDeepCover"] = p.locate_blocked_by_deep_cover;
     
     // DEBUG: Print to stderr what we're serializing

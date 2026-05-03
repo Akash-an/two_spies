@@ -16,6 +16,8 @@ export interface CodenameAuthorizationProps {
   loading?: boolean;
   onOpenHowToPlay?: () => void;
   setActionTooltip?: (val: string | null) => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 
 const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
@@ -29,6 +31,8 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
   loading = false,
   onOpenHowToPlay,
   setActionTooltip,
+  isMuted,
+  onToggleMute,
 }) => {
   const [input, setInput] = useState<string>(operativeCodename);
 
@@ -136,6 +140,17 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           >
             <span className="material-symbols-outlined">
               {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+            </span>
+          </button>
+          <button
+            className="help-btn-header"
+            onClick={onToggleMute}
+            onMouseEnter={() => setActionTooltip?.(isMuted ? 'UNMUTE AUDIO' : 'MUTE AUDIO')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          >
+            <span className="material-symbols-outlined">
+              {isMuted ? 'volume_off' : 'volume_up'}
             </span>
           </button>
           <button

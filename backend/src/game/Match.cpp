@@ -181,6 +181,21 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
         send_error(player_id, "Unknown action: " + action);
         return;
     }
+    
+    // Determine if this action should be stealthy (suppress broadcast to opponent)
+    bool skip_opponent = false;
+    const auto& p = state_->player(side);
+    if (p.encryption_unlocked) {
+        // If encrypted, we hide specific actions from the opponent's network/timer
+        // But we MUST broadcast the initial ENCRYPTION activation so they know we are hidden
+        if (action == "ABILITY") {
+            if (ability_id != "ENCRYPTION") {
+                skip_opponent = true;
+            }
+        } else if (action == "STRIKE" && !result.game_over) {
+            skip_opponent = true;
+        }
+    }
 
     if (!result.ok) {
         send_error(player_id, result.error);
@@ -213,10 +228,12 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
             state_->end_turn(side);
             // Reset timer for next player's turn
             turn_start_time_ = std::chrono::steady_clock::now();
+            // Turn ending is NOT stealthy
+            skip_opponent = false;
         }
     }
 
-    broadcast_state();
+    broadcast_state(skip_opponent);
 }
 
 void Match::handle_end_turn(const std::string& player_id) {
@@ -298,34 +315,35 @@ std::string Match::player_id_of(PlayerSide side) const {
     return side == PlayerSide::ALPHA ? alpha_player_id_ : beta_player_id_;
 }
 
-void Match::broadcast_state() {
+void Match::broadcast_state(bool skip_opponent) {
     // Check for turn timeout before broadcasting state
-    // This ensures timeout is detected even when players are idle
     if (check_turn_timeout()) {
         handle_turn_timeout();
-        return;  // handle_turn_timeout() will call broadcast_state() again
+        return;
     }
     
     long long elapsed = time_since_turn_start();
     long long effective_limit = first_turn_grace_
         ? (TURN_DURATION_MS + STARTUP_GRACE_MS)
         : TURN_DURATION_MS;
-    long long seconds_left = (effective_limit - elapsed) / 1000;
     
-    // Send per-player filtered state
+    PlayerSide acting_side = state_->current_turn();
+    
     if (!alpha_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::ALPHA, elapsed, effective_limit);
-        auto msg = protocol::make_server_message(
-            protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
-        std::cout << "[Match " << session_id_ << "] Broadcasting state to ALPHA\n";
-        send_to(alpha_player_id_, msg);
+        bool should_send = !skip_opponent || (acting_side == PlayerSide::ALPHA);
+        if (should_send) {
+            auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::ALPHA, elapsed, effective_limit);
+            auto msg = protocol::make_server_message(protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
+            send_to(alpha_player_id_, msg);
+        }
     }
     if (!beta_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BETA, elapsed, effective_limit);
-        auto msg = protocol::make_server_message(
-            protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
-        std::cout << "[Match " << session_id_ << "] Broadcasting state to BETA\n";
-        send_to(beta_player_id_, msg);
+        bool should_send = !skip_opponent || (acting_side == PlayerSide::BETA);
+        if (should_send) {
+            auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BETA, elapsed, effective_limit);
+            auto msg = protocol::make_server_message(protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
+            send_to(beta_player_id_, msg);
+        }
     }
 }
 

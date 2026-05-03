@@ -342,7 +342,9 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                     // Opponent becomes visible to me
                     opp_mut.has_cover = false;  // Locate ability reveals opponent
                     // Notify opponent (unless encryption hides it)
-                    if (!p.encryption_unlocked) {
+                    if (p.encryption_unlocked) {
+                        opp_mut.cover_blown_stealthily = true;
+                    } else {
                         opp_mut.opponent_used_locate = true;
                     }
                     p.locate_blocked_by_deep_cover = false;  // Locate succeeded, did not fail
@@ -355,6 +357,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
             p.strike_report_unlocked = true;
             if (!p.encryption_unlocked) {
                 opponent.opponent_unlocked_strike_report = true;
+                p.strike_report_revealed = true;
             }
             std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " unlocked STRIKE_REPORT.\n";
@@ -368,6 +371,11 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                 return result;
             }
             p.encryption_unlocked = true;
+            // The act of enabling encryption is always notified to the opponent,
+            // but subsequent actions will be hidden by it.
+            opponent.opponent_used_encryption = true;
+
+            
             // Remove from available abilities (one-time purchase)
             {
                 auto abil_it = std::find(p.abilities.begin(), p.abilities.end(), AbilityId::ENCRYPTION);
@@ -392,6 +400,9 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                 auto abil_it = std::find(p.abilities.begin(), p.abilities.end(), AbilityId::RAPID_RECON);
                 if (abil_it != p.abilities.end()) {
                     p.abilities.erase(abil_it);
+                }
+                if (!p.encryption_unlocked) {
+                    p.rapid_recon_revealed = true;
                 }
             }
             std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
@@ -418,6 +429,9 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                 }
             }
             p.prep_mission_active = true;
+            if (!p.encryption_unlocked) {
+                opponent.opponent_used_prep_mission = true;
+            }
             std::cerr << "[ABILITY] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                       << " activated PREP_MISSION — next turn will have 3 actions.\n";
             break;
@@ -597,6 +611,11 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     } else {
         next.actions_remaining = 2;
     }
+
+    // Reset notification and stealth flags for the next player
+    next.opponent_used_encryption = false;
+    next.opponent_used_prep_mission = false;
+    next.cover_blown_stealthily = false;
     
     // Apply any claimed Intel at the start of the new turn (blows cover)
     apply_claimed_intel(current_turn_);
@@ -660,6 +679,9 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
     p.opponent_used_deep_cover = false;
     p.opponent_used_control = false;
     p.opponent_claimed_intel = false;
+    p.opponent_used_encryption = false;
+    p.opponent_used_prep_mission = false;
+    p.cover_blown_stealthily = false; // Turn ended, stealth reveal expires or becomes obvious
 
     p.opponent_unlocked_strike_report = false;
     p.locate_blocked_by_deep_cover = false;  // Clear Locate feedback flag

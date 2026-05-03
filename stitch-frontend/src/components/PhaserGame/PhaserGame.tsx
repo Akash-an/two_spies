@@ -23,6 +23,8 @@ export interface PhaserGameProps {
   onTerminateLink?: () => void;
   setShowHowToPlay: (val: boolean) => void;
   setActionTooltip: (val: string | null) => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 
 interface Notification {
@@ -42,6 +44,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   onTerminateLink,
   setShowHowToPlay,
   setActionTooltip,
+  isMuted,
+  onToggleMute,
 }) => {
   const [matchState, setMatchState] = useState<MatchState | null>(initialState || null);
   const mySide = matchState?.player.side;
@@ -74,11 +78,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const lastPos = useRef({ x: 0, y: 0 });
   const lastTouchDist = useRef(0);
   const lastTouchCenter = useRef({ x: 0, y: 0 });
-  const [isMuted, setIsMuted] = useState(() => audioManager.isMuted());
 
   const toggleMute = useCallback(() => {
-    setIsMuted(audioManager.toggleMute());
-  }, []);
+    onToggleMute();
+  }, [onToggleMute]);
 
   // Sync with initial state prop if it changes (e.g. first state arrives just before mount)
   useEffect(() => {
@@ -125,9 +128,16 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     return adj;
   }, [matchState, initialMap]);
 
+  // Set of disappeared cities
+  const disappearedSet = useMemo(() => {
+    if (!matchState) return new Set<string>();
+    return new Set(matchState.disappearedCities);
+  }, [matchState]);
+
   // Adjacency set for the currently highlighted city (any city on the map)
   const highlightedNeighbors = useMemo(() => {
-    if (!highlightedCity || !playerCity) return new Set<string>();
+    const playerIsStranded = playerCity && disappearedSet.has(playerCity);
+    if (!(highlightedCity || playerIsStranded) || !playerCity) return new Set<string>();
     const center = playerCity;
     const effectiveMap = matchState?.map || initialMap;
     if (!effectiveMap) return new Set<string>();
@@ -137,13 +147,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       if (edge.to === center) adj.add(edge.from);
     }
     return adj;
-  }, [highlightedCity, playerCity, matchState, initialMap]);
+  }, [highlightedCity, playerCity, matchState, initialMap, disappearedSet]);
 
-  // Set of disappeared cities
-  const disappearedSet = useMemo(() => {
-    if (!matchState) return new Set<string>();
-    return new Set(matchState.disappearedCities);
-  }, [matchState]);
+
 
   // Build city coordinate map (normalised 0-1 → SVG pixels)
   const cityPos = useMemo(() => {
@@ -236,6 +242,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       if (state.player.opponentUnlockedStrikeReport) {
         addNotification('Opponent unlocked STRIKE REPORT!', 'warning', state.turnNumber);
       }
+      if (state.player.opponentUsedEncryption) {
+        addNotification('Opponent activated ENCRYPTION (blackout enabled)', 'warning', state.turnNumber);
+      }
+      if (state.player.opponentUsedPrepMission) {
+        addNotification('Opponent used PREP MISSION (extra action incoming)', 'warning', state.turnNumber);
+      }
       if (state.player.locateBlockedByDeepCover) {
         addNotification('Your LOCATE was blocked by Deep Cover!', 'error', state.turnNumber);
       }
@@ -263,6 +275,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         }
         if (state.player.opponentUsedControl && !lastStateRef.current.player.opponentUsedControl) {
           addEventBanner('OPPONENT TOOK CONTROL OF A CITY', 'warning');
+        }
+        if (state.player.opponentUsedEncryption && !lastStateRef.current.player.opponentUsedEncryption) {
+          addEventBanner('OPPONENT ACTIVATED ENCRYPTION', 'warning');
+        }
+        if (state.player.opponentUsedPrepMission && !lastStateRef.current.player.opponentUsedPrepMission) {
+          addEventBanner('OPPONENT USED PREP MISSION', 'warning');
         }
 
         // Detect player strike report unlock
@@ -653,15 +671,26 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const from = cityPos.get(edge.from);
               const to = cityPos.get(edge.to);
               if (!from || !to) return null;
-              if (disappearedSet.has(edge.from) || disappearedSet.has(edge.to)) return null;
-              // Highlight edges connected to the player's city when any highlight is active
-              const isAdj = highlightedCity && playerCity && (edge.from === playerCity || edge.to === playerCity);
+              
+              const fromDis = disappearedSet.has(edge.from);
+              const toDis = disappearedSet.has(edge.to);
+              
+              const playerIsStranded = playerCity && disappearedSet.has(playerCity);
+              const isEscapeRoute = playerIsStranded && 
+                ((edge.from === playerCity && !toDis) || (edge.to === playerCity && !fromDis));
+                
+              const isRegularAdj = !fromDis && !toDis && highlightedCity && playerCity && 
+                (edge.from === playerCity || edge.to === playerCity);
+
+              const isAdj = isEscapeRoute || isRegularAdj;
+              const isDis = (fromDis || toDis) && !isAdj;
+
               return (
                 <line
                   key={i}
                   x1={from.x} y1={from.y}
                   x2={to.x} y2={to.y}
-                  className={`city-edge ${isAdj ? 'adjacent' : ''}`}
+                  className={`city-edge ${isAdj ? 'adjacent' : ''} ${isDis ? 'disappeared' : ''}`}
                 />
               );
             })}
@@ -690,7 +719,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               } else {
                 // Determine presence and state
                 if (isPlayer) {
-                  circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
+                  circleClass += matchState.player.coverStatus === 'EXPOSED' ? ' player exposed' : ' player';
                 } else if (isOpp) {
                   circleClass += ' opponent';
                 }
@@ -736,10 +765,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
                   {/* Disappeared overlay (X) */}
                   {isDis && (
-                    <>
-                      <line x1={pos.x - 6} y1={pos.y - 6} x2={pos.x + 6} y2={pos.y + 6} stroke="#ff4444" strokeWidth="2" />
-                      <line x1={pos.x + 6} y1={pos.y - 6} x2={pos.x - 6} y2={pos.y + 6} stroke="#ff4444" strokeWidth="2" />
-                    </>
+                    <g opacity="0.6">
+                      <line x1={pos.x - 8} y1={pos.y - 8} x2={pos.x + 8} y2={pos.y + 8} stroke="#ff4444" strokeWidth="3" strokeLinecap="round" />
+                      <line x1={pos.x + 8} y1={pos.y - 8} x2={pos.x - 8} y2={pos.y + 8} stroke="#ff4444" strokeWidth="3" strokeLinecap="round" />
+                    </g>
                   )}
 
                   {/* Player & Opponent Markers (Pointer Style) */}
@@ -749,7 +778,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                     const markerH = 28;
                     const shoulderH = 20; // Widest part is now near the top
                     const tipY = pos.y - radius - 1;
-                    const isExposed = isPlayer && !matchState.player.hasCover;
+                    const isPlayerExposed = isPlayer && matchState.player.coverStatus === 'EXPOSED';
 
                     if (isPlayer && isOpp) {
                       // Both players in same city - offset side-by-side
@@ -760,20 +789,23 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                           key="player"
                           points={`${p1X},${tipY} ${p1X + markerW / 2},${tipY - shoulderH} ${p1X},${tipY - markerH} ${p1X - markerW / 2},${tipY - shoulderH}`}
                           fill="var(--player-green)"
-                          stroke={isExposed ? "#fff" : "none"}
-                          strokeWidth={isExposed ? "2" : "0"}
+                          stroke={isPlayerExposed ? "#fff" : "none"}
+                          strokeWidth={isPlayerExposed ? "2" : "0"}
                           pointerEvents="none"
-                          className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
+                          className={`marker-float ${isPlayerExposed ? 'exposed-glow' : ''}`}
                         />
                       );
                       markers.push(
-                        <polygon
-                          key="opponent"
-                          points={`${p2X},${tipY} ${p2X + markerW / 2},${tipY - shoulderH} ${p2X},${tipY - markerH} ${p2X - markerW / 2},${tipY - shoulderH}`}
-                          fill="#ff4444"
-                          pointerEvents="none"
-                          className="marker-float"
-                        />
+                        <g key="opponent">
+                          <polygon
+                            points={`${p2X},${tipY} ${p2X + markerW / 2},${tipY - shoulderH} ${p2X},${tipY - markerH} ${p2X - markerW / 2},${tipY - shoulderH}`}
+                            fill="#ff4444"
+                            stroke="none"
+                            strokeWidth="0"
+                            pointerEvents="none"
+                            className="marker-float"
+                          />
+                        </g>
                       );
                     } else if (isPlayer) {
                       markers.push(
@@ -781,21 +813,24 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                           key="player"
                           points={`${pos.x},${tipY} ${pos.x + markerW / 2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW / 2},${tipY - shoulderH}`}
                           fill="var(--player-green)"
-                          stroke={isExposed ? "#fff" : "none"}
-                          strokeWidth={isExposed ? "2" : "0"}
+                          stroke={isPlayerExposed ? "#fff" : "none"}
+                          strokeWidth={isPlayerExposed ? "2" : "0"}
                           pointerEvents="none"
-                          className={`marker-float ${isExposed ? 'exposed-glow' : ''}`}
+                          className={`marker-float ${isPlayerExposed ? 'exposed-glow' : ''}`}
                         />
                       );
                     } else if (isOpp) {
                       markers.push(
-                        <polygon
-                          key="opponent"
-                          points={`${pos.x},${tipY} ${pos.x + markerW / 2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW / 2},${tipY - shoulderH}`}
-                          fill="#ff4444"
-                          pointerEvents="none"
-                          className="marker-float"
-                        />
+                        <g key="opponent">
+                          <polygon
+                            points={`${pos.x},${tipY} ${pos.x + markerW / 2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW / 2},${tipY - shoulderH}`}
+                            fill="#ff4444"
+                            stroke="none"
+                            strokeWidth="0"
+                            pointerEvents="none"
+                            className="marker-float"
+                          />
+                        </g>
                       );
                     }
                     return markers;
@@ -887,9 +922,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               <div className="symbol-value">{matchState.player.intel}</div>
             </div>
             
-            <div className="panel-symbol" title={matchState.player.hasCover ? 'COVER: ACTIVE' : 'COVER: EXPOSED'}>
-              <span className={`material-symbols-outlined ${matchState.player.hasCover ? 'active' : 'warn'}`}>
-                {matchState.player.hasCover ? 'security' : 'warning'}
+            <div className="panel-symbol" title={`COVER: ${matchState.player.coverStatus}`}>
+              <span className={`material-symbols-outlined ${matchState.player.coverStatus === 'ACTIVE' ? 'active' : (matchState.player.coverStatus === 'UNKNOWN' ? 'dimmed' : 'warn')}`}>
+                {matchState.player.coverStatus === 'ACTIVE' ? 'security' : (matchState.player.coverStatus === 'UNKNOWN' ? 'visibility_off' : 'warning')}
               </span>
             </div>
 
@@ -916,8 +951,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
           <div className="section-divider"></div>
 
-          {/* Opponent Section */}
-          <div className="panel-group" title="OPPONENT STATUS">
+          {/* Opponent Section - Only shows high-level passive unlocks, never current Intel or Cover */}
+          <div className="panel-group" title="OPPONENT REVEALS">
             <div className="panel-symbol" title={`Opponent Strike Report: ${matchState.player.opponentStrikeReportActive ? 'ACTIVE' : 'OFFLINE'}`}>
               <span className={`material-symbols-outlined ${matchState.player.opponentStrikeReportActive ? 'warn' : 'dimmed'}`}>
                 plagiarism
