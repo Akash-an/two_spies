@@ -157,10 +157,76 @@ static void test_strike_miss() {
     auto r = gs.strike(PlayerSide::ALPHA, "london");
     assert(r.ok);
     assert(!r.game_over);
-    // Striker LOSES cover on a failed strike
-    assert(!gs.player(PlayerSide::ALPHA).has_cover);
+    // Per field manual: STRIKE "does not blow your cover unless your Target
+    // has unlocked STRIKE REPORTS". BETA has no Strike Reports → ALPHA keeps
+    // their cover state unchanged by the miss. ALPHA started with cover blown
+    // (turn 1), so cover should still be false here, but it was NOT changed
+    // by the strike. We assert the rule via a separate test that starts the
+    // strike with cover==true; this test just guards the notification flag.
     // Opponent is notified a strike was attempted
     assert(gs.player(PlayerSide::BETA).opponent_used_strike);
+    std::cout << "OK\n";
+}
+
+// Per field manual: missed strike must NOT blow striker's cover when the
+// defender has not unlocked STRIKE REPORTS. (BUG-1)
+static int g_soft_failures = 0;
+#define SOFT_EXPECT(cond, msg) do { \
+    if (!(cond)) { \
+        std::cerr << "\n  [FAIL] " << __func__ << ": " << msg \
+                  << " (line " << __LINE__ << ")\n"; \
+        ++g_soft_failures; \
+    } \
+} while(0)
+
+static void test_strike_miss_preserves_cover_without_strike_report() {
+    std::cout << "  test_strike_miss_preserves_cover_without_strike_report... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // ALPHA gets cover by waiting (which also clears BETA's knowledge)
+    gs.wait(PlayerSide::ALPHA);
+    
+    // BETA has NOT unlocked Strike Reports.
+    assert(!gs.player(PlayerSide::BETA).strike_report_unlocked);
+
+    // ALPHA strikes london — MISS (BETA is in moscow)
+    auto r = gs.strike(PlayerSide::ALPHA, "london");
+    assert(r.ok);
+    assert(!r.game_over);
+    // Per manual: cover MUST be preserved.
+    SOFT_EXPECT(gs.player(PlayerSide::ALPHA).has_cover,
+                "miss should not blow cover when defender lacks Strike Reports");
+    // And opponent must not have learned location.
+    SOFT_EXPECT(gs.player(PlayerSide::BETA).known_opponent_city == "",
+                "miss should not reveal location when defender lacks Strike Reports");
+    std::cout << "OK\n";
+}
+
+// Per field manual: when defender has STRIKE REPORTS unlocked, a missed
+// strike DOES blow the striker's cover and reveals their location.
+static void test_strike_miss_blows_cover_when_defender_has_strike_report() {
+    std::cout << "  test_strike_miss_blows_cover_when_defender_has_strike_report... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // BLUE unlocks STRIKE_REPORT.
+    gs.player_mut(PlayerSide::BETA).intel = 10;
+    gs.end_turn(PlayerSide::ALPHA);
+    auto u = gs.use_ability(PlayerSide::BETA, AbilityId::STRIKE_REPORT, "");
+    assert(u.ok);
+    gs.end_turn(PlayerSide::BETA);
+
+    // Give RED cover, then miss.
+    gs.player_mut(PlayerSide::ALPHA).has_cover = true;
+    auto r = gs.strike(PlayerSide::ALPHA, "london");  // MISS
+    assert(r.ok);
+    assert(!r.game_over);
+    // Per manual: with Strike Reports active, miss blows cover AND reveals.
+    SOFT_EXPECT(!gs.player(PlayerSide::ALPHA).has_cover,
+                "miss should blow cover when defender has Strike Reports");
+    SOFT_EXPECT(gs.player(PlayerSide::BETA).known_opponent_city == "london",
+                "miss should reveal location when defender has Strike Reports");
     std::cout << "OK\n";
 }
 
@@ -169,6 +235,9 @@ static void test_strike_miss_does_not_reveal_location_without_report() {
     std::cout << "  test_strike_miss_does_not_reveal_location_without_report... ";
     GameState gs(test_map());
     gs.set_starting_cities("london", "moscow");
+
+    // Clear initial knowledge
+    gs.wait(PlayerSide::ALPHA);
 
     // ALPHA is in london, strikes (misses)
     gs.strike(PlayerSide::ALPHA, "london");  // MISS
@@ -882,6 +951,73 @@ static void test_opponent_cover_blown_entering_controlled_city() {
     std::cout << "OK\n";
 }
 
+// Per field manual: "You cannot wait in a Target-controlled city." (BUG-3)
+// WAIT must be rejected (return error, no action consumed) when the player
+// is in an opponent-controlled city.
+static void test_wait_in_opponent_controlled_city_rejected() {
+    std::cout << "  test_wait_in_opponent_controlled_city_rejected... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED controls london, ends turn.
+    auto c = gs.control(PlayerSide::ALPHA);
+    assert(c.ok);
+    gs.end_turn(PlayerSide::ALPHA);
+
+    // BLUE moves moscow -> berlin -> london (london is RED-controlled).
+    auto m1 = gs.move(PlayerSide::BETA, "berlin");
+    assert(m1.ok);
+    gs.end_turn(PlayerSide::BETA);
+    gs.end_turn(PlayerSide::ALPHA);
+    auto m2 = gs.move(PlayerSide::BETA, "london");
+    assert(m2.ok);
+    assert(gs.player(PlayerSide::BETA).current_city == "london");
+
+    int actions_before = gs.player(PlayerSide::BETA).actions_remaining;
+    // BLUE attempts to WAIT in RED-controlled city.
+    auto w = gs.wait(PlayerSide::BETA);
+    // Per manual: WAIT must be rejected.
+    SOFT_EXPECT(!w.ok, "wait in opponent-controlled city must be rejected");
+    SOFT_EXPECT(!w.error.empty(), "rejection must include an error message");
+    // Action must NOT be consumed.
+    SOFT_EXPECT(gs.player(PlayerSide::BETA).actions_remaining == actions_before,
+                "rejected wait must not consume an action");
+    std::cout << "OK\n";
+}
+
+// Per field manual: "Starting a turn in the same city as your Target" blows
+// the cover of the player whose turn is starting. (BUG-2)
+static void test_turn_start_in_target_city_blows_cover() {
+    std::cout << "  test_turn_start_in_target_city_blows_cover... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // RED moves london -> berlin (gains cover from moving)
+    auto m1 = gs.move(PlayerSide::ALPHA, "berlin");
+    assert(m1.ok);
+    assert(gs.player(PlayerSide::ALPHA).has_cover);
+    gs.end_turn(PlayerSide::ALPHA);
+
+    // BLUE moves moscow -> berlin (now both in berlin)
+    auto m2 = gs.move(PlayerSide::BETA, "berlin");
+    assert(m2.ok);
+    assert(gs.player(PlayerSide::BETA).current_city == "berlin");
+    // End BLUE's turn -> RED's turn now starts in same city as BLUE.
+    gs.end_turn(PlayerSide::BETA);
+
+    // It is RED's turn and RED is in the same city as BLUE.
+    assert(gs.current_turn() == PlayerSide::ALPHA);
+    assert(gs.player(PlayerSide::ALPHA).current_city ==
+           gs.player(PlayerSide::BETA).current_city);
+    // Per manual: RED's cover MUST be blown at the start of their turn.
+    SOFT_EXPECT(!gs.player(PlayerSide::ALPHA).has_cover,
+                "starting turn in same city as target must blow cover");
+    // BLUE should know exactly where RED is.
+    SOFT_EXPECT(gs.player(PlayerSide::BETA).known_opponent_city == "berlin",
+                "target should know striker location at turn start in same city");
+    std::cout << "OK\n";
+}
+
 static void test_control_persists_for_game_duration() {
     std::cout << "  test_control_persists_for_game_duration... ";
     GameState gs(test_map());
@@ -1336,6 +1472,64 @@ static void test_rapid_recon_blocked_by_deep_cover() {
     std::cout << "OK\n";
 }
 
+// Field Manual scenario reported by the user:
+//   "If the user used READY DEEP COVER on the previous turn and the opponent
+//    (who has Rapid Recon active) enters the user's city, the user's cover
+//    must NOT be blown — and the opponent must NOT learn the user's location."
+// This is a stricter version of test_rapid_recon_blocked_by_deep_cover that
+// also checks known_opponent_city, the existing-turn timing, and the
+// notification flag.
+static void test_rapid_recon_vs_deep_cover_full_invariants() {
+    std::cout << "  test_rapid_recon_vs_deep_cover_full_invariants... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    auto& red  = gs.player_mut(PlayerSide::ALPHA);
+    auto& blue = gs.player_mut(PlayerSide::BETA);
+
+    red.intel  = 40;
+    blue.intel = 20;
+
+    // RED unlocks RAPID_RECON (consumes RED's first action).
+    auto unlock = gs.use_ability(PlayerSide::ALPHA, AbilityId::RAPID_RECON);
+    assert(unlock.ok);
+    assert(red.rapid_recon_unlocked);
+    // Wait to consume RED's last action so the turn ends cleanly.
+    auto w = gs.wait(PlayerSide::ALPHA);
+    assert(w.ok);
+    gs.end_turn(PlayerSide::ALPHA);
+
+    // BLUE: moscow -> berlin (gain cover), then DEEP COVER as last action.
+    auto b_move = gs.move(PlayerSide::BETA, "berlin");
+    assert(b_move.ok);
+    auto b_dc = gs.use_ability(PlayerSide::BETA, AbilityId::DEEP_COVER);
+    assert(b_dc.ok);
+    assert(blue.deep_cover_active);
+    gs.end_turn(PlayerSide::BETA);
+
+    // RED moves london -> berlin (where BLUE is). Must NOT see BLUE.
+    assert(gs.current_turn() == PlayerSide::ALPHA);
+    // Pre-conditions for a fair test:
+    assert(red.known_opponent_city.empty() &&
+           "RED must not already know BLUE's city before the Rapid Recon move");
+
+    auto r_move = gs.move(PlayerSide::ALPHA, "berlin");
+    assert(r_move.ok);
+    assert(red.current_city == "berlin" && blue.current_city == "berlin");
+
+    // Manual: Rapid Recon is blocked by the target's Deep Cover.
+    SOFT_EXPECT(blue.has_cover,
+                "Deep Cover must protect BLUE from Rapid Recon cover-blow");
+    SOFT_EXPECT(red.known_opponent_city.empty(),
+                "RED must not learn BLUE's location through Rapid Recon when BLUE has Deep Cover");
+    // BLUE should not see a Rapid Recon "opponent_used_*" notification triggered
+    // (no flag exists for Rapid Recon today; we instead check that BLUE's
+    // own location-knowledge state remained consistent).
+    SOFT_EXPECT(blue.known_opponent_city == "" || blue.known_opponent_city == "london",
+                "BLUE's view of RED should reflect movement only, not Rapid Recon reveal");
+    std::cout << "OK\n";
+}
+
 // ── Prep Mission Tests ────────────────────────────────────────────
 
 static void test_prep_mission_grants_extra_action() {
@@ -1539,6 +1733,8 @@ int main() {
     test_move_wrong_turn();
     test_strike_hit();
     test_strike_miss();
+    test_strike_miss_preserves_cover_without_strike_report();
+    test_strike_miss_blows_cover_when_defender_has_strike_report();
     test_strike_miss_does_not_reveal_location_without_report();
     test_strike_report_ability_reveals_location();
     test_strike_hit_no_spurious_notification();
@@ -1576,6 +1772,8 @@ int main() {
     test_control_notifies_opponent();
     test_control_disabled_if_already_controlling();
     test_opponent_cover_blown_entering_controlled_city();
+    test_wait_in_opponent_controlled_city_rejected();
+    test_turn_start_in_target_city_blows_cover();
     test_control_persists_for_game_duration();
     test_control_can_be_taken_over_by_opponent();
     test_stranded_player_cannot_control();
@@ -1599,6 +1797,7 @@ int main() {
     std::cout << "\nRunning Rapid Recon Tests...\n";
     test_rapid_recon_blows_cover();
     test_rapid_recon_blocked_by_deep_cover();
+    test_rapid_recon_vs_deep_cover_full_invariants();
     
     // ── Prep Mission Tests ──
     std::cout << "\nRunning Prep Mission Tests...\n";
@@ -1627,6 +1826,11 @@ int main() {
     test_powerup_no_stacking();
     test_starting_turn_randomization();
     
-    std::cout << "\nAll tests passed!" << std::endl;
+    if (g_soft_failures > 0) {
+        std::cerr << "\n" << g_soft_failures
+                  << " manual-rule expectation(s) FAILED (see [FAIL] above).\n";
+        return 1;
+    }
+    std::cout << "\nAll tests passed!\n";
     return 0;
 }

@@ -8,7 +8,9 @@ For detailed design philosophy and mechanic breakdowns, see **[Mechanics Reasoni
 
 ## 1. Objective
 **Eliminate the opponent's spy by striking the city they are in.**
-Victory is achieved via an accurate strike or if the opponent ends their turn in the same city as you without cover.
+Victory is achieved via an accurate **STRIKE** on the city the opponent currently occupies. There is no "end-turn-in-same-city = loss" rule; same-city situations instead trigger cover effects (see Cover, below).
+
+> Canonical reference: the in-game **Field Manual** ("SPY TRAINING 101"). Where this GDD and the Field Manual disagree, the Field Manual wins.
 
 ---
 
@@ -19,9 +21,15 @@ Victory is achieved via an accurate strike or if the opponent ends their turn in
 - **Auto-end:** Turns end after all actions or manual "End Turn".
 
 ### Movement & Stealth
-- **Movement:** Travel to an adjacent city. Grants **Cover** (hidden state).
-- **Wait:** Stay in place. Grants **Cover**.
-- **Visibility:** Striking, taking Control, or being "Locate"-ed reveals your position.
+- **Movement:** Travel to an adjacent city. Grants **Cover** when entering a *safe* city (neutral or your own controlled city). Entering a **target-controlled** city blows your cover (unless Deep Cover is active).
+- **Wait:** Stay in place. Grants **Cover** when in a safe city. **You cannot WAIT in a target-controlled city** (action is rejected).
+- **Visibility / Cover-blowing triggers:**
+  - Taking **Control** of a city.
+  - **Starting a turn in the same city as your target** — the player whose turn is starting has their cover blown.
+  - Being **Locate**-ed.
+  - Claiming an Intel or Action pickup (start-of-turn).
+  - A missed **Strike** — *only* if the defender has unlocked **Strike Reports**. Otherwise a miss does **not** blow the striker's cover.
+  - Entering a target-controlled city without active Deep Cover.
 
 ### Resources (Intel)
 - **Starting Intel:** 2

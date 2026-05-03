@@ -2,31 +2,132 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "two-spies/player-action",
   "title": "PlayerAction",
-  "description": "A move, attack, or end-turn action sent from a client to the server.",
+  "description": "Client \u2192 server messages. Two Spies uses a graph-based city map (not a grid). Every client message has the envelope { type, sessionId?, playerId?, payload }. The `type` discriminates which payload shape is expected. Top-level types: SET_PLAYER_NAME, CREATE_MATCH, JOIN_MATCH, PLAYER_ACTION, END_TURN, ABORT_MATCH, LEAVE_MATCH. The PLAYER_ACTION payload itself carries an `action` discriminator (MOVE | STRIKE | ABILITY | WAIT | CONTROL).",
   "type": "object",
-  "required": ["type", "sessionId", "playerId"],
+  "required": ["type"],
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["PLAYER_MOVE", "PLAYER_ATTACK", "PLAYER_END_TURN"]
+      "enum": [
+        "SET_PLAYER_NAME",
+        "CREATE_MATCH",
+        "JOIN_MATCH",
+        "PLAYER_ACTION",
+        "END_TURN",
+        "ABORT_MATCH",
+        "LEAVE_MATCH"
+      ]
     },
     "sessionId": { "type": "string", "minLength": 1 },
     "playerId":  { "type": "string", "minLength": 1 },
-    "from": {
-      "type": "object",
-      "required": ["row", "col"],
-      "properties": {
-        "row": { "type": "integer", "minimum": 0, "maximum": 9 },
-        "col": { "type": "integer", "minimum": 0, "maximum": 9 }
+    "payload":   { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if":   { "properties": { "type": { "const": "SET_PLAYER_NAME" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 32 }
+            }
+          }
+        }
       }
     },
-    "to": {
-      "type": "object",
-      "required": ["row", "col"],
-      "properties": {
-        "row": { "type": "integer", "minimum": 0, "maximum": 9 },
-        "col": { "type": "integer", "minimum": 0, "maximum": 9 }
+    {
+      "if":   { "properties": { "type": { "const": "JOIN_MATCH" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["matchCode"],
+            "properties": {
+              "matchCode": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
       }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "PLAYER_ACTION" } } },
+      "then": {
+        "required": ["sessionId"],
+        "properties": {
+          "payload": { "$ref": "#/definitions/ActionPayload" }
+        }
+      }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "END_TURN" } } },
+      "then": { "required": ["sessionId"] }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "ABORT_MATCH" } } },
+      "then": { "required": ["sessionId"] }
+    },
+    {
+      "if":   { "properties": { "type": { "const": "LEAVE_MATCH" } } },
+      "then": { "required": ["sessionId"] }
+    }
+  ],
+  "definitions": {
+    "AbilityId": {
+      "type": "string",
+      "enum": [
+        "DEEP_COVER",
+        "ENCRYPTION",
+        "LOCATE",
+        "STRIKE_REPORT",
+        "RAPID_RECON",
+        "PREP_MISSION"
+      ]
+    },
+    "ActionPayload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["action", "targetCity"],
+          "properties": {
+            "action":     { "const": "MOVE" },
+            "targetCity": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["action", "targetCity"],
+          "properties": {
+            "action":     { "const": "STRIKE" },
+            "targetCity": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["action", "abilityId"],
+          "properties": {
+            "action":     { "const": "ABILITY" },
+            "abilityId":  { "$ref": "#/definitions/AbilityId" },
+            "targetCity": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["action"],
+          "properties": { "action": { "const": "WAIT" } },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["action"],
+          "properties": { "action": { "const": "CONTROL" } },
+          "additionalProperties": false
+        }
+      ]
     }
   }
 }
