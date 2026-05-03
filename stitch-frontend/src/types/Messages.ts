@@ -89,7 +89,7 @@ export interface PlayerState {
   currentCity: string;
   intel: number;
   actionsRemaining: number;
-  hasCover: boolean;
+  coverStatus: 'ACTIVE' | 'EXPOSED' | 'UNKNOWN';
   knownOpponentCity?: string | null;
   abilities: AbilityId[];
   strikeReportUnlocked: boolean;
@@ -101,6 +101,8 @@ export interface PlayerState {
   opponentUsedDeepCover: boolean;
   opponentUsedControl: boolean;
   opponentClaimedIntel: boolean;
+  opponentUsedEncryption: boolean;
+  opponentUsedPrepMission: boolean;
 
   opponentUnlockedStrikeReport: boolean;
   opponentStrikeReportActive: boolean;
@@ -110,6 +112,7 @@ export interface PlayerState {
   claimedIntel: boolean;
   startingCity: string;
   opponentStartingCity: string;
+
 }
 
 export interface MatchState {

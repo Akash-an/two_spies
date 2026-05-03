@@ -58,7 +58,10 @@ struct PlayerData {
     bool opponent_used_control = false;     // opponent took control of a city
     bool opponent_claimed_intel = false;    // opponent claimed an Intel pop-up
 
+    bool opponent_used_encryption = false;      // opponent unlocked Encryption
+    bool opponent_used_prep_mission = false;    // opponent used Prep Mission
     bool opponent_unlocked_strike_report = false; // opponent permanently unlocked Strike Report
+    bool cover_blown_stealthily = false;        // cover is internally false but shown as true to player
 
     // Player action feedback flags
     bool locate_blocked_by_deep_cover = false;  // this player's Locate was blocked by opponent's Deep Cover
@@ -67,6 +70,9 @@ struct PlayerData {
     bool strike_report_unlocked = false; // permanent unlock for tracking opponent strikes
     bool encryption_unlocked = false;    // permanent unlock: hides intel action flags from opponent
     bool rapid_recon_unlocked = false;   // permanent unlock: blows opponent cover on city entry
+    
+    bool strike_report_revealed = false; // opponent knows this player has Strike Report
+    bool rapid_recon_revealed = false;   // opponent knows this player has Rapid Recon
 
     // Deep Cover ability state - cleared at the beginning of the player's next turn
     bool deep_cover_active = false;  // active until beginning of this player's next turn

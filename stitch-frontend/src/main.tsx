@@ -9,6 +9,7 @@ import type { PlayerSide } from './types/Messages';
 import './styles/index.css';
 import HowToPlayOverlay from './components/PhaserGame/HowToPlayOverlay';
 import OrientationGuard from './components/OrientationGuard/OrientationGuard';
+import { audioManager } from './audio/AudioManager';
 
 type GamePhase = 'entering-name' | 'deployment' | 'playing';
 
@@ -22,7 +23,14 @@ function App() {
   const [, setPlayerSide] = useState<PlayerSide | null>(null);
   const [initialMap, setInitialMap] = useState<any>(null);
   const [initialState, setInitialState] = useState<any>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
+
+  const [isMuted, setIsMuted] = useState<boolean>(() => audioManager.isMuted());
+
+  const handleToggleMute = () => {
+    setIsMuted(audioManager.toggleMute());
+  };
 
   const [logs, setLogs] = useState<string[]>([
     'INITIALIZING LINK...',
@@ -145,6 +153,7 @@ function App() {
           console.error('[App] Server error:', msg);
           const errorMessage = (msg.payload as any)?.message || 'Unknown error';
           setLogs((p) => [...p, `SERVER ERROR: ${errorMessage}`]);
+          setJoinError(errorMessage);
           setIsLoading(false);
         });
 
@@ -208,6 +217,7 @@ function App() {
     console.log('[App] Joining frequency:', frequency);
     setLogs((p) => [...p, `JOINING FREQUENCY: ${frequency}`]);
     setIsLoading(true);
+    setJoinError(null);
     // Send JOIN_MATCH to backend
     if (netRef.current && netRef.current.isConnected()) {
       netRef.current.send(ClientMessageType.JOIN_MATCH, { code: frequency });
@@ -215,6 +225,7 @@ function App() {
       // Wait for MATCH_START event from backend to transition to game
     } else {
       setLogs((p) => [...p, `ERROR: Not connected to server`]);
+      setJoinError('Not connected to server');
       setIsLoading(false);
     }
   };
@@ -230,44 +241,50 @@ function App() {
           longitude="77.0369° W"
           threatLevel={isConnected ? 'Normal' : 'High'}
           terminalLog={logs}
-           onEstablish={handleNameSubmit}
-           onInputChange={handleInputChange}
-           loading={isLoading}
-           onOpenHowToPlay={() => setShowHowToPlay(true)}
-           setActionTooltip={handleSetActionTooltip}
-         />
-       )}
- 
-       {phase === 'deployment' && (
-         <MissionDeploymentHub
-           operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
-           sector="BERLIN_VOID"
-           networkStatus="Secure"
-           intelUpdate="Intercepting encrypted traffic from Sector 7..."
-           threatLevel="Local authorities increasing patrol frequency."
-           environment="Heavy rain. Visual range reduced to 500m."
-           latitude="52.5200° N"
-           longitude="13.4050° E"
-           logs={logs}
-           matchCode={matchCode}
-           onInitiateOperation={handleInitiateOperation}
-           onLinkToNetwork={handleLinkToNetwork}
-           onTerminateLink={() => {
-             console.log('[App] Terminate link');
-             if (netRef.current && netRef.current.isConnected()) {
-               netRef.current.send(ClientMessageType.ABORT_MATCH, {});
-             }
-              setPhase('deployment');
-              setInitialMap(null);
-              setInitialState(null);
-              setMatchCode(null);
-              setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
-           }}
-           loading={isLoading}
-           onOpenHowToPlay={() => setShowHowToPlay(true)}
-           setActionTooltip={handleSetActionTooltip}
-         />
-       )}
+          onEstablish={handleNameSubmit}
+          onInputChange={handleInputChange}
+          loading={isLoading}
+          onOpenHowToPlay={() => setShowHowToPlay(true)}
+          setActionTooltip={handleSetActionTooltip}
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
+        />
+      )}
+
+      {phase === 'deployment' && (
+        <MissionDeploymentHub
+          operativeName={playerName ? `OPERATIVE_${playerName.toUpperCase()}` : 'OPERATIVE_01'}
+          sector="BERLIN_VOID"
+          networkStatus="Secure"
+          intelUpdate="Intercepting encrypted traffic from Sector 7..."
+          threatLevel="Local authorities increasing patrol frequency."
+          environment="Heavy rain. Visual range reduced to 500m."
+          latitude="52.5200° N"
+          longitude="13.4050° E"
+          logs={logs}
+          matchCode={matchCode}
+          onInitiateOperation={handleInitiateOperation}
+          onLinkToNetwork={handleLinkToNetwork}
+          onTerminateLink={() => {
+            console.log('[App] Terminate link');
+            if (netRef.current && netRef.current.isConnected()) {
+              netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+            }
+            setPhase('deployment');
+            setInitialMap(null);
+            setInitialState(null);
+            setMatchCode(null);
+            setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
+          }}
+          loading={isLoading}
+          joinError={joinError}
+          onClearError={() => setJoinError(null)}
+          onOpenHowToPlay={() => setShowHowToPlay(true)}
+          setActionTooltip={handleSetActionTooltip}
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
+        />
+      )}
  
         {phase === 'playing' && netRef.current && (
           <PhaserGame
@@ -300,6 +317,8 @@ function App() {
             }}
             setShowHowToPlay={setShowHowToPlay}
             setActionTooltip={handleSetActionTooltip}
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
           />
         )}
        {actionTooltip && <div className="action-tooltip">{actionTooltip}</div>}

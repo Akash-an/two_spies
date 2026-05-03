@@ -6,7 +6,7 @@ In the **Two Spies** tactical interface (Aegis Terminal), cities undergo various
 
 | State | Fill Color | Border / Stroke | Effect |
 | :--- | :--- | :--- | :--- |
-| **Neutral (Default)** | Dark Slate (`#507a7a`), 30% Opacity | Width: 1px, Same color | Dimmed appearance |
+| **Neutral (Default)** | Dark Slate (`#507a7a`), 70% Opacity | Width: 1.5px, Brighter Stroke | Solid presence, clear baseline |
 | **Controlled (Yours)** | **Neon Green** (`#00ff41`), 80% Opacity | Width: 2px, Solid Green | Bright, high-visibility |
 | **Controlled (Enemy)** | **Tactical Red** (`#ff4444`), 80% Opacity | Width: 2px, Solid Red | Aggressive red highlight |
 | **Destroyed** | Dark Gray (`#333`), 30% Opacity | None | Red "**X**" overlay; label strikethrough |

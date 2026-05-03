@@ -7,6 +7,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
+  esbuild: {
+    // @ts-ignore
+    drop: process.env.VITE_DROP_CONSOLE === 'true' ? ['console', 'debugger'] : [],
+  },
   server: {
     port: 5173,
   },

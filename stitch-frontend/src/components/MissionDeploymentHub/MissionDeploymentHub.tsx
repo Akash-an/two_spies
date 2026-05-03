@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { audioManager } from '../../audio/AudioManager';
 
 export interface MissionDeploymentHubProps {
   operativeName?: string;
@@ -16,8 +17,12 @@ export interface MissionDeploymentHubProps {
   matchCode?: string | null;
   className?: string;
   loading?: boolean;
-  onOpenHowToPlay?: () => void;
-  setActionTooltip?: (val: string | null) => void;
+  onOpenHowToPlay: () => void;
+  setActionTooltip: (val: string | null) => void;
+  joinError?: string | null;
+  onClearError?: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 
 const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
@@ -38,6 +43,10 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   loading = false,
   onOpenHowToPlay,
   setActionTooltip,
+  joinError = null,
+  onClearError,
+  isMuted,
+  onToggleMute,
 }) => {
   const [showGeneratedFrequencyModal, setShowGeneratedFrequencyModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -59,14 +68,14 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   }, [matchCode]);
 
   const handleInitiateOperation = () => {
+    audioManager.play('ui_click');
     onInitiateOperation?.();
   };
 
   const handleLinkSubmit = () => {
     if (linkedFrequency.trim()) {
+      audioManager.play('ui_click');
       onLinkToNetwork?.(linkedFrequency);
-      setShowLinkModal(false);
-      setLinkedFrequency('');
     }
   };
 
@@ -120,6 +129,17 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <div className="bg-primary-container/10 px-4 py-1 border border-primary/30">
             <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter">STATUS: ACTIVE</span>
           </div>
+          <button
+            className="help-btn-header"
+            onClick={onToggleMute}
+            onMouseEnter={() => setActionTooltip?.(isMuted ? 'UNMUTE AUDIO' : 'MUTE AUDIO')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          >
+            <span className="material-symbols-outlined">
+              {isMuted ? 'volume_off' : 'volume_up'}
+            </span>
+          </button>
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
@@ -184,6 +204,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
               <div className="absolute -inset-1 bg-primary/20 blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
               <button
                 onClick={handleInitiateOperation}
+                onMouseEnter={() => audioManager.play('ui_hover')}
                 disabled={loading}
                 className="relative w-full aspect-video bg-surface-container-high/40 backdrop-blur-xl border border-primary/20 hover:border-primary/60 transition-all group active:scale-95 p-8 flex flex-col items-center justify-center gap-6 disabled:opacity-50 rounded-lg"
               >
@@ -211,7 +232,12 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
             <div className="group relative">
               <div className="absolute -inset-1 bg-secondary/20 blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
               <button
-                onClick={() => setShowLinkModal(true)}
+                onClick={() => {
+                  audioManager.play('ui_click');
+                  setShowLinkModal(true);
+                  if (joinError) onClearError?.();
+                }}
+                onMouseEnter={() => audioManager.play('ui_hover')}
                 disabled={loading}
                 className="relative w-full aspect-video bg-surface-container-high/40 backdrop-blur-xl border border-secondary/20 hover:border-secondary/60 transition-all group active:scale-95 p-8 flex flex-col items-center justify-center gap-6 disabled:opacity-50 rounded-lg"
               >
@@ -294,7 +320,10 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowLinkModal(false)}
+            onClick={() => {
+              setShowLinkModal(false);
+              if (joinError) onClearError?.();
+            }}
           />
           {/* Radar Background */}
           <div className="absolute inset-0 flex items-center justify-center">
@@ -316,17 +345,26 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
               ENTER FREQUENCY
             </h2>
             <div className="space-y-4">
+              {joinError && (
+                <div className="text-error font-['Space_Grotesk'] font-bold text-xs bg-error/10 border border-error p-2 text-center uppercase">
+                  {joinError}
+                </div>
+              )}
               <input
                 type="text"
                 placeholder="Frequency (4 digits)"
                 value={linkedFrequency}
-                onChange={(e) => setLinkedFrequency(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onChange={(e) => {
+                  setLinkedFrequency(e.target.value.replace(/\D/g, '').slice(0, 4));
+                  if (joinError) onClearError?.();
+                }}
                 maxLength={4}
                 className="w-full px-4 py-3 bg-surface border border-tertiary/50 text-tertiary placeholder-tertiary/40 font-['JetBrains_Mono'] text-lg tracking-widest focus:outline-none focus:border-tertiary rounded"
               />
               <div className="flex gap-4">
                 <button
                   onClick={handleLinkSubmit}
+                  onMouseEnter={() => audioManager.play('ui_hover')}
                   disabled={linkedFrequency.length !== 4 || loading}
                   className="flex-1 py-3 bg-tertiary text-surface font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase hover:bg-tertiary/90 disabled:opacity-50 transition-colors rounded"
                 >
@@ -334,9 +372,12 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    audioManager.play('ui_click');
                     setShowLinkModal(false);
                     setLinkedFrequency('');
+                    if (joinError) onClearError?.();
                   }}
+                  onMouseEnter={() => audioManager.play('ui_hover')}
                   className="flex-1 py-3 border border-tertiary/50 text-tertiary font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase hover:bg-tertiary/10 transition-colors rounded"
                 >
                   CANCEL
@@ -390,7 +431,11 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
 
               {/* Close Button */}
               <button
-                onClick={handleCloseFrequencyModal}
+                onClick={() => {
+                  audioManager.play('ui_click');
+                  handleCloseFrequencyModal();
+                }}
+                onMouseEnter={() => audioManager.play('ui_hover')}
                 className="mt-8 px-8 py-2 border border-primary text-primary font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase hover:bg-primary/10 transition-colors rounded"
               >
                 CLOSE

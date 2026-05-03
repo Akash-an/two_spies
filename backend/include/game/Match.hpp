@@ -93,7 +93,7 @@ private:
 
     PlayerSide side_of(const std::string& player_id) const;
     std::string player_id_of(PlayerSide side) const;
-    void broadcast_state();
+    void broadcast_state(bool skip_opponent = false);
     void send_to(const std::string& player_id, const std::string& msg);
     void send_error(const std::string& player_id, const std::string& error);
 };
