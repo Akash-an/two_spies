@@ -598,8 +598,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <button
             className="help-btn-header"
             onClick={toggleMute}
-            onMouseEnter={() => setActionTooltip('TOGGLE AUDIO: Mute or unmute game sounds.')}
-            onMouseLeave={() => setActionTooltip(null)}
             title={isMuted ? "Unmute Audio" : "Mute Audio"}
           >
             <span className="material-symbols-outlined">
@@ -609,8 +607,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
-            onMouseEnter={() => setActionTooltip('FULLSCREEN: Expand tactical view.')}
-            onMouseLeave={() => setActionTooltip(null)}
             title="Toggle Fullscreen"
           >
             <span className="material-symbols-outlined">
@@ -620,8 +616,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <button
             className="help-btn-header"
             onClick={() => setShowHowToPlay(true)}
-            onMouseEnter={() => setActionTooltip('HOW TO PLAY: Open field manual and mission objectives.')}
-            onMouseLeave={() => setActionTooltip(null)}
             title="How to Play"
           >
             <span className="material-symbols-outlined">help_outline</span>
