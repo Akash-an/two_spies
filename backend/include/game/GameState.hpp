@@ -56,9 +56,11 @@ class GameState {
 public:
     explicit GameState(const MapDef& map);
 
-    // ── Setup ────────────────────────────────────────────────────
     /// Assign starting cities for both players. Must be distinct.
-    void set_starting_cities(const std::string& red_city, const std::string& blue_city);
+    void set_starting_cities(const std::string& alpha_city, const std::string& beta_city);
+
+    /// Set which player starts the game.
+    void set_starting_turn(PlayerSide side);
 
     // ── Actions ──────────────────────────────────────────────────
     /// Attempt a MOVE action for the given side.
@@ -124,9 +126,9 @@ public:
 
 private:
     CityGraph graph_;
-    PlayerData red_;
-    PlayerData blue_;
-    PlayerSide current_turn_ = PlayerSide::RED;
+    PlayerData alpha_;
+    PlayerData beta_;
+    PlayerSide current_turn_ = PlayerSide::ALPHA;
     int turn_number_ = 1;
     bool game_over_ = false;
     PlayerSide winner_{};

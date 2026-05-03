@@ -6,7 +6,7 @@
 // ─── Enums ───────────────────────────────────────────────────────────
 
 /** Player identifier / team colour. */
-export type PlayerSide = 'RED' | 'BLUE';
+export type PlayerSide = 'ALPHA' | 'BETA';
 
 /** All client → server message types. */
 export enum ClientMessageType {

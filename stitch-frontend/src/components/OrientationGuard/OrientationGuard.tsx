@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './OrientationGuard.css';
 
-const OrientationGuard: React.FC = () => {
+interface OrientationGuardProps {
+  allowDismiss?: boolean;
+}
+
+const OrientationGuard: React.FC<OrientationGuardProps> = ({ allowDismiss = true }) => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -61,9 +65,11 @@ const OrientationGuard: React.FC = () => {
           SWITCH TO LANDSCAPE
         </button>
 
-        <button className="tactical-dismiss-link" onClick={() => setIsDismissed(true)}>
-          CONTINUE IN PORTRAIT
-        </button>
+        {allowDismiss && (
+          <button className="tactical-dismiss-link" onClick={() => setIsDismissed(true)}>
+            CONTINUE IN PORTRAIT
+          </button>
+        )}
 
         <div className="terminal-decor top-left"></div>
         <div className="terminal-decor top-right"></div>

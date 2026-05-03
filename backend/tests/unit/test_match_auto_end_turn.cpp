@@ -16,22 +16,22 @@ void test_match_auto_end_turn() {
     match.add_player("blue");
     match.start(123);
     
-    // RED turn starts with 2 actions
-    assert(match.state().current_turn() == PlayerSide::RED);
-    assert(match.state().player(PlayerSide::RED).actions_remaining == 2);
+    // ALPHA turn starts with 2 actions
+    assert(match.state().current_turn() == PlayerSide::ALPHA);
+    assert(match.state().player(PlayerSide::ALPHA).actions_remaining == 2);
     
-    // RED takes 1st action (WAIT)
+    // ALPHA takes 1st action (WAIT)
     match.handle_action("red", "WAIT", "", "");
-    assert(match.state().current_turn() == PlayerSide::RED);
-    assert(match.state().player(PlayerSide::RED).actions_remaining == 1);
+    assert(match.state().current_turn() == PlayerSide::ALPHA);
+    assert(match.state().player(PlayerSide::ALPHA).actions_remaining == 1);
     
-    // RED takes 2nd action (WAIT) -> should auto-end turn
+    // ALPHA takes 2nd action (WAIT) -> should auto-end turn
     match.handle_action("red", "WAIT", "", "");
     
-    // Turn should now be BLUE's
-    assert(match.state().current_turn() == PlayerSide::BLUE);
-    assert(match.state().player(PlayerSide::BLUE).actions_remaining == 2);
-    assert(match.state().player(PlayerSide::RED).actions_remaining == 0);
+    // Turn should now be BETA's
+    assert(match.state().current_turn() == PlayerSide::BETA);
+    assert(match.state().player(PlayerSide::BETA).actions_remaining == 2);
+    assert(match.state().player(PlayerSide::ALPHA).actions_remaining == 0);
     
     std::cout << "OK\n";
 }

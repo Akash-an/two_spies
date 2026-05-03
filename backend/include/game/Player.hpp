@@ -7,14 +7,14 @@
 namespace two_spies::game {
 
 /// Player identifier / team colour.
-enum class PlayerSide { RED, BLUE };
+enum class PlayerSide { ALPHA, BETA };
 
 inline const char* to_string(PlayerSide s) {
-    return s == PlayerSide::RED ? "RED" : "BLUE";
+    return s == PlayerSide::ALPHA ? "ALPHA" : "BETA";
 }
 
 inline PlayerSide opposite(PlayerSide s) {
-    return s == PlayerSide::RED ? PlayerSide::BLUE : PlayerSide::RED;
+    return s == PlayerSide::ALPHA ? PlayerSide::BETA : PlayerSide::ALPHA;
 }
 
 /// Available abilities (cost config defined separately).

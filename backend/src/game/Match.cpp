@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <random>
 #include <iostream>
+#include <utility>
 
 namespace two_spies::game {
 
@@ -14,19 +15,19 @@ Match::Match(const std::string& session_id, const MapDef& map, SendFn send_fn)
 
 std::optional<PlayerSide> Match::add_player(const std::string& player_id) {
     std::lock_guard lock(mutex_);
-    if (red_player_id_.empty()) {
-        red_player_id_ = player_id;
-        return PlayerSide::RED;
+    if (alpha_player_id_.empty()) {
+        alpha_player_id_ = player_id;
+        return PlayerSide::ALPHA;
     }
-    if (blue_player_id_.empty()) {
-        blue_player_id_ = player_id;
-        return PlayerSide::BLUE;
+    if (beta_player_id_.empty()) {
+        beta_player_id_ = player_id;
+        return PlayerSide::BETA;
     }
     return std::nullopt;  // match is full
 }
 
 bool Match::is_full() const {
-    return !red_player_id_.empty() && !blue_player_id_.empty();
+    return !alpha_player_id_.empty() && !beta_player_id_.empty();
 }
 
 void Match::set_player_name(const std::string& player_id, const std::string& name) {
@@ -41,62 +42,77 @@ void Match::start(unsigned int seed) {
     started_ = true;
 
     // Pick random distinct starting cities that are NOT adjacent.
-    // We shuffle all city IDs and scan for the first pair (i, j) that satisfies
-    // the constraints.  This guarantees we never pass an invalid pair to
-    // set_starting_cities(), which would throw and crash the server.
     auto city_ids = state_->graph().all_city_ids();
     std::mt19937 rng(seed);
-    std::shuffle(city_ids.begin(), city_ids.end(), rng);
 
-    std::string red_city, blue_city;
-    bool found = false;
-    for (std::size_t i = 0; i < city_ids.size() && !found; ++i) {
-        for (std::size_t j = i + 1; j < city_ids.size() && !found; ++j) {
+    // 1. Generate all valid non-adjacent pairs
+    std::vector<std::pair<std::string, std::string>> valid_pairs;
+    for (std::size_t i = 0; i < city_ids.size(); ++i) {
+        for (std::size_t j = i + 1; j < city_ids.size(); ++j) {
             if (!state_->graph().are_adjacent(city_ids[i], city_ids[j])) {
-                red_city  = city_ids[i];
-                blue_city = city_ids[j];
-                found = true;
+                valid_pairs.push_back({city_ids[i], city_ids[j]});
             }
         }
     }
 
-    if (!found) {
+    std::string alpha_city, beta_city;
+    if (!valid_pairs.empty()) {
+        // 2. Pick one pair uniformly
+        std::uniform_int_distribution<std::size_t> dist(0, valid_pairs.size() - 1);
+        auto chosen_pair = valid_pairs[dist(rng)];
+
+        // 3. Randomly assign Alpha/Beta to the two cities in the pair
+        std::uniform_int_distribution<int> coin_flip(0, 1);
+        if (coin_flip(rng) == 0) {
+            alpha_city = chosen_pair.first;
+            beta_city = chosen_pair.second;
+        } else {
+            alpha_city = chosen_pair.second;
+            beta_city = chosen_pair.first;
+        }
+    } else {
         // Extremely degenerate map — every pair of cities is adjacent.
-        // Fall back to allowing adjacent starts (the game will still run).
-        red_city  = city_ids[0];
-        blue_city = city_ids[1];
+        // Fall back to picking any two cities randomly.
+        std::shuffle(city_ids.begin(), city_ids.end(), rng);
+        alpha_city  = city_ids[0];
+        beta_city = city_ids[1];
     }
 
-    state_->set_starting_cities(red_city, blue_city);
+    state_->set_starting_cities(alpha_city, beta_city);
+
+    // Randomly pick starting turn
+    std::uniform_int_distribution<int> turn_flip(0, 1);
+    PlayerSide starting_side = (turn_flip(rng) == 0) ? PlayerSide::ALPHA : PlayerSide::BETA;
+    state_->set_starting_turn(starting_side);
 
     // Initialize turn timer
     turn_start_time_ = std::chrono::steady_clock::now();
 
-    std::cout << "[Match " << session_id_ << "] Started: RED=" << red_city
-              << " BLUE=" << blue_city << "\n";
+    std::cout << "[Match " << session_id_ << "] Started: ALPHA=" << alpha_city
+              << " BETA=" << beta_city << " STARTING_SIDE=" << to_string(starting_side) << "\n";
 
     // Send MATCH_START to each player with their assigned side
     {
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_START,
             session_id_,
-            {{"side", "RED"},
+            {{"side", "ALPHA"},
              {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
-        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to RED (" 
-                  << red_player_id_ << "): " << msg << "\n";
-        send_to(red_player_id_, msg);
+        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to ALPHA (" 
+                  << alpha_player_id_ << "): " << msg << "\n";
+        send_to(alpha_player_id_, msg);
     }
     {
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_START,
             session_id_,
-            {{"side", "BLUE"},
+            {{"side", "BETA"},
              {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
-        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BLUE (" 
-                  << blue_player_id_ << "): " << msg << "\n";
-        send_to(blue_player_id_, msg);
+        std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BETA (" 
+                  << beta_player_id_ << "): " << msg << "\n";
+        send_to(beta_player_id_, msg);
     }
 
     // Send initial filtered state to each player
@@ -171,6 +187,11 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
         return;
     }
 
+    // Diagnostic logging for action effect
+    std::cout << "[Match " << session_id_ << "] Action " << action 
+              << " for " << to_string(side) << " result: OK, has_cover=" 
+              << (state_->player(side).has_cover ? "TRUE" : "FALSE") << "\n";
+
     // Reset timer on successful action
     turn_start_time_ = std::chrono::steady_clock::now();
 
@@ -182,8 +203,8 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
             {{"winner", to_string(result.winner)},
              {"reason", result.game_over_reason}}
         );
-        send_to(red_player_id_, go_msg);
-        send_to(blue_player_id_, go_msg);
+        send_to(alpha_player_id_, go_msg);
+        send_to(beta_player_id_, go_msg);
     } else {
         // Auto end turn if no actions remaining
         if (state_->player(side).actions_remaining <= 0) {
@@ -236,16 +257,16 @@ void Match::handle_abort(const std::string& player_id) {
         {{"winner", to_string(state_->winner())},
          {"reason", state_->game_over_reason()}}
     );
-    send_to(red_player_id_, go_msg);
-    send_to(blue_player_id_, go_msg);
+    send_to(alpha_player_id_, go_msg);
+    send_to(beta_player_id_, go_msg);
 
     broadcast_state();
 }
 
 void Match::remove_player(const std::string& player_id) {
     std::lock_guard lock(mutex_);
-    if (player_id == red_player_id_)  red_player_id_.clear();
-    if (player_id == blue_player_id_) blue_player_id_.clear();
+    if (player_id == alpha_player_id_)  alpha_player_id_.clear();
+    if (player_id == beta_player_id_) beta_player_id_.clear();
 }
 
 void Match::check_for_timeout() {
@@ -263,18 +284,18 @@ bool Match::is_game_over() const {
 
 bool Match::is_empty() const {
     std::lock_guard lock(mutex_);
-    return red_player_id_.empty() && blue_player_id_.empty();
+    return alpha_player_id_.empty() && beta_player_id_.empty();
 }
 
 // ── Private helpers ──────────────────────────────────────────────────
 
 PlayerSide Match::side_of(const std::string& player_id) const {
-    if (player_id == red_player_id_) return PlayerSide::RED;
-    return PlayerSide::BLUE;
+    if (player_id == alpha_player_id_) return PlayerSide::ALPHA;
+    return PlayerSide::BETA;
 }
 
 std::string Match::player_id_of(PlayerSide side) const {
-    return side == PlayerSide::RED ? red_player_id_ : blue_player_id_;
+    return side == PlayerSide::ALPHA ? alpha_player_id_ : beta_player_id_;
 }
 
 void Match::broadcast_state() {
@@ -289,19 +310,22 @@ void Match::broadcast_state() {
     long long effective_limit = first_turn_grace_
         ? (TURN_DURATION_MS + STARTUP_GRACE_MS)
         : TURN_DURATION_MS;
+    long long seconds_left = (effective_limit - elapsed) / 1000;
     
     // Send per-player filtered state
-    if (!red_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::RED, elapsed, effective_limit);
+    if (!alpha_player_id_.empty()) {
+        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::ALPHA, elapsed, effective_limit);
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
-        send_to(red_player_id_, msg);
+        std::cout << "[Match " << session_id_ << "] Broadcasting state to ALPHA\n";
+        send_to(alpha_player_id_, msg);
     }
-    if (!blue_player_id_.empty()) {
-        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BLUE, elapsed, effective_limit);
+    if (!beta_player_id_.empty()) {
+        auto payload = protocol::serialize_match_state(session_id_, *state_, PlayerSide::BETA, elapsed, effective_limit);
         auto msg = protocol::make_server_message(
             protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
-        send_to(blue_player_id_, msg);
+        std::cout << "[Match " << session_id_ << "] Broadcasting state to BETA\n";
+        send_to(beta_player_id_, msg);
     }
 }
 
@@ -361,8 +385,8 @@ void Match::handle_turn_timeout() {
              {"currentTurn", to_string(next_player)},
              {"reason", "timeout"}}
         );
-        send_to(red_player_id_, msg);
-        send_to(blue_player_id_, msg);
+        send_to(alpha_player_id_, msg);
+        send_to(beta_player_id_, msg);
     }
     
     // Broadcast new state so clients see the updated board

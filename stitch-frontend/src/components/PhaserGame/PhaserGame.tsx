@@ -60,11 +60,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
 
-  // SVG viewport setup
+  // Initial check for viewport
   const SVG_W = 1376;
   const SVG_H = 768;
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: SVG_W, h: SVG_H });
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(window.innerWidth < 600);
+  const isMobileViewport = window.innerWidth < 600;
   const isDragging = useRef(false);
   const isPinching = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
@@ -523,10 +524,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   }
 
   const mySideVal = matchState.player.side;
-  let knownOpp = matchState.player.knownOpponentCity;
-  if (!knownOpp && !matchState.opponentMovedFromStart) {
-    knownOpp = matchState.player.opponentStartingCity;
-  }
+  const knownOpp = matchState.player.knownOpponentCity;
 
   // Safe access to map (either from state or props)
   const map = matchState.map || initialMap;
@@ -652,8 +650,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const isAdj = highlightedNeighbors.has(city.id);
               const isSel = highlightedCity && (city.id === playerCity); // Vicinity center highlight
               const isMoveTarget = selectedCity === city.id;
-              const isStartOwn = city.id === matchState.player.startingCity;
-              const isStartOpp = city.id === matchState.player.opponentStartingCity;
               const controller = matchState.controlledCities[city.id];
               const intelPopup = matchState.intelPopups.find(p => p.city === city.id);
               const hasIntel = !!intelPopup;
@@ -662,23 +658,32 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               const scheduledDisappear = city.id === matchState.scheduledDisappearCity;
 
               let circleClass = 'city-circle';
-              if (isDis) circleClass += ' disappeared';
-              else if (isPlayer) circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
-              else if (isOpp) circleClass += ' opponent';
-              else if (hasIntel) circleClass += ' intel-popup';
-              else if (hasAction) circleClass += ' action-popup';
-              else if (isMoveTarget) circleClass += ' selected';
-              else if (isAdj) circleClass += ' adjacent-highlight';
-              else if (isSel) circleClass += ' inspected'; // New style for non-adjacent highlights
-              else circleClass += ' default';
+              if (isDis) {
+                circleClass += ' disappeared';
+              } else {
+                // Determine presence and state
+                if (isPlayer) {
+                  circleClass += matchState.player.hasCover ? ' player' : ' player exposed';
+                } else if (isOpp) {
+                  circleClass += ' opponent';
+                }
 
-              if (!isDis && isStartOwn) circleClass += ' starting-own';
-              if (!isDis && isStartOpp) circleClass += ' starting-opp';
+                // If no player/opponent presence, show city type/highlight
+                if (!isPlayer && !isOpp) {
+                  if (hasIntel) circleClass += ' intel-popup';
+                  else if (hasAction) circleClass += ' action-popup';
+                  else if (isMoveTarget) circleClass += ' selected';
+                  else if (isAdj) circleClass += ' adjacent-highlight';
+                  else if (isSel) circleClass += ' inspected';
+                  else circleClass += ' default';
+                }
 
-              const isMyControl = controller === mySideVal;
-              const isOppControl = controller && controller !== mySideVal;
-              if (!isDis && isMyControl) circleClass += ' controlled-mine';
-              if (!isDis && isOppControl) circleClass += ' controlled-opp';
+                // Add control status (additive)
+                const isMyControl = controller === mySideVal;
+                const isOppControl = controller && controller !== mySideVal;
+                if (isMyControl) circleClass += ' controlled-mine';
+                if (isOppControl) circleClass += ' controlled-opp';
+              }
 
               const radius = isPlayer || isOpp ? 16 : isAdj ? 14 : 12;
 
@@ -688,7 +693,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   {actionPopup && <title>Action Pickup — +1 Action</title>}
                   {/* Scheduled disappear warning ring */}
                   {scheduledDisappear && !isDis && (
-                    <circle cx={pos.x} cy={pos.y} r={14} className="scheduled-ring" />
+                    <circle cx={pos.x} cy={pos.y} r={radius + 2} className="scheduled-ring" />
                   )}
                   {/* Intel ripple animation */}
                   {hasIntel && !isPlayer && !isOpp && !isDis && (
@@ -727,7 +732,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                         <polygon
                           key="player"
                           points={`${p1X},${tipY} ${p1X + markerW / 2},${tipY - shoulderH} ${p1X},${tipY - markerH} ${p1X - markerW / 2},${tipY - shoulderH}`}
-                          fill="#10b981"
+                          fill="var(--player-green)"
                           stroke={isExposed ? "#fff" : "none"}
                           strokeWidth={isExposed ? "2" : "0"}
                           pointerEvents="none"
@@ -748,7 +753,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                         <polygon
                           key="player"
                           points={`${pos.x},${tipY} ${pos.x + markerW / 2},${tipY - shoulderH} ${pos.x},${tipY - markerH} ${pos.x - markerW / 2},${tipY - shoulderH}`}
-                          fill="#10b981"
+                          fill="var(--player-green)"
                           stroke={isExposed ? "#fff" : "none"}
                           strokeWidth={isExposed ? "2" : "0"}
                           pointerEvents="none"
@@ -771,13 +776,13 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
 
                   {/* Intel points display (now always visible as markers are above) */}
                   {hasIntel && !isDis && (
-                    <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="#0c0e0f" fontSize="10" fontWeight="900" pointerEvents="none">
+                    <text x={pos.x} y={pos.y + 4} textAnchor="middle" fill="#fe9800" fontSize="10" fontWeight="900" pointerEvents="none">
                       {intelPopup.amount}
                     </text>
                   )}
                   {/* Action pickup display */}
                   {hasAction && !isDis && (
-                    <text x={pos.x} y={pos.y + 5} textAnchor="middle" fill="#0c0e0f" fontSize="12" fontWeight="900" pointerEvents="none">
+                    <text x={pos.x} y={pos.y + 5} textAnchor="middle" fill="#00ffff" fontSize="12" fontWeight="900" pointerEvents="none">
                       ⚡
                     </text>
                   )}
@@ -838,7 +843,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
           >
             <span className="material-symbols-outlined">
-              {isPanelCollapsed ? 'chevron_right' : 'chevron_left'}
+              {isMobileViewport 
+                ? (isPanelCollapsed ? 'expand_less' : 'expand_more')
+                : (isPanelCollapsed ? 'chevron_left' : 'chevron_right')
+              }
             </span>
           </button>
         </div>
