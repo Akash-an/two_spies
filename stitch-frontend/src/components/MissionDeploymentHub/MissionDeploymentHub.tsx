@@ -11,6 +11,7 @@ export interface MissionDeploymentHubProps {
   onInitiateOperation?: () => void;
   onLinkToNetwork?: (frequency: string) => void;
   onTerminateLink?: () => void;
+  onAbortMatch?: () => void;
   latitude?: string;
   longitude?: string;
   logs?: string[];
@@ -36,6 +37,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   onInitiateOperation,
   onLinkToNetwork,
   onTerminateLink,
+  onAbortMatch,
   latitude = '52.5200° N',
   longitude = '13.4050° E',
   matchCode = null,
@@ -83,8 +85,8 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   };
 
   const handleCloseFrequencyModal = () => {
-    console.log('[MissionDeploymentHub] Closing frequency modal and terminating link');
-    onTerminateLink?.();
+    console.log('[MissionDeploymentHub] Closing frequency modal and aborting match');
+    onAbortMatch?.();
     setShowGeneratedFrequencyModal(false);
     setCopiedLink(false);
   };

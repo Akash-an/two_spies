@@ -23,12 +23,9 @@ using namespace two_spies::game;
 
 // Forward declarations for Match timeout tests (from test_match_timeout.cpp)
 void test_timeout_not_triggered_before_timeout();
-void test_timeout_detected_after_duration();
-void test_timeout_transfers_control_with_messages();
-void test_timeout_forfeits_remaining_actions();
-void test_timeout_resets_timer_for_next_player();
 void test_match_auto_end_turn();
 void test_powerup_no_stacking();
+static void test_forfeit();
 
 static MapDef test_map() {
     MapDef map;
@@ -1720,6 +1717,45 @@ static void test_wait_clears_knowledge() {
 
 
 
+static void test_action_notification_clearing_mid_turn() {
+    std::cout << "  test_action_notification_clearing_mid_turn... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // ALPHA strikes (misses)
+    gs.strike(PlayerSide::ALPHA, "london");
+    assert(gs.player(PlayerSide::BETA).opponent_used_strike);
+
+    // ALPHA now controls the city
+    gs.control(PlayerSide::ALPHA);
+    
+    // The previous strike notification MUST be cleared
+    assert(!gs.player(PlayerSide::BETA).opponent_used_strike);
+    // The new control notification should be set
+    assert(gs.player(PlayerSide::BETA).opponent_used_control);
+
+    std::cout << "OK\n";
+}
+
+static void test_forfeit() {
+    std::cout << "  test_forfeit... ";
+    GameState gs(test_map());
+    gs.set_starting_cities("london", "moscow");
+
+    // ALPHA forfeits
+    gs.forfeit(PlayerSide::ALPHA, "Test reason: ALPHA gave up.");
+
+    assert(gs.is_game_over());
+    assert(gs.winner() == PlayerSide::BETA);
+    assert(gs.game_over_reason() == "Test reason: ALPHA gave up.");
+
+    // Try a second forfeit (should be ignored/no-op)
+    gs.forfeit(PlayerSide::BETA, "BETA also gives up?");
+    assert(gs.winner() == PlayerSide::BETA); // Still BETA
+
+    std::cout << "OK\n";
+}
+
 int main() {
     std::cout << "Running GameState unit tests...\n";
     
@@ -1738,6 +1774,7 @@ int main() {
     test_strike_miss_does_not_reveal_location_without_report();
     test_strike_report_ability_reveals_location();
     test_strike_hit_no_spurious_notification();
+    test_action_notification_clearing_mid_turn();
     test_end_turn();
     
     // ── Intel Increase Tests ──
@@ -1812,12 +1849,6 @@ int main() {
     // ── Match Timeout Feature Tests ──
     std::cout << "\nRunning Match Timeout Features Tests...\n";
     test_timeout_not_triggered_before_timeout();
-    // Note: Slow timeout tests below require ~15+ seconds each and are commented out.
-    // Uncomment to verify timeout behavior works correctly:
-    // test_timeout_detected_after_duration();
-    // test_timeout_transfers_control_with_messages();
-    // test_timeout_forfeits_remaining_actions();
-    // test_timeout_resets_timer_for_next_player();
     
     std::cout << "\nRunning Auto End Turn Tests...\n";
     test_match_auto_end_turn();
@@ -1825,6 +1856,9 @@ int main() {
     std::cout << "\nRunning Power-up Spawn Tests...\n";
     test_powerup_no_stacking();
     test_starting_turn_randomization();
+
+    std::cout << "\nRunning Forfeit Tests...\n";
+    test_forfeit();
     
     if (g_soft_failures > 0) {
         std::cerr << "\n" << g_soft_failures

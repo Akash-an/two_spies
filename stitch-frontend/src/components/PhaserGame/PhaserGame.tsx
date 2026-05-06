@@ -92,6 +92,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         state.map = initialMap;
       }
       setMatchState(state);
+
+      // If the match was already over when we joined/reconnected, set the game over state
+      if (state.gameOver && state.winner) {
+        setGameOver({
+          winner: state.winner,
+          reason: state.gameOverReason || 'Mission terminated.'
+        });
+      }
     }
   }, [initialState, initialMap]);
 
@@ -148,6 +156,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     }
     return adj;
   }, [highlightedCity, playerCity, matchState, initialMap, disappearedSet]);
+
+  const maxLogTurn = useMemo(() => {
+    if (notifications.length === 0) return -1;
+    return Math.max(...notifications.map(n => n.turn));
+  }, [notifications]);
 
 
 
@@ -907,8 +920,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               {notifications.length === 0 ? (
                 <div className="log-empty">&gt; AWAITING INTEL...</div>
               ) : (
-                [...notifications].slice(-5).reverse().map((n, i) => (
-                  <div key={n.id} className={`log-entry ${n.type || ''} ${i === 0 ? 'latest' : ''}`}>
+                [...notifications].slice(-5).reverse().map((n) => (
+                  <div key={n.id} className={`log-entry ${n.type || ''} ${n.turn === maxLogTurn ? 'latest' : ''}`}>
                     <span className="log-turn">T{n.turn}</span>
                     <span className="log-text">{n.text}</span>
                   </div>

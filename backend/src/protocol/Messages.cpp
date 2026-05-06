@@ -218,8 +218,10 @@ json serialize_match_state(const std::string& session_id,
 
     if (state.is_game_over()) {
         result["winner"] = game::to_string(state.winner());
+        result["gameOverReason"] = state.game_over_reason();
     } else {
         result["winner"] = nullptr;
+        result["gameOverReason"] = "";
     }
 
     return result;

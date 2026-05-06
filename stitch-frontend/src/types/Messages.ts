@@ -128,6 +128,7 @@ export interface MatchState {
   map?: MapDef;
   gameOver: boolean;
   winner: PlayerSide | null;
+  gameOverReason?: string;
   opponentMovedFromStart: boolean;
   turnDuration: number;
   timeElapsedMs: number;

@@ -210,7 +210,7 @@ function App() {
           
           // Only force transition to 'playing' if the game is actually active
           // AND it matches the session we are currently expecting/linking to.
-          if (state && !state.gameOver) {
+          if (state) {
             setInitialState(state);
             setIsLoading(false);
 
@@ -308,6 +308,28 @@ function App() {
   //   setLogs((p) => [...p, `DEPLOYING UNIT: ${unitId}`]);
   // };
 
+  const handleAbortMatch = () => {
+    console.log('[App] Aborting match');
+    if (netRef.current && netRef.current.isConnected()) {
+      netRef.current.send(ClientMessageType.ABORT_MATCH, {});
+    }
+    
+    setIsLoading(false);
+    setPhase('deployment');
+    setInitialMap(null);
+    setInitialState(null);
+    setMatchCode(null);
+    setMatchSessionId(null);
+    if (matchSessionIdRef.current) {
+      matchSessionIdRef.current = null;
+    }
+    setUrlCode(null);
+    setPlayerSide(null);
+    hasAutoJoined.current = false;
+    setLogs(['MISSION ABORTED', 'RETURNING TO HUB...']);
+    window.history.pushState({}, '', '/');
+  };
+
   const handleInitiateOperation = () => {
     console.log('[App] Initiating operation...');
     setLogs((p) => [...p, 'INITIATING OPERATION...']);
@@ -394,6 +416,7 @@ function App() {
           matchSessionId={matchSessionId}
           onInitiateOperation={handleInitiateOperation}
           onLinkToNetwork={handleLinkToNetwork}
+          onAbortMatch={handleAbortMatch}
           onTerminateLink={() => {
             console.log('[App] Terminate link');
             if (netRef.current && netRef.current.isConnected()) {
@@ -410,6 +433,7 @@ function App() {
             setInitialState(null);
             setMatchCode(null);
             setMatchSessionId(null);
+            matchSessionIdRef.current = null;
             window.history.pushState({}, '', '/');
             setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
           }}
@@ -444,25 +468,7 @@ function App() {
               setInitialState(null);
               window.history.pushState({}, '', '/');
             }}
-            onTerminateLink={() => {
-              console.log('[App] Aborting match from game');
-              if (netRef.current && netRef.current.isConnected()) {
-                netRef.current.send(ClientMessageType.ABORT_MATCH, {});
-              }
-              
-              setIsLoading(false);
-              setPhase('deployment');
-              setInitialMap(null);
-              setInitialState(null);
-              setMatchCode(null);
-              setMatchSessionId(null);
-              matchSessionIdRef.current = null;
-              setUrlCode(null);
-              setPlayerSide(null);
-              hasAutoJoined.current = false;
-              setLogs(['MISSION ABORTED', 'RETURNING TO HUB...']);
-              window.history.pushState({}, '', '/');
-            }}
+            onTerminateLink={handleAbortMatch}
             setShowHowToPlay={setShowHowToPlay}
             setActionTooltip={handleSetActionTooltip}
             isMuted={isMuted}
