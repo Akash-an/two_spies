@@ -84,6 +84,7 @@ stitch-frontend/
     components/           # React components (one folder per component)
       CodenameAuthorizationTerminal/
       MissionDeploymentHub/
+      OrientationGuard/
       SecureLinkFrequency/
       SurveillanceCommandCenterGlobal/
       SurveillanceCommandCenterGlobalMap/
@@ -128,17 +129,30 @@ Structure:
 ```
 backend/
   CMakeLists.txt
-  src/
-    main.cpp
-    server/
-      WebSocketServer.h/.cpp
-      Session.h/.cpp
+  include/                # Header files (.hpp)
     game/
-      GameState.h/.cpp
-      Match.h/.cpp
-      Player.h/.cpp
+      CityGraph.hpp
+      GameState.hpp
+      Match.hpp
+      MatchManager.hpp
+      Player.hpp
+    network/
+      WebSocketServer.hpp
+      Session.hpp
     protocol/
-      Messages.h/.cpp
+      Messages.hpp
+  src/                    # Implementation files (.cpp)
+    main.cpp
+    game/
+      CityGraph.cpp
+      GameState.cpp
+      Match.cpp
+      MatchManager.cpp
+    network/
+      WebSocketServer.cpp
+      Session.cpp
+    protocol/
+      Messages.cpp
 ```
 
 Rules:
@@ -159,11 +173,11 @@ Full rules, mechanics, abilities, turn structure, and win conditions are documen
 
 Key constraints for implementation:
 
-* Each turn grants **2 actions** (move, ability, or strike).
-* The server assigns starting cities randomly — positions are **never shared** with the opposing client.
+* Each turn grants **2 actions** (move, ability, strike, or wait). This can be expanded to 3 via *Prep Mission* or *Action Pickups*.
+* The server assigns starting cities randomly — positions are **shared with both clients** as baseline mission data.
 * The server sends **per-player filtered state** — clients only receive what the game rules allow them to see.
 * A successful strike on the opponent's city ends the round immediately.
-* A failed strike **reveals the striker's position**.
+* A failed strike **reveals the striker's position only if the defender has unlocked Strike Reports**.
 
 ---
 
@@ -184,16 +198,28 @@ Examples:
 
 Client → Server:
 
+* `AUTHENTICATE`
+* `CREATE_MATCH`
 * `JOIN_MATCH`
+* `RECONNECT_MATCH`
 * `PLAYER_ACTION`
 * `END_TURN`
+* `SET_PLAYER_NAME`
+* `ABORT_MATCH`
+* `LEAVE_MATCH`
 
 Server → Client:
 
-* `MATCH_STATE`
+* `MATCH_CREATED`
 * `MATCH_START`
-* `ERROR`
+* `MATCH_STATE`
+* `TURN_CHANGE`
 * `GAME_OVER`
+* `ERROR`
+* `WAITING_FOR_OPPONENT`
+* `AUTHENTICATED`
+* `OPPONENT_DISCONNECTED`
+* `OPPONENT_RECONNECTED`
 
 Message parsing must be centralized.
 
@@ -268,8 +294,8 @@ Focus is core multiplayer loop.
 * Phaser handles rendering.
 * UI overlays (menus) may use simple HTML.
 * Game board is graph-based (cities + edges).
-* No complex animation initially.
-* Function over polish.
+* Tactical display uses CSS and SVG animations for "Aegis Terminal" feel (ripples, pulses, sweeps).
+* Function over polish, but maintain high-fidelity cyberpunk aesthetic.
 
 ---
 
@@ -320,13 +346,13 @@ Rebuild scripts live in `scripts/` at the project root. Always use these when co
 | Script | When to use |
 | --- | --- |
 | `scripts/rebuild-backend.sh` | After any C++ source change |
-| `scripts/rebuild-stitch-frontend.sh` | After `vite.config.ts`, env vars, or plugin changes (HMR handles the rest) |
+| `scripts/rebuild-frontend.sh` | After `vite.config.ts`, env vars, or plugin changes (HMR handles the rest) |
 | `scripts/rebuild-all.sh` | Full rebuild of both services |
 | `scripts/docker-run.sh` | Start services using Docker Compose |
 | `scripts/docker-rebuild.sh` | Rebuild images and restart via Docker Compose |
 | `scripts/docker-stop.sh` | Stop services using Docker Compose |
 
-Logs: `backend/server.log`, `stitch-stitch-frontend/vite.log`
+Logs: `backend/server.log`, `stitch-frontend/vite.log`
 
 See **`.agents/skills/rebuild-and-restart/SKILL.md`** for full instructions including common troubleshooting.
 
@@ -338,7 +364,7 @@ See **`.agents/skills/rebuild-and-restart/SKILL.md`** for full instructions incl
 
 Log locations:
 - Backend: `backend/server.log`
-- stitch-frontend: `stitch-stitch-frontend/vite.log`
+- stitch-frontend: `stitch-frontend/vite.log`
 
 When a user reports an error or unexpected behavior:
 1. Read the relevant log file immediately

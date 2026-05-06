@@ -9,9 +9,14 @@ export interface ServerMessage {
 export class WebSocketClient extends EventEmitter {
   private ws: WebSocket | null = null;
   private url: string;
+  public token: string;
 
   constructor(url: string = import.meta.env.VITE_WS_URL || 'ws://localhost:8085') {
     super();
+    
+    // Initialize or retrieve player token
+    this.token = localStorage.getItem('two_spies_token') || crypto.randomUUID();
+    localStorage.setItem('two_spies_token', this.token);
     
     // Support relative URLs (e.g. '/ws') by prepending the current host and appropriate protocol
     if (url.startsWith('/')) {
@@ -30,6 +35,11 @@ export class WebSocketClient extends EventEmitter {
 
       this.ws.onopen = () => {
         console.info('[WS] ✓ Connected to', this.url);
+        
+        // Always authenticate immediately
+        const name = localStorage.getItem('two_spies_name') || '';
+        this.send('AUTHENTICATE', { player_token: this.token, name });
+        
         this.emit('connected');
         resolve();
       };

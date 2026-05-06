@@ -72,7 +72,7 @@ static void test_starting_turn_randomization() {
     
     // Run multiple matches with different seeds to see if both players get a turn
     for (unsigned int seed = 0; seed < 100; ++seed) {
-        Match match("test-session", test_map(), [](const std::string&, const std::string&){});
+        Match match("test-session", "0000", test_map(), [](const std::string&, const std::string&){});
         match.add_player("p1"); // ALPHA
         match.add_player("p2"); // BETA
         

@@ -145,7 +145,36 @@
   flex: 1;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
+
+/* ── Disconnection Overlay ─── */
+/* ── Opponent disconnect badge (small header icon) ── */
+.disconnect-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: #ff6b6b;
+  cursor: default;
+  animation: disconnect-badge-pulse 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.disconnect-badge .material-symbols-outlined {
+  font-size: 18px !important;
+}
+
+@keyframes disconnect-badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); border-color: rgba(255, 107, 107, 0.4); }
+  50% { box-shadow: 0 0 8px 2px rgba(255, 107, 107, 0.25); border-color: rgba(255, 107, 107, 0.8); }
+}
+
 
 .game-map svg {
   width: 100%;

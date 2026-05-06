@@ -9,7 +9,7 @@ In the **Two Spies** tactical interface (Aegis Terminal), cities undergo various
 | **Neutral (Default)** | Dark Slate (`#507a7a`), 70% Opacity | Width: 1.5px, Brighter Stroke | Solid presence, clear baseline |
 | **Controlled (Yours)** | **Neon Green** (`#00ff41`), 80% Opacity | Width: 2px, Solid Green | Bright, high-visibility |
 | **Controlled (Enemy)** | **Tactical Red** (`#ff4444`), 80% Opacity | Width: 2px, Solid Red | Aggressive red highlight |
-| **Destroyed** | Dark Gray (`#333`), 30% Opacity | None | Red "**X**" overlay; label strikethrough |
+| **Disappeared** | Dark Gray (`#222`), 15% Opacity | Width: 1px, Dark Stroke | Red "**X**" overlay; label strikethrough; faded presence |
 
 ---
 
@@ -53,6 +53,7 @@ These changes occur during your turn as you interact with the map.
 Rings appear outside the city circle (Radius + 2px or 4px) to denote special roles or upcoming events.
 
 *   **Target for Destruction:** An **Amber** dashed ring with a pulsing scale animation (`scheduled-ring`) used to warn players that a city is about to be destroyed.
+*   **Stranded Indicator:** When an operative is in a city that has disappeared, a persistent warning banner appears in the tactical log, and the city continues to show the red "**X**" overlay despite the operative's presence.
 
 ---
 

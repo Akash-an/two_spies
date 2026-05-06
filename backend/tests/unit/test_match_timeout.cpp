@@ -70,7 +70,7 @@ void test_timeout_not_triggered_before_timeout() {
     std::cout << "  test_timeout_not_triggered_before_timeout... ";
     
     MessageCapture capture;
-    Match match("sess_id_1", test_map_for_match(),
+    Match match("sess_id_1", "0000", test_map_for_match(),
                 [&capture](const std::string& pid, const std::string& msg) {
                     capture.capture(pid, msg);
                 });
@@ -95,7 +95,7 @@ void test_timeout_detected_after_duration() {
     std::cout << "  test_timeout_detected_after_duration... ";
     
     MessageCapture capture;
-    Match match("sess_id_2", test_map_for_match(),
+    Match match("sess_id_2", "0000", test_map_for_match(),
                 [&capture](const std::string& pid, const std::string& msg) {
                     capture.capture(pid, msg);
                 });
@@ -131,7 +131,7 @@ void test_timeout_transfers_control_with_messages() {
     std::cout << "  test_timeout_transfers_control_with_messages... ";
     
     MessageCapture capture;
-    Match match("sess_id_3", test_map_for_match(),
+    Match match("sess_id_3", "0000", test_map_for_match(),
                 [&capture](const std::string& pid, const std::string& msg) {
                     capture.capture(pid, msg);
                 });
@@ -186,7 +186,7 @@ void test_timeout_forfeits_remaining_actions() {
     std::cout << "  test_timeout_forfeits_remaining_actions... ";
     
     MessageCapture capture;
-    Match match("sess_id_4", test_map_for_match(),
+    Match match("sess_id_4", "0000", test_map_for_match(),
                 [&capture](const std::string& pid, const std::string& msg) {
                     capture.capture(pid, msg);
                 });
@@ -230,7 +230,7 @@ void test_timeout_resets_timer_for_next_player() {
     std::cout << "  test_timeout_resets_timer_for_next_player... ";
     
     MessageCapture capture;
-    Match match("sess_id_5", test_map_for_match(),
+    Match match("sess_id_5", "0000", test_map_for_match(),
                 [&capture](const std::string& pid, const std::string& msg) {
                     capture.capture(pid, msg);
                 });

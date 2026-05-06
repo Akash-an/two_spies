@@ -104,6 +104,53 @@ void Session::on_message(const std::string& raw) {
     }
 
     switch (msg.type) {
+        case protocol::ClientMsgType::AUTHENTICATE: {
+            auto token = msg.payload.value("player_token", "");
+            auto name = msg.payload.value("name", "");
+            if (!token.empty()) {
+                auto old_id = player_id_;
+                player_id_ = token;
+                server_->update_session_id(old_id, player_id_);
+                std::cout << "[Session] Identity updated from " << old_id << " to " << player_id_ << "\n";
+            }
+            if (!name.empty()) {
+                player_name_ = name;
+            }
+            std::cout << "[Session " << player_id_ << "] Authenticated. Name: " << player_name_ << "\n";
+            
+            // If they are already in a match, let's send them the latest state immediately
+            auto current_session_id = server_->match_manager().session_for_player(player_id_);
+            bool in_match = false;
+
+            std::cout << "[Session " << player_id_ << "] session_for_player returned: '"
+                      << current_session_id << "'\n";
+
+            if (!current_session_id.empty()) {
+                auto match = server_->match_manager().get_match(current_session_id);
+                std::cout << "[Session " << player_id_ << "] get_match("
+                          << current_session_id << ") = " << (match ? "found" : "null") << "\n";
+                if (match) {
+                    in_match = true;
+                    std::cout << "[Session " << player_id_ << "] Calling reconnect_player...\n";
+                    try {
+                        match->reconnect_player(player_id_);
+                        std::cout << "[Session " << player_id_ << "] reconnect_player returned OK\n";
+                    } catch (const std::exception& e) {
+                        std::cerr << "[Session " << player_id_ << "] reconnect_player THREW: " << e.what() << "\n";
+                    }
+                }
+            }
+
+            // Send confirmation of authentication
+            server_->send_to_player(player_id_, protocol::make_server_message(
+                protocol::ServerMsgType::AUTHENTICATED,
+                "",
+                {{"player_id", player_id_}, {"in_match", in_match}}
+            ));
+            break;
+        }
+
+
         case protocol::ClientMsgType::SET_PLAYER_NAME: {
             auto name = msg.payload.value("name", "");
             if (!name.empty()) {
@@ -132,7 +179,7 @@ void Session::on_message(const std::string& raw) {
         case protocol::ClientMsgType::JOIN_MATCH: {
             auto code = msg.payload.value("code", "");
             if (code.empty()) {
-                send(protocol::make_error("", "Missing room code"));
+                send(protocol::make_error("", "Missing room frequency"));
                 return;
             }
             auto send_fn = [weak_server = std::weak_ptr<WebSocketServer>(server_)]
@@ -141,11 +188,34 @@ void Session::on_message(const std::string& raw) {
                     srv->send_to_player(pid, json_msg);
                 }
             };
-            auto session_id = server_->match_manager().join_match_by_code(
+            auto session_id = msg.payload.value("session_id", "");
+            // In MatchManager we should update join_match to take optional session_id if we want, or just by code
+            // Actually, we said code_ is moving to Match. Let's update that logic shortly.
+            auto result_session_id = server_->match_manager().join_match_by_code(
                 player_id_, code, send_fn, player_name_);
-            if (!session_id.empty()) {
-                std::cout << "[Session " << player_id_ << "] Joined match " << session_id
+            if (!result_session_id.empty()) {
+                std::cout << "[Session " << player_id_ << "] Joined match " << result_session_id
                           << " with code " << code << "\n";
+            }
+            break;
+        }
+
+        case protocol::ClientMsgType::RECONNECT_MATCH: {
+            auto session_id = msg.payload.value("session_id", "");
+            auto current_session_id = server_->match_manager().session_for_player(player_id_);
+            std::cout << "[Session " << player_id_ << "] RECONNECT_MATCH requested for " << session_id 
+                      << " (current session: " << current_session_id << ")\n";
+            if (current_session_id == session_id) {
+                auto match = server_->match_manager().get_match(session_id);
+                if (match) {
+                    match->reconnect_player(player_id_);
+                } else {
+                    std::cout << "[Session " << player_id_ << "] Reconnect failed: Match " << session_id << " not found\n";
+                }
+            } else {
+                std::cout << "[Session " << player_id_ << "] Reconnect denied: " << player_id_ 
+                          << " not associated with session " << session_id << "\n";
+                send(protocol::make_error(session_id, "Cannot reconnect: Not in this match."));
             }
             break;
         }
@@ -185,15 +255,8 @@ void Session::on_message(const std::string& raw) {
         }
 
         case protocol::ClientMsgType::ABORT_MATCH: {
-            auto session_id = server_->match_manager().session_for_player(player_id_);
-            if (!session_id.empty()) {
-                auto match = server_->match_manager().get_match(session_id);
-                if (match) {
-                    match->handle_abort(player_id_);
-                }
-                // Immediately remove player from match to clear state
-                server_->match_manager().remove_player(player_id_);
-            }
+            std::cout << "[Session] " << player_id_ << " aborting match\n";
+            server_->match_manager().abort_match(player_id_);
             break;
         }
 

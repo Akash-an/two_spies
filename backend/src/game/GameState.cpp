@@ -62,6 +62,14 @@ PlayerData& GameState::player_mut(PlayerSide side) {
     return side == PlayerSide::ALPHA ? alpha_ : beta_;
 }
 
+std::string GameState::player_name(PlayerSide side) const {
+    const auto& p = player(side);
+    if (!p.name.empty()) {
+        return p.name;
+    }
+    return side == PlayerSide::ALPHA ? "Alpha" : "Beta";
+}
+
 // ── MOVE ─────────────────────────────────────────────────────────────
 
 ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
@@ -190,7 +198,7 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
         // HIT — striker wins the round
         game_over_ = true;
         winner_ = side;
-        game_over_reason_ = std::string(to_string(side)) + " struck " + striker_city + " — HIT!";
+        game_over_reason_ = player_name(side) + " struck " + striker_city + " — HIT!";
         result.ok = true;
         result.game_over = true;
         result.winner = side;
@@ -693,7 +701,7 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
 void GameState::abort(PlayerSide side) {
     game_over_ = true;
     winner_ = opposite(side);
-    game_over_reason_ = std::string(to_string(side)) + " aborted the match.";
+    game_over_reason_ = player_name(side) + " aborted the match.";
 }
 
 // ── Same-city check ──────────────────────────────────────────────────
@@ -713,7 +721,7 @@ ActionResult GameState::check_same_city() {
             game_over_ = true;
             winner_ = current_turn_;
             game_over_reason_ = std::string("Cover blown! ") +
-                to_string(opposite(current_turn_)) + " was caught in " + alpha_.current_city;
+                player_name(opposite(current_turn_)) + " was caught in " + alpha_.current_city;
             result.ok = true;
             result.game_over = true;
             result.winner = current_turn_;

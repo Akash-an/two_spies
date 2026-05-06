@@ -15,6 +15,7 @@ export interface MissionDeploymentHubProps {
   longitude?: string;
   logs?: string[];
   matchCode?: string | null;
+  matchSessionId?: string | null;
   className?: string;
   loading?: boolean;
   onOpenHowToPlay: () => void;
@@ -38,6 +39,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   latitude = '52.5200° N',
   longitude = '13.4050° E',
   matchCode = null,
+  matchSessionId = null,
   // logs = [],
   className = '',
   loading = false,
@@ -52,6 +54,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkedFrequency, setLinkedFrequency] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Show modal when matchCode is received from backend
   useEffect(() => {
@@ -83,6 +86,15 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
     console.log('[MissionDeploymentHub] Closing frequency modal and terminating link');
     onTerminateLink?.();
     setShowGeneratedFrequencyModal(false);
+    setCopiedLink(false);
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/match/${matchSessionId}-${matchCode}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    audioManager.play('ui_click');
+    setTimeout(() => setCopiedLink(false), 3000);
   };
 
   const toggleFullscreen = async () => {
@@ -164,7 +176,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       {/* Sidebar */}
       <aside className={`fixed left-0 top-16 h-[calc(100vh-64px)] ${mobileMenuOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} md:w-60 lg:w-72 md:translate-x-0 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 md:p-6 space-y-8 z-40 overflow-y-auto transition-all duration-300`}>
         <div className="space-y-1">
-          <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Current Agent</p>
+          <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Agent</p>
           <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
           <p className="text-on-surface-variant font-['Inter'] text-xs">SECTOR: {sector}</p>
         </div>
@@ -197,6 +209,27 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
         </div>
 
         <div className="relative z-10 min-h-full p-4 md:p-12 flex flex-col">
+          {/* Global Join Error Banner */}
+          {joinError && !showLinkModal && (
+            <div className="max-w-6xl mx-auto w-full mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="bg-error/10 border border-error/30 backdrop-blur-md p-4 flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                  <span className="material-symbols-outlined text-error animate-pulse">warning</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-error/60 uppercase tracking-widest">Connection Refused</span>
+                    <span className="text-error font-['Space_Grotesk'] font-bold tracking-wider uppercase text-sm">{joinError}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={onClearError}
+                  className="text-error/40 hover:text-error transition-colors p-2"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Hero Modules Container */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto w-full my-auto">
             {/* INITIATE OPERATION */}
@@ -292,7 +325,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
             <span className="text-[10px] font-bold text-primary/40 uppercase tracking-[0.3em]">Status Monitor</span>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(0,255,255,1)]" />
-              <span className="text-primary font-['Space_Grotesk'] font-black text-sm tracking-widest uppercase">AGENT: {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')} - STATUS: READY</span>
+              <span className="text-primary font-['Space_Grotesk'] font-black text-sm tracking-widest uppercase">Agent {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')} - STATUS: READY</span>
             </div>
           </div>
           <div className="h-10 w-[1px] bg-outline-variant/30" />
@@ -427,6 +460,25 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
                 <p className="text-[10px] font-['JetBrains_Mono'] text-primary/50 uppercase tracking-widest">
                   [ GHZ_FREQUENCY_LOCKED ]
                 </p>
+
+                {matchSessionId && (
+                  <div className="mt-8 flex flex-col items-center gap-2">
+                    <p className="text-[10px] text-primary/60 font-bold uppercase tracking-widest">Share this link to challenge</p>
+                    <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 px-3 py-2 rounded">
+                      <span className="text-[10px] font-['JetBrains_Mono'] text-primary/80 truncate max-w-[200px]">
+                        {`${window.location.origin}/match/${matchSessionId}-${matchCode}`}
+                      </span>
+                      <button
+                        onClick={handleCopyLink}
+                        onMouseEnter={() => audioManager.play('ui_hover')}
+                        className="text-primary hover:text-primary-dim transition-colors"
+                        title="Copy Link"
+                      >
+                        <span className="material-symbols-outlined text-sm">{copiedLink ? 'check' : 'content_copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Close Button */}
@@ -438,7 +490,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
                 onMouseEnter={() => audioManager.play('ui_hover')}
                 className="mt-8 px-8 py-2 border border-primary text-primary font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase hover:bg-primary/10 transition-colors rounded"
               >
-                CLOSE
+                ABANDON
               </button>
             </div>
           </div>

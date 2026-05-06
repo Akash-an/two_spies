@@ -39,6 +39,7 @@ public:
     void send(const std::string& message);
 
     const std::string& player_id() const { return player_id_; }
+    void set_player_id(const std::string& id) { player_id_ = id; }
     const std::string& player_name() const { return player_name_; }
     void set_player_name(const std::string& name) { player_name_ = name; }
 

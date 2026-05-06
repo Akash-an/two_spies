@@ -101,11 +101,11 @@ ctest --output-on-failure
 ## stitch-frontend Deep Dive
 
 ### Configuration
-Edit `stitch-frontend/src/main.tsx` to toggle between local and mock servers:
-```typescript
-const USE_REAL_SERVER = true;        // true = connect to C++ backend
-const WS_URL = 'ws://localhost:8085'; // backend URL
+Configuration is managed via environment variables. Create a `.env` file in `stitch-frontend/` (or edit the root `.env` if using Docker):
+```bash
+VITE_WS_URL=ws://localhost:8085
 ```
+The client uses this URL to establish the WebSocket connection to the backend.
 
 ### Type-Checking & Linting
 ```bash

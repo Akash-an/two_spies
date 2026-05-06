@@ -36,6 +36,9 @@ public:
     /// Remove a player from their match (disconnect).
     void remove_player(const std::string& player_id);
 
+    /// Explicitly abort the match for a player and relinquish resources (code, etc.).
+    void abort_match(const std::string& player_id);
+
     /// Returns the session ID for a given player, or empty.
     std::string session_for_player(const std::string& player_id) const;
 

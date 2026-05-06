@@ -20,15 +20,19 @@ class Match {
 public:
     using SendFn = std::function<void(const std::string& player_id, const std::string& json_msg)>;
 
-    explicit Match(const std::string& session_id, const MapDef& map, SendFn send_fn);
+    explicit Match(const std::string& session_id, const std::string& code, const MapDef& map, SendFn send_fn);
 
     const std::string& session_id() const { return session_id_; }
+    const std::string& code() const { return code_; }
 
     /// Add a player to this match.  Returns the assigned side, or nullopt if full.
     std::optional<PlayerSide> add_player(const std::string& player_id);
 
     /// Set the display name for a player.
     void set_player_name(const std::string& player_id, const std::string& name);
+
+    /// Reconnect a player who dropped, sending them the current match state immediately.
+    void reconnect_player(const std::string& player_id);
 
     /// Returns true when two players have joined.
     bool is_full() const;
@@ -53,6 +57,12 @@ public:
     /// Remove a player (disconnect).
     void remove_player(const std::string& player_id);
 
+    /// Notify opponent of disconnection.
+    void handle_player_disconnect(const std::string& player_id);
+
+    /// Notify opponent of reconnection.
+    void handle_player_reconnect(const std::string& player_id);
+
     /// Called periodically to check for timeouts.
     /// This ensures timeout detection even when players are idle.
     void check_for_timeout();
@@ -72,6 +82,7 @@ public:
 
 private:
     std::string session_id_;
+    std::string code_;
     std::unique_ptr<GameState> state_;
     SendFn send_;
     mutable std::mutex mutex_;
@@ -79,6 +90,8 @@ private:
     // Player bookkeeping
     std::string alpha_player_id_;
     std::string beta_player_id_;
+    bool alpha_disconnected_ = false;
+    bool beta_disconnected_ = false;
     bool started_ = false;
 
 public:

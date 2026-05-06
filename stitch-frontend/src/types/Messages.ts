@@ -10,17 +10,19 @@ export type PlayerSide = 'ALPHA' | 'BETA';
 
 /** All client → server message types. */
 export enum ClientMessageType {
+  AUTHENTICATE = 'AUTHENTICATE',
   SET_PLAYER_NAME = 'SET_PLAYER_NAME',
   CREATE_MATCH = 'CREATE_MATCH',
   JOIN_MATCH = 'JOIN_MATCH',
+  RECONNECT_MATCH = 'RECONNECT_MATCH',
   PLAYER_ACTION = 'PLAYER_ACTION',
   END_TURN = 'END_TURN',
   ABORT_MATCH = 'ABORT_MATCH',
   LEAVE_MATCH = 'LEAVE_MATCH',
 }
 
-/** All server → client message types. */
 export enum ServerMessageType {
+  AUTHENTICATED = 'AUTHENTICATED',
   MATCH_CREATED = 'MATCH_CREATED',
   MATCH_START = 'MATCH_START',
   MATCH_STATE = 'MATCH_STATE',
@@ -28,6 +30,8 @@ export enum ServerMessageType {
   GAME_OVER = 'GAME_OVER',
   ERROR = 'ERROR',
   WAITING_FOR_OPPONENT = 'WAITING_FOR_OPPONENT',
+  OPPONENT_DISCONNECTED = 'OPPONENT_DISCONNECTED',
+  OPPONENT_RECONNECTED = 'OPPONENT_RECONNECTED',
 }
 
 /** Action kinds a player can perform during their turn. */

@@ -96,6 +96,7 @@ public:
 
     const PlayerData& player(PlayerSide side) const;
     PlayerData& player_mut(PlayerSide side);
+    std::string player_name(PlayerSide side) const;
 
     const CityGraph& graph() const { return graph_; }
 

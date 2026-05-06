@@ -7,7 +7,6 @@ import {
   AbilityId,
   MatchState,
   GameOverPayload,
-  PlayerSide,
   MapDef,
 } from '../../types/Messages';
 import { audioManager } from '../../audio/AudioManager';
@@ -64,8 +63,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const canActBtn = canAct && !selectedCity;
   const isCityControlledByMe = matchState && playerCity ? matchState.controlledCities[playerCity] === mySide : false;
   const isOpponentLocated = !!matchState?.player.knownOpponentCity;
-  const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
+  const lastTurnRef = useRef<string | null>(null);
+  const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
 
   // Initial check for viewport
   const SVG_W = 1376;
@@ -320,14 +320,30 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       audioManager.play('error');
     };
 
+    const handleOpponentDisconnected = (msg: any) => {
+      console.log('[PhaserGame] Opponent disconnected:', msg);
+      setIsOpponentDisconnected(true);
+      addNotification('OPPONENT DISCONNECTED', 'error');
+    };
+
+    const handleOpponentReconnected = (msg: any) => {
+      console.log('[PhaserGame] Opponent reconnected:', msg);
+      setIsOpponentDisconnected(false);
+      addNotification('OPPONENT RECONNECTED', 'warning');
+    };
+
     webSocketClient.on(ServerMessageType.MATCH_STATE, handleMatchState);
     webSocketClient.on(ServerMessageType.GAME_OVER, handleGameOver);
     webSocketClient.on(ServerMessageType.ERROR, handleError);
+    webSocketClient.on(ServerMessageType.OPPONENT_DISCONNECTED, handleOpponentDisconnected);
+    webSocketClient.on(ServerMessageType.OPPONENT_RECONNECTED, handleOpponentReconnected);
 
     return () => {
       webSocketClient.off(ServerMessageType.MATCH_STATE, handleMatchState);
       webSocketClient.off(ServerMessageType.GAME_OVER, handleGameOver);
       webSocketClient.off(ServerMessageType.ERROR, handleError);
+      webSocketClient.off(ServerMessageType.OPPONENT_DISCONNECTED, handleOpponentDisconnected);
+      webSocketClient.off(ServerMessageType.OPPONENT_RECONNECTED, handleOpponentReconnected);
     };
   }, [webSocketClient, addNotification, initialMap]);
 
@@ -576,7 +592,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       {/* ── Header ─── */}
       <div className="game-header">
         <div className="header-left">
-          <span className="header-agent">AGENT {operativeName.replace(/^OPERATIVE_/, '')}</span>
+          <span className="header-agent">Agent {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</span>
           <span className="header-turn">
             TURN {matchState.turnNumber}
           </span>
@@ -595,6 +611,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <div className={`header-timer ${timerUrgent ? 'urgent' : 'normal'}`}>
             {timerSeconds}s
           </div>
+          {isOpponentDisconnected && (
+            <div className="disconnect-badge" title="Opponent disconnected — waiting for reconnection">
+              <span className="material-symbols-outlined">signal_disconnected</span>
+            </div>
+          )}
           <button
             className="help-btn-header"
             onClick={toggleMute}
@@ -850,6 +871,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               );
             })}
           </svg>
+
+          {/* Disconnection indicator moved to header — no overlay */}
 
           {/* City-highlight hint */}
           {highlightedCity && highlightedCity !== playerCity && canAct && (
