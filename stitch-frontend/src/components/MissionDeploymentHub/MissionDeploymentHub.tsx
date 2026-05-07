@@ -57,6 +57,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   const [linkedFrequency, setLinkedFrequency] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // Show modal when matchCode is received from backend
   useEffect(() => {
@@ -89,6 +90,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
     onAbortMatch?.();
     setShowGeneratedFrequencyModal(false);
     setCopiedLink(false);
+    setCopiedInvite(false);
   };
 
   const handleCopyLink = () => {
@@ -97,6 +99,16 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
     setCopiedLink(true);
     audioManager.play('ui_click');
     setTimeout(() => setCopiedLink(false), 3000);
+  };
+
+  const handleCopyInvite = () => {
+    const url = `${window.location.origin}/match/${matchSessionId}-${matchCode}`;
+    const cleanName = operativeName.replace(/^(OPERATIVE|AGENT)_/i, '');
+    const message = `⚡ [DIRECT CHALLENGE] ⚡\n\nAgent ${cleanName} has initiated a tactical standoff. The mission is live, and you're in their sights. Step into the shadows if you dare.\n\nJOIN THE MISSION: ${url}\n\n[ STATUS: NO ONE IS SAFE ]`;
+    navigator.clipboard.writeText(message);
+    setCopiedInvite(true);
+    audioManager.play('ui_click');
+    setTimeout(() => setCopiedInvite(false), 3000);
   };
 
   const toggleFullscreen = async () => {
@@ -479,6 +491,14 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
                         <span className="material-symbols-outlined text-sm">{copiedLink ? 'check' : 'content_copy'}</span>
                       </button>
                     </div>
+                    <button
+                      onClick={handleCopyInvite}
+                      onMouseEnter={() => audioManager.play('ui_hover')}
+                      className="mt-4 w-full py-3 bg-primary/10 border border-primary text-primary font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase hover:bg-primary/20 transition-all flex items-center justify-center gap-2 rounded"
+                    >
+                      <span className="material-symbols-outlined text-sm">{copiedInvite ? 'check' : 'share'}</span>
+                      {copiedInvite ? 'COPIED INVITE' : 'SHARE MISSION'}
+                    </button>
                   </div>
                 )}
               </div>

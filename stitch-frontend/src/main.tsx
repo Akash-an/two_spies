@@ -28,6 +28,12 @@ function App() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const hasAutoJoined = useRef<boolean>(false);
   const matchSessionIdRef = useRef<string | null>(null);
+  const phaseRef = useRef<GamePhase>(phase);
+
+  // Sync phaseRef whenever phase changes
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
 
   const [isMuted, setIsMuted] = useState<boolean>(() => audioManager.isMuted());
@@ -106,7 +112,7 @@ function App() {
           const inMatch = (msg.payload as any)?.in_match;
           console.log('[App] Authenticated confirmation received. inMatch:', inMatch);
           
-          if (phase === 'reconnecting') {
+          if (phaseRef.current === 'reconnecting') {
             if (!inMatch) {
               console.log('[App] No active match found, moving to entry flow');
               setPhase(playerName ? 'deployment' : 'entering-name');
@@ -179,7 +185,11 @@ function App() {
           console.log('[App] Match started - both players ready:', msg);
           
           const msgSessionId = msg.sessionId;
-          if (msgSessionId && matchSessionIdRef.current && msgSessionId !== matchSessionIdRef.current) {
+          const currentId = matchSessionIdRef.current;
+
+          // If we have an active session ID already, it MUST match.
+          // This prevents old MATCH_START messages from previous matches from leaking.
+          if (msgSessionId && currentId && msgSessionId !== currentId) {
             console.log('[App] Ignoring MATCH_START for old/different session:', msgSessionId);
             return;
           }
@@ -208,19 +218,34 @@ function App() {
           const state = msg.payload;
           const msgSessionId = msg.sessionId;
           
-          // Only force transition to 'playing' if the game is actually active
-          // AND it matches the session we are currently expecting/linking to.
           if (state) {
+            // SESSION VALIDATION
+            const currentId = matchSessionIdRef.current;
+            
+            // 1. If we have a session ID, it MUST match.
+            if (currentId && msgSessionId !== currentId) {
+              console.log('[App] Ignoring MATCH_STATE for old/different session:', msgSessionId);
+              return;
+            }
+
+            // 2. If we don't have a session ID, we only accept it if we are reconnecting or explicitly searching.
+            // This prevents final MATCH_STATE from aborted matches (where currentId is null) from leaking.
+            if (!currentId) {
+              if (phaseRef.current !== 'reconnecting' && !isLoading) {
+                console.log('[App] Ignoring stray MATCH_STATE - no active session expected');
+                return;
+              }
+              // Pick up the session ID from this state message if we are reconnecting
+              if (msgSessionId) {
+                setMatchSessionId(msgSessionId);
+                matchSessionIdRef.current = msgSessionId;
+              }
+            }
+
             setInitialState(state);
             setIsLoading(false);
 
             setPhase((current) => {
-              // If we aborted or left, matchSessionIdRef.current will be null.
-              if (!matchSessionIdRef.current || msgSessionId !== matchSessionIdRef.current) {
-                console.log('[App] Ignoring MATCH_STATE for old/different session:', msgSessionId);
-                return current;
-              }
-
               if (current === 'reconnecting' || current === 'deployment') {
                 return 'playing';
               }
