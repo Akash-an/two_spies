@@ -165,22 +165,42 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       }} />
 
       {/* Top AppBar */}
-      <header className="fixed top-0 w-full z-50 border-b border-[#00ffff]/20 bg-[#0c0e0f]/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-6 h-16">
-        <div className="flex items-center gap-3 md:gap-4">
+      <header className="fixed top-0 w-full z-50 border-b border-[#00ffff]/20 bg-[#0c0e0f]/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-6 h-16 transition-all duration-300 overflow-x-auto overflow-y-hidden tactical-scrollbar">
+        <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-shrink">
           <button
-            className="md:hidden text-[#00ffff] p-2"
+            className="md:hidden text-[#00ffff] p-2 flex-shrink-0"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
           </button>
-          <span className="text-xl md:text-2xl font-black text-[#00ffff] drop-shadow-[0_0_8px_rgba(0,255,255,0.5)] font-['Space_Grotesk'] tracking-widest uppercase hidden sm:block">MISSION: NEON_PHANTOM</span>
-          <div className="h-4 w-[1px] bg-outline-variant mx-1 md:mx-2 hidden sm:block" />
-          <h1 className="text-on-surface font-['Space_Grotesk'] font-bold tracking-widest uppercase text-sm md:text-lg">DEPLOYMENT HUB</h1>
+          <span className="text-xl md:text-2xl font-black text-[#00ffff] drop-shadow-[0_0_8px_rgba(0,255,255,0.5)] font-['Space_Grotesk'] tracking-widest uppercase hidden sm:block truncate">MISSION: NEON_PHANTOM</span>
+          <div className="h-4 w-[1px] bg-outline-variant mx-1 md:mx-2 hidden sm:block flex-shrink-0" />
+          <h1 className="text-on-surface font-['Space_Grotesk'] font-bold tracking-widest uppercase text-sm md:text-lg truncate">DEPLOYMENT HUB</h1>
         </div>
-        <div className="flex items-center gap-2 md:gap-6">
+        <div className="flex items-center gap-2 md:gap-6 flex-shrink-0">
           <div className="bg-primary-container/10 px-4 py-1 border border-primary/30 hidden sm:block">
             <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter uppercase">STATUS: ACTIVE</span>
           </div>
+          <button
+            className="help-btn-header"
+            onClick={toggleFullscreen}
+            onMouseEnter={() => setActionTooltip?.(isFullscreen ? 'RETURN TO PORTRAIT' : 'TACTICAL VIEW')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
+          >
+            <span className="material-symbols-outlined">
+              {isFullscreen ? 'screen_rotation' : 'fullscreen'}
+            </span>
+          </button>
+          <button
+            className="help-btn-header"
+            onClick={onOpenHowToPlay}
+            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title="How to Play"
+          >
+            <span className="material-symbols-outlined">help_outline</span>
+          </button>
           <button
             className="help-btn-header"
             onClick={onToggleMute}
@@ -191,24 +211,6 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
             <span className="material-symbols-outlined">
               {isMuted ? 'volume_off' : 'volume_up'}
             </span>
-          </button>
-          <button
-            className="help-btn-header"
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
-          >
-            <span className="material-symbols-outlined">
-              {isFullscreen ? 'screen_rotation' : 'fullscreen'}
-            </span>
-          </button>
-          <button
-            className="help-btn-header"
-            onClick={onOpenHowToPlay}
-            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY: Open field manual and mission objectives.')}
-            onMouseLeave={() => setActionTooltip?.(null)}
-            title="How to Play"
-          >
-            <span className="material-symbols-outlined">help_outline</span>
           </button>
         </div>
       </header>

@@ -67,6 +67,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const lastTurnRef = useRef<string | null>(null);
   const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [isLogVisible, setIsLogVisible] = useState(window.innerWidth >= 600); // Default hidden on very small screens, or we can just default to true
 
   // Sync fullscreen state and handle orientation unlocking
   useEffect(() => {
@@ -659,15 +660,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           )}
           <button
             className="help-btn-header"
-            onClick={toggleMute}
-            title={isMuted ? "Unmute Audio" : "Mute Audio"}
-          >
-            <span className="material-symbols-outlined">
-              {isMuted ? 'volume_off' : 'volume_up'}
-            </span>
-          </button>
-          <button
-            className="help-btn-header"
             onClick={toggleFullscreen}
             title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
           >
@@ -681,6 +673,26 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             title="How to Play"
           >
             <span className="material-symbols-outlined">help_outline</span>
+          </button>
+          <button
+            className={`help-btn-header ${isLogVisible ? 'active' : ''}`}
+            onClick={() => setIsLogVisible(!isLogVisible)}
+            onMouseEnter={() => setActionTooltip?.(isLogVisible ? 'HIDE TACTICAL LOG' : 'SHOW TACTICAL LOG')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title={isLogVisible ? "Hide Tactical Log" : "Show Tactical Log"}
+          >
+            <span className="material-symbols-outlined">
+              {isLogVisible ? 'speaker_notes' : 'speaker_notes_off'}
+            </span>
+          </button>
+          <button
+            className="help-btn-header"
+            onClick={toggleMute}
+            title={isMuted ? "Unmute Audio" : "Mute Audio"}
+          >
+            <span className="material-symbols-outlined">
+              {isMuted ? 'volume_off' : 'volume_up'}
+            </span>
           </button>
         </div>
       </div>
@@ -942,7 +954,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           </button>
 
           {/* Tactical Log Overlay (Bottom Left) */}
-          <div className="tactical-log-overlay">
+          <div className={`tactical-log-overlay ${isLogVisible ? 'visible' : 'hidden'}`}>
             <div className="log-header">TACTICAL LOG</div>
             <div className="log-content">
               {notifications.length === 0 ? (
