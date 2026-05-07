@@ -7,7 +7,6 @@ import {
   AbilityId,
   MatchState,
   GameOverPayload,
-  PlayerSide,
   MapDef,
 } from '../../types/Messages';
 import { audioManager } from '../../audio/AudioManager';
@@ -64,8 +63,33 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
   const canActBtn = canAct && !selectedCity;
   const isCityControlledByMe = matchState && playerCity ? matchState.controlledCities[playerCity] === mySide : false;
   const isOpponentLocated = !!matchState?.player.knownOpponentCity;
-  const lastTurnRef = useRef<PlayerSide | null>(null);
   const lastStateRef = useRef<MatchState | null>(null);
+  const lastTurnRef = useRef<string | null>(null);
+  const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+  // Sync fullscreen state and handle orientation unlocking
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (!isFull) {
+        // Automatically unlock orientation when exiting fullscreen
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          console.log('[PhaserGame] Exited fullscreen, unlocking orientation');
+          orientation.unlock();
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   // Initial check for viewport
   const SVG_W = 1376;
@@ -92,6 +116,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         state.map = initialMap;
       }
       setMatchState(state);
+
+      // If the match was already over when we joined/reconnected, set the game over state
+      if (state.gameOver && state.winner) {
+        setGameOver({
+          winner: state.winner,
+          reason: state.gameOverReason || 'Mission terminated.'
+        });
+      }
     }
   }, [initialState, initialMap]);
 
@@ -148,6 +180,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     }
     return adj;
   }, [highlightedCity, playerCity, matchState, initialMap, disappearedSet]);
+
+  const maxLogTurn = useMemo(() => {
+    if (notifications.length === 0) return -1;
+    return Math.max(...notifications.map(n => n.turn));
+  }, [notifications]);
 
 
 
@@ -316,18 +353,36 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     };
 
     const handleError = (msg: any) => {
-      addNotification(msg.payload?.message || 'Unknown error', 'error');
+      const errorMsg = msg.payload?.message || 'Unknown error';
+      addNotification(errorMsg, 'error');
       audioManager.play('error');
+      addEventBanner(errorMsg, 'error');
+    };
+
+    const handleOpponentDisconnected = (msg: any) => {
+      console.log('[PhaserGame] Opponent disconnected:', msg);
+      setIsOpponentDisconnected(true);
+      addNotification('OPPONENT DISCONNECTED', 'error');
+    };
+
+    const handleOpponentReconnected = (msg: any) => {
+      console.log('[PhaserGame] Opponent reconnected:', msg);
+      setIsOpponentDisconnected(false);
+      addNotification('OPPONENT RECONNECTED', 'warning');
     };
 
     webSocketClient.on(ServerMessageType.MATCH_STATE, handleMatchState);
     webSocketClient.on(ServerMessageType.GAME_OVER, handleGameOver);
     webSocketClient.on(ServerMessageType.ERROR, handleError);
+    webSocketClient.on(ServerMessageType.OPPONENT_DISCONNECTED, handleOpponentDisconnected);
+    webSocketClient.on(ServerMessageType.OPPONENT_RECONNECTED, handleOpponentReconnected);
 
     return () => {
       webSocketClient.off(ServerMessageType.MATCH_STATE, handleMatchState);
       webSocketClient.off(ServerMessageType.GAME_OVER, handleGameOver);
       webSocketClient.off(ServerMessageType.ERROR, handleError);
+      webSocketClient.off(ServerMessageType.OPPONENT_DISCONNECTED, handleOpponentDisconnected);
+      webSocketClient.off(ServerMessageType.OPPONENT_RECONNECTED, handleOpponentReconnected);
     };
   }, [webSocketClient, addNotification, initialMap]);
 
@@ -378,7 +433,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
         await document.documentElement.requestFullscreen();
         const orientation = screen.orientation as any;
         if (orientation && orientation.lock) {
-          await orientation.lock('landscape').catch(() => {});
+          await orientation.lock('landscape').catch((err: any) => {
+            console.warn('Orientation lock failed:', err);
+          });
         }
       } else {
         const orientation = screen.orientation as any;
@@ -576,7 +633,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       {/* ── Header ─── */}
       <div className="game-header">
         <div className="header-left">
-          <span className="header-agent">AGENT {operativeName.replace(/^OPERATIVE_/, '')}</span>
+          <span className="header-agent">Agent {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</span>
           <span className="header-turn">
             TURN {matchState.turnNumber}
           </span>
@@ -595,6 +652,11 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <div className={`header-timer ${timerUrgent ? 'urgent' : 'normal'}`}>
             {timerSeconds}s
           </div>
+          {isOpponentDisconnected && (
+            <div className="disconnect-badge" title="Opponent disconnected — waiting for reconnection">
+              <span className="material-symbols-outlined">signal_disconnected</span>
+            </div>
+          )}
           <button
             className="help-btn-header"
             onClick={toggleMute}
@@ -607,10 +669,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
-            title="Toggle Fullscreen"
+            title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
           >
             <span className="material-symbols-outlined">
-              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+              {isFullscreen ? 'screen_rotation' : 'fullscreen'}
             </span>
           </button>
           <button
@@ -851,6 +913,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
             })}
           </svg>
 
+          {/* Disconnection indicator moved to header — no overlay */}
+
           {/* City-highlight hint */}
           {highlightedCity && highlightedCity !== playerCity && canAct && (
             <div style={{
@@ -884,8 +948,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
               {notifications.length === 0 ? (
                 <div className="log-empty">&gt; AWAITING INTEL...</div>
               ) : (
-                [...notifications].slice(-5).reverse().map((n, i) => (
-                  <div key={n.id} className={`log-entry ${n.type || ''} ${i === 0 ? 'latest' : ''}`}>
+                [...notifications].slice(-5).reverse().map((n) => (
+                  <div key={n.id} className={`log-entry ${n.type || ''} ${n.turn === maxLogTurn ? 'latest' : ''}`}>
                     <span className="log-turn">T{n.turn}</span>
                     <span className="log-text">{n.text}</span>
                   </div>

@@ -20,15 +20,19 @@ class Match {
 public:
     using SendFn = std::function<void(const std::string& player_id, const std::string& json_msg)>;
 
-    explicit Match(const std::string& session_id, const MapDef& map, SendFn send_fn);
+    explicit Match(const std::string& session_id, const std::string& code, const MapDef& map, SendFn send_fn);
 
     const std::string& session_id() const { return session_id_; }
+    const std::string& code() const { return code_; }
 
     /// Add a player to this match.  Returns the assigned side, or nullopt if full.
     std::optional<PlayerSide> add_player(const std::string& player_id);
 
     /// Set the display name for a player.
     void set_player_name(const std::string& player_id, const std::string& name);
+
+    /// Reconnect a player who dropped, sending them the current match state immediately.
+    void reconnect_player(const std::string& player_id);
 
     /// Returns true when two players have joined.
     bool is_full() const;
@@ -53,6 +57,12 @@ public:
     /// Remove a player (disconnect).
     void remove_player(const std::string& player_id);
 
+    /// Notify opponent of disconnection.
+    void handle_player_disconnect(const std::string& player_id);
+
+    /// Notify opponent of reconnection.
+    void handle_player_reconnect(const std::string& player_id);
+
     /// Called periodically to check for timeouts.
     /// This ensures timeout detection even when players are idle.
     void check_for_timeout();
@@ -72,6 +82,7 @@ public:
 
 private:
     std::string session_id_;
+    std::string code_;
     std::unique_ptr<GameState> state_;
     SendFn send_;
     mutable std::mutex mutex_;
@@ -79,6 +90,8 @@ private:
     // Player bookkeeping
     std::string alpha_player_id_;
     std::string beta_player_id_;
+    bool alpha_disconnected_ = false;
+    bool beta_disconnected_ = false;
     bool started_ = false;
 
 public:
@@ -86,16 +99,36 @@ public:
     static constexpr long long TURN_DURATION_MS = 30000;
     // Startup grace period: first turn timer doesn't start until this many ms after match start
     static constexpr long long STARTUP_GRACE_MS = 5000;
+    // Disconnect timeout: 1 minute
+    static constexpr long long DISCONNECT_TIMEOUT_MS = 60000;
+    // Max consecutive missed turns
+    static constexpr int MAX_CONSECUTIVE_TIMEOUTS = 3;
 
 private:
     std::chrono::steady_clock::time_point turn_start_time_;
     bool first_turn_grace_ = true;  // True until first action is taken or grace period expires
+
+    // Abandonment tracking
+    std::chrono::steady_clock::time_point alpha_disconnect_time_;
+    std::chrono::steady_clock::time_point beta_disconnect_time_;
+    int alpha_consecutive_timeouts_ = 0;
+    int beta_consecutive_timeouts_ = 0;
+
+    // Termination timestamp for GC
+    std::optional<std::chrono::steady_clock::time_point> finished_at_;
 
     PlayerSide side_of(const std::string& player_id) const;
     std::string player_id_of(PlayerSide side) const;
     void broadcast_state(bool skip_opponent = false);
     void send_to(const std::string& player_id, const std::string& msg);
     void send_error(const std::string& player_id, const std::string& error);
+    void check_disconnect_timeouts();
+
+public:
+    const std::string& alpha_player_id() const { return alpha_player_id_; }
+    const std::string& beta_player_id() const { return beta_player_id_; }
+    bool is_expired(std::chrono::seconds ttl) const;
+    void mark_finished();
 };
 
 } // namespace two_spies::game

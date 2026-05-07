@@ -50,6 +50,20 @@ const HowToPlayOverlay: React.FC<HowToPlayOverlayProps> = ({ onClose }) => {
             <button className="howto-close-btn" onClick={onClose}>Got it!</button>
           </div>
         )}
+
+        <div className="howto-about">
+          <div className="howto-about-label">About Two Spies</div>
+          <a 
+            href="https://github.com/Akash-an/two_spies" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="howto-about-link"
+          >
+            <span className="material-symbols-outlined">terminal</span>
+            <span>GitHub Repository</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.5 }}>open_in_new</span>
+          </a>
+        </div>
       </div>
     </div>
   );

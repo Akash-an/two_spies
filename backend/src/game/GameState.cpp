@@ -62,9 +62,18 @@ PlayerData& GameState::player_mut(PlayerSide side) {
     return side == PlayerSide::ALPHA ? alpha_ : beta_;
 }
 
+std::string GameState::player_name(PlayerSide side) const {
+    const auto& p = player(side);
+    if (!p.name.empty()) {
+        return p.name;
+    }
+    return side == PlayerSide::ALPHA ? "Alpha" : "Beta";
+}
+
 // ── MOVE ─────────────────────────────────────────────────────────────
 
 ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
+    clear_action_notifications(side);
     ActionResult result;
 
     if (game_over_) {
@@ -157,6 +166,7 @@ ActionResult GameState::move(PlayerSide side, const std::string& target_city) {
 // ── STRIKE ───────────────────────────────────────────────────────────
 
 ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city*/) {
+    clear_action_notifications(side);
     ActionResult result;
 
     if (game_over_) {
@@ -190,7 +200,7 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
         // HIT — striker wins the round
         game_over_ = true;
         winner_ = side;
-        game_over_reason_ = std::string(to_string(side)) + " struck " + striker_city + " — HIT!";
+        game_over_reason_ = player_name(side) + " struck " + striker_city + " — HIT!";
         result.ok = true;
         result.game_over = true;
         result.winner = side;
@@ -233,6 +243,7 @@ ActionResult GameState::strike(PlayerSide side, const std::string& /*target_city
 
 ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
                                      const std::string& /*target_city*/) {
+    clear_action_notifications(side);
     ActionResult result;
 
     if (game_over_) {
@@ -447,6 +458,7 @@ ActionResult GameState::use_ability(PlayerSide side, AbilityId ability,
 // ── WAIT ─────────────────────────────────────────────────────────────
 
 ActionResult GameState::wait(PlayerSide side) {
+    clear_action_notifications(side);
     ActionResult result;
 
     if (game_over_) {
@@ -499,6 +511,7 @@ ActionResult GameState::wait(PlayerSide side) {
 // ── CONTROL ──────────────────────────────────────────────────────────
 
 ActionResult GameState::control(PlayerSide side) {
+    clear_action_notifications(side);
     ActionResult result;
 
     if (game_over_) {
@@ -691,9 +704,17 @@ ActionResult GameState::end_turn(PlayerSide side, bool skip_exploration_bonus) {
 }
 
 void GameState::abort(PlayerSide side) {
+    if (game_over_) return;
     game_over_ = true;
     winner_ = opposite(side);
-    game_over_reason_ = std::string(to_string(side)) + " aborted the match.";
+    game_over_reason_ = player_name(side) + " aborted the match.";
+}
+
+void GameState::forfeit(PlayerSide side, const std::string& reason) {
+    if (game_over_) return;
+    game_over_ = true;
+    winner_ = opposite(side);
+    game_over_reason_ = reason;
 }
 
 // ── Same-city check ──────────────────────────────────────────────────
@@ -713,7 +734,7 @@ ActionResult GameState::check_same_city() {
             game_over_ = true;
             winner_ = current_turn_;
             game_over_reason_ = std::string("Cover blown! ") +
-                to_string(opposite(current_turn_)) + " was caught in " + alpha_.current_city;
+                player_name(opposite(current_turn_)) + " was caught in " + alpha_.current_city;
             result.ok = true;
             result.game_over = true;
             result.winner = current_turn_;
@@ -871,6 +892,24 @@ void GameState::increment_action_count() {
             scheduled_disappear_city_ = "";
         }
     }
+}
+
+void GameState::clear_action_notifications(PlayerSide side) {
+    auto& p = player_mut(side);
+    auto& opponent = player_mut(opposite(side));
+
+    // Clear notifications for the opponent of the acting player
+    opponent.opponent_used_strike = false;
+    opponent.opponent_used_locate = false;
+    opponent.opponent_used_deep_cover = false;
+    opponent.opponent_used_control = false;
+    opponent.opponent_claimed_intel = false;
+    opponent.opponent_used_encryption = false;
+    opponent.opponent_used_prep_mission = false;
+    opponent.opponent_unlocked_strike_report = false;
+
+    // Clear feedback flags for the acting player
+    p.locate_blocked_by_deep_cover = false;
 }
 
 bool GameState::is_player_stranded(PlayerSide side) const {

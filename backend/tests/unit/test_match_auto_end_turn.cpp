@@ -10,7 +10,7 @@ void test_match_auto_end_turn() {
     std::cout << "  test_match_auto_end_turn... ";
     
     // Setup match with test map
-    Match match("sess_auto_end", two_spies::tests::test_map(), [](const std::string&, const std::string&){});
+    Match match("sess_auto_end", "0000", two_spies::tests::test_map(), [](const std::string&, const std::string&){});
     
     match.add_player("red");
     match.add_player("blue");

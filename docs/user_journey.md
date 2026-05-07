@@ -14,14 +14,14 @@ Players enter a centered modal to define their identity.
 
 ## 2. Mission Deployment Hub (`lobby`)
 The main menu for match coordination.
-- **Start Game:** Creates a new match room and generates a 4-digit code.
-- **Join Game:** Opens a field to enter an opponent's 4-digit code.
+- **Start Game:** Creates a new match room and generates a 4-digit code and a unique join URL.
+- **Join Game:** Opens a field to enter an opponent's 4-digit code, or join directly via a shared link.
 
 ---
 
 ## 3. Secure Link Establishment (`creating`/`joining`)
-- **Host:** Displays a large code (e.g., `4 8 2 7`) and waits for the opponent.
-- **Joiner:** Enters the shared code to establish the secure link.
+- **Host:** Displays a large code (e.g., `4 8 2 7`) and a **Share Link** for direct access.
+- **Joiner:** Enters the shared code manually or clicks the URL for automated joining.
 - **Sync:** Once both are connected, the match starts automatically.
 
 ---

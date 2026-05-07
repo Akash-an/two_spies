@@ -2,6 +2,7 @@
   "name": "stitch-frontend",
   "version": "1.0.0",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -14,6 +15,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/howler": "^2.2.12",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

@@ -7,10 +7,13 @@
 
 namespace two_spies::game {
 
-Match::Match(const std::string& session_id, const MapDef& map, SendFn send_fn)
+Match::Match(const std::string& session_id, const std::string& code, const MapDef& map, SendFn send_fn)
     : session_id_(session_id)
+    , code_(code)
     , state_(std::make_unique<GameState>(map))
     , send_(std::move(send_fn))
+    , alpha_disconnect_time_(std::chrono::steady_clock::now())
+    , beta_disconnect_time_(std::chrono::steady_clock::now())
 {}
 
 std::optional<PlayerSide> Match::add_player(const std::string& player_id) {
@@ -34,6 +37,82 @@ void Match::set_player_name(const std::string& player_id, const std::string& nam
     std::lock_guard lock(mutex_);
     PlayerSide side = side_of(player_id);
     state_->player_mut(side).name = name;
+}
+
+void Match::reconnect_player(const std::string& player_id) {
+    std::lock_guard lock(mutex_);
+
+    // Clear the disconnected flag for this player
+    PlayerSide side = side_of(player_id);
+    if (side == PlayerSide::ALPHA) alpha_disconnected_ = false;
+    else beta_disconnected_ = false;
+
+    std::cout << "[Match " << session_id_ << "] Player " << player_id
+              << " (" << to_string(side) << ") RECONNECTED\n";
+
+    if (!started_) {
+        std::cout << "[Match " << session_id_ << "] Player " << player_id
+                  << " reconnected, but match not started yet. Sending room info.\n";
+
+        // Only resend the room code to the host (ALPHA)
+        if (side == PlayerSide::ALPHA) {
+            auto created_msg = protocol::make_server_message(
+                protocol::ServerMsgType::MATCH_CREATED,
+                session_id_,
+                {{"code", code_}}
+            );
+            send_to(player_id, created_msg);
+        }
+
+        // Both players get the waiting status
+        auto waiting_msg = protocol::make_server_message(
+            protocol::ServerMsgType::WAITING_FOR_OPPONENT,
+            session_id_,
+            {{}}
+        );
+        send_to(player_id, waiting_msg);
+        return;
+    }
+
+    // Notify the opponent that this player has reconnected
+    if (started_) {
+        auto reconnect_msg = protocol::make_server_message(
+            protocol::ServerMsgType::OPPONENT_RECONNECTED,
+            session_id_,
+            {{"side", to_string(side)}}
+        );
+        std::string opponent_id = player_id_of(opposite(side));
+        std::cout << "[Match " << session_id_ << "] Sending OPPONENT_RECONNECTED to " << opponent_id << "\n";
+        send_to(opponent_id, reconnect_msg);
+    }
+
+    // Re-send MATCH_START so client has map context
+    auto start_msg = protocol::make_server_message(
+        protocol::ServerMsgType::MATCH_START,
+        session_id_,
+        {{"side", to_string(side)},
+         {"code", code_},
+         {"map", protocol::serialize_map(state_->graph().map_def())}}
+    );
+    send_to(player_id, start_msg);
+
+    // Send the current match state to the reconnecting player
+    long long elapsed = time_since_turn_start();
+    long long effective_limit = first_turn_grace_
+        ? (TURN_DURATION_MS + STARTUP_GRACE_MS)
+        : TURN_DURATION_MS;
+
+    auto payload = protocol::serialize_match_state(session_id_, *state_, side, elapsed, effective_limit);
+    auto state_msg = protocol::make_server_message(protocol::ServerMsgType::MATCH_STATE, session_id_, payload);
+    send_to(player_id, state_msg);
+
+    // Also resync the opponent with fresh state
+    PlayerSide opp_side = opposite(side);
+    auto opp_payload = protocol::serialize_match_state(session_id_, *state_, opp_side, elapsed, effective_limit);
+    auto opp_msg = protocol::make_server_message(protocol::ServerMsgType::MATCH_STATE, session_id_, opp_payload);
+    send_to(player_id_of(opp_side), opp_msg);
+
+    std::cout << "[Match " << session_id_ << "] Player " << player_id << " reconnected and sent current state.\n";
 }
 
 void Match::start(unsigned int seed) {
@@ -97,6 +176,7 @@ void Match::start(unsigned int seed) {
             protocol::ServerMsgType::MATCH_START,
             session_id_,
             {{"side", "ALPHA"},
+             {"code", code_},
              {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
         std::cout << "[Match " << session_id_ << "] Sending MATCH_START to ALPHA (" 
@@ -108,6 +188,7 @@ void Match::start(unsigned int seed) {
             protocol::ServerMsgType::MATCH_START,
             session_id_,
             {{"side", "BETA"},
+             {"code", code_},
              {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
         std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BETA (" 
@@ -137,6 +218,10 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
         // (generous: let the action through instead of silently dropping it).
         turn_start_time_ = std::chrono::steady_clock::now();
     }
+    
+    // Successful action from correct player: reset consecutive timeout counter
+    if (acting_side == PlayerSide::ALPHA) alpha_consecutive_timeouts_ = 0;
+    else beta_consecutive_timeouts_ = 0;
     
     // If we're still in the startup grace period and the first player acts,
     // end the grace period and give them a fresh full turn.
@@ -211,6 +296,7 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
     turn_start_time_ = std::chrono::steady_clock::now();
 
     if (result.game_over) {
+        mark_finished();
         // Send GAME_OVER to both players
         auto go_msg = protocol::make_server_message(
             protocol::ServerMsgType::GAME_OVER,
@@ -254,6 +340,10 @@ void Match::handle_end_turn(const std::string& player_id) {
     // Reset timer for next player's turn
     turn_start_time_ = std::chrono::steady_clock::now();
 
+    // Intentional end turn: reset consecutive timeout counter for this player
+    if (side == PlayerSide::ALPHA) alpha_consecutive_timeouts_ = 0;
+    else beta_consecutive_timeouts_ = 0;
+
     broadcast_state();
 }
 
@@ -263,6 +353,7 @@ void Match::handle_abort(const std::string& player_id) {
 
     PlayerSide side = side_of(player_id);
     state_->abort(side);
+    mark_finished();
 
     std::cout << "[Match " << session_id_ << "] Player " << player_id 
               << " (" << to_string(side) << ") aborted the match.\n";
@@ -281,15 +372,65 @@ void Match::handle_abort(const std::string& player_id) {
 }
 
 void Match::remove_player(const std::string& player_id) {
+    // Note: We no longer clear the ID here to allow for reconnection.
+    // Instead, MatchManager calls handle_player_disconnect.
+}
+
+void Match::handle_player_disconnect(const std::string& player_id) {
     std::lock_guard lock(mutex_);
-    if (player_id == alpha_player_id_)  alpha_player_id_.clear();
-    if (player_id == beta_player_id_) beta_player_id_.clear();
+    PlayerSide side = side_of(player_id);
+    if (side == PlayerSide::ALPHA) {
+        alpha_disconnected_ = true;
+        alpha_disconnect_time_ = std::chrono::steady_clock::now();
+    } else {
+        beta_disconnected_ = true;
+        beta_disconnect_time_ = std::chrono::steady_clock::now();
+    }
+
+    std::cout << "[Match " << session_id_ << "] Player " << player_id 
+              << " (" << to_string(side) << ") DISCONNECTED\n";
+
+    if (started_) {
+        auto msg = protocol::make_server_message(
+            protocol::ServerMsgType::OPPONENT_DISCONNECTED,
+            session_id_,
+            {{"side", to_string(side)}}
+        );
+        std::string opponent_id = player_id_of(opposite(side));
+        std::cout << "[Match " << session_id_ << "] Sending OPPONENT_DISCONNECTED to " << opponent_id << "\n";
+        send_to(opponent_id, msg);
+    }
+}
+
+void Match::handle_player_reconnect(const std::string& player_id) {
+    // This method is intentionally NOT locking mutex_ because reconnect_player
+    // already holds the lock and inlines the reconnect logic.
+    // This public method remains for external calls (e.g. from AUTHENTICATE handler).
+    std::lock_guard lock(mutex_);
+    PlayerSide side = side_of(player_id);
+    if (side == PlayerSide::ALPHA) alpha_disconnected_ = false;
+    else beta_disconnected_ = false;
+
+    std::cout << "[Match " << session_id_ << "] Player " << player_id
+              << " (" << to_string(side) << ") RECONNECTED (external call)\n";
+
+    if (started_) {
+        auto msg = protocol::make_server_message(
+            protocol::ServerMsgType::OPPONENT_RECONNECTED,
+            session_id_,
+            {{"side", to_string(side)}}
+        );
+        std::string opponent_id = player_id_of(opposite(side));
+        std::cout << "[Match " << session_id_ << "] Sending OPPONENT_RECONNECTED to " << opponent_id << "\n";
+        send_to(opponent_id, msg);
+    }
 }
 
 void Match::check_for_timeout() {
     std::lock_guard lock(mutex_);
     if (started_ && !state_->is_game_over()) {
-        if (check_turn_timeout()) {
+        check_disconnect_timeouts();
+        if (!state_->is_game_over() && check_turn_timeout()) {
             handle_turn_timeout();
         }
     }
@@ -409,6 +550,29 @@ void Match::handle_turn_timeout() {
     
     // Broadcast new state so clients see the updated board
     broadcast_state();
+
+    // Check if this player has now missed 3 turns in a row
+    int* counter = (expired_player == PlayerSide::ALPHA) ? &alpha_consecutive_timeouts_ : &beta_consecutive_timeouts_;
+    (*counter)++;
+    
+    if (*counter >= MAX_CONSECUTIVE_TIMEOUTS) {
+        std::string reason = state_->player_name(expired_player) + " missed " + 
+                             std::to_string(MAX_CONSECUTIVE_TIMEOUTS) + " turns in a row.";
+        state_->forfeit(expired_player, reason);
+        mark_finished();
+        
+        std::cout << "[Match " << session_id_ << "] " << reason << " Ending game.\n";
+        
+        auto go_msg = protocol::make_server_message(
+            protocol::ServerMsgType::GAME_OVER,
+            session_id_,
+            {{"winner", to_string(state_->winner())},
+             {"reason", state_->game_over_reason()}}
+        );
+        send_to(alpha_player_id_, go_msg);
+        send_to(beta_player_id_, go_msg);
+        broadcast_state();
+    }
 }
 
 bool Match::check_turn_timeout() {
@@ -424,6 +588,69 @@ bool Match::check_turn_timeout() {
         ? (TURN_DURATION_MS + STARTUP_GRACE_MS)
         : TURN_DURATION_MS;
     return elapsed >= effective_limit;
+}
+
+void Match::check_disconnect_timeouts() {
+    // Assumes: lock is already held by caller.
+    if (!started_ || state_->is_game_over()) return;
+
+    auto now = std::chrono::steady_clock::now();
+    bool alpha_lost = false;
+    bool beta_lost = false;
+
+    if (alpha_disconnected_) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - alpha_disconnect_time_).count();
+        if (elapsed >= DISCONNECT_TIMEOUT_MS) {
+            alpha_lost = true;
+        }
+    }
+
+    if (beta_disconnected_) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - beta_disconnect_time_).count();
+        if (elapsed >= DISCONNECT_TIMEOUT_MS) {
+            beta_lost = true;
+        }
+    }
+
+    if (alpha_lost || beta_lost) {
+        PlayerSide forfeiter;
+        if (alpha_lost && beta_lost) {
+            // Both lost? Whoever disconnected longer ago? 
+            // Or just pick the current turn holder if both are gone.
+            // For simplicity, if both are gone, Alpha loses (host responsibility).
+            forfeiter = PlayerSide::ALPHA;
+        } else {
+            forfeiter = alpha_lost ? PlayerSide::ALPHA : PlayerSide::BETA;
+        }
+
+        std::string reason = state_->player_name(forfeiter) + " disconnected for more than 1 minute.";
+        state_->forfeit(forfeiter, reason);
+        mark_finished();
+        
+        std::cout << "[Match " << session_id_ << "] " << reason << " Ending game.\n";
+        
+        auto go_msg = protocol::make_server_message(
+            protocol::ServerMsgType::GAME_OVER,
+            session_id_,
+            {{"winner", to_string(state_->winner())},
+             {"reason", state_->game_over_reason()}}
+        );
+        send_to(alpha_player_id_, go_msg);
+        send_to(beta_player_id_, go_msg);
+        broadcast_state();
+    }
+}
+
+void Match::mark_finished() {
+    if (!finished_at_) {
+        finished_at_ = std::chrono::steady_clock::now();
+    }
+}
+
+bool Match::is_expired(std::chrono::seconds ttl) const {
+    if (!finished_at_) return false;
+    auto now = std::chrono::steady_clock::now();
+    return (now - *finished_at_) > ttl;
 }
 
 } // namespace two_spies::game

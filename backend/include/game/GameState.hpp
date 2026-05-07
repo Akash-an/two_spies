@@ -87,6 +87,11 @@ public:
     /// Abort the match (requested by a player).
     void abort(PlayerSide side);
 
+    /// Forfeit the match (due to timeout or disconnection).
+    /// @param side The player who is forfeiting (losing)
+    /// @param reason Human-readable reason for the forfeit
+    void forfeit(PlayerSide side, const std::string& reason);
+
     // ── Queries ──────────────────────────────────────────────────
     PlayerSide current_turn() const { return current_turn_; }
     int turn_number() const { return turn_number_; }
@@ -96,6 +101,7 @@ public:
 
     const PlayerData& player(PlayerSide side) const;
     PlayerData& player_mut(PlayerSide side);
+    std::string player_name(PlayerSide side) const;
 
     const CityGraph& graph() const { return graph_; }
 
@@ -152,6 +158,10 @@ private:
     std::vector<ActionPopup> action_popups_;       // active Action pop-ups on board
     int actions_since_last_action_popup_ = 0;      // independent counter for spawning
     int next_action_popup_threshold_ = 0;          // how many more actions until next action popup (5-8)
+
+    /// Clear temporary action notification flags for the given player.
+    /// This should be called before each new action to prevent flags from accumulating.
+    void clear_action_notifications(PlayerSide side);
 
     /// Select a random city to disappear (one that hasn't disappeared yet)
     /// Ensures the remaining graph stays connected

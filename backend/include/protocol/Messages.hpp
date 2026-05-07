@@ -14,8 +14,10 @@ using json = nlohmann::json;
 
 /// Client → Server message types.
 enum class ClientMsgType {
+    AUTHENTICATE,       // Client sends token and name
     CREATE_MATCH,       // Host creates a room (no payload)
     JOIN_MATCH,         // Joiner enters a code: payload.code
+    RECONNECT_MATCH,    // Rejoin existing match: payload.session_id
     PLAYER_ACTION,
     END_TURN,
     SET_PLAYER_NAME,
@@ -25,13 +27,16 @@ enum class ClientMsgType {
 
 /// Server → Client message types.
 enum class ServerMsgType {
-    MATCH_CREATED,           // Room created, includes code
+    MATCH_CREATED,
     MATCH_START,
     MATCH_STATE,
     TURN_CHANGE,
     GAME_OVER,
     ERROR,
     WAITING_FOR_OPPONENT,
+    AUTHENTICATED,
+    OPPONENT_DISCONNECTED,
+    OPPONENT_RECONNECTED,
 };
 
 inline const char* to_string(ServerMsgType t) {
@@ -43,6 +48,9 @@ inline const char* to_string(ServerMsgType t) {
         case ServerMsgType::GAME_OVER:            return "GAME_OVER";
         case ServerMsgType::ERROR:                return "ERROR";
         case ServerMsgType::WAITING_FOR_OPPONENT: return "WAITING_FOR_OPPONENT";
+        case ServerMsgType::AUTHENTICATED:        return "AUTHENTICATED";
+        case ServerMsgType::OPPONENT_DISCONNECTED: return "OPPONENT_DISCONNECTED";
+        case ServerMsgType::OPPONENT_RECONNECTED:  return "OPPONENT_RECONNECTED";
     }
     return "UNKNOWN";
 }

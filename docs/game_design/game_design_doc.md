@@ -14,6 +14,12 @@ Victory is achieved via an accurate **STRIKE** on the city the opponent currentl
 
 ---
 
+## 1.5 Match Initialization
+- **Starting Positions:** Players start in random cities assigned by the server. 
+- **Visibility:** Both starting city positions are **revealed to both players** at the beginning of the match. This represents baseline intelligence gathered before the mission begins.
+
+---
+
 ## 2. Core Mechanics
 
 ### Turn Structure

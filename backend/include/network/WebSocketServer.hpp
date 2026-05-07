@@ -41,6 +41,9 @@ public:
     /// Register a session for a player_id.
     void register_session(const std::string& player_id, std::shared_ptr<Session> session);
 
+    /// Update a session's player_id (e.g. after AUTHENTICATE)
+    void update_session_id(const std::string& old_id, const std::string& new_id);
+
     /// Unregister a session.
     void unregister_session(const std::string& player_id);
 

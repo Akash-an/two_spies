@@ -14,8 +14,10 @@ std::optional<IncomingMessage> parse_client_message(const std::string& raw) {
 
         auto type_str = j.at("type").get<std::string>();
 
-        if      (type_str == "CREATE_MATCH")   msg.type = ClientMsgType::CREATE_MATCH;
+        if      (type_str == "AUTHENTICATE")   msg.type = ClientMsgType::AUTHENTICATE;
+        else if (type_str == "CREATE_MATCH")   msg.type = ClientMsgType::CREATE_MATCH;
         else if (type_str == "JOIN_MATCH")     msg.type = ClientMsgType::JOIN_MATCH;
+        else if (type_str == "RECONNECT_MATCH") msg.type = ClientMsgType::RECONNECT_MATCH;
         else if (type_str == "PLAYER_ACTION")  msg.type = ClientMsgType::PLAYER_ACTION;
         else if (type_str == "END_TURN")       msg.type = ClientMsgType::END_TURN;
         else if (type_str == "SET_PLAYER_NAME") msg.type = ClientMsgType::SET_PLAYER_NAME;
@@ -216,8 +218,10 @@ json serialize_match_state(const std::string& session_id,
 
     if (state.is_game_over()) {
         result["winner"] = game::to_string(state.winner());
+        result["gameOverReason"] = state.game_over_reason();
     } else {
         result["winner"] = nullptr;
+        result["gameOverReason"] = "";
     }
 
     return result;

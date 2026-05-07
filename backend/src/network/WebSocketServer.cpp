@@ -42,12 +42,29 @@ void WebSocketServer::register_session(const std::string& player_id, std::shared
     std::cout << "[Server] Session registered: " << player_id << "\n";
 }
 
-void WebSocketServer::unregister_session(const std::string& player_id) {
+void WebSocketServer::update_session_id(const std::string& old_id, const std::string& new_id) {
     std::lock_guard lock(sessions_mutex_);
-    sessions_.erase(player_id);
+    auto it = sessions_.find(old_id);
+    if (it != sessions_.end()) {
+        auto session = it->second;
+        sessions_.erase(it);
+        sessions_[new_id] = session;
+        std::cout << "[Server] Session identity updated: " << old_id << " -> " << new_id << "\n";
+    }
+}
+
+void WebSocketServer::unregister_session(const std::string& player_id) {
+    {
+        std::lock_guard lock(sessions_mutex_);
+        sessions_.erase(player_id);
+    }
     std::cout << "[Server] Session unregistered: " << player_id << "\n";
 
-    // Also remove from match
+    // Call remove_player WITHOUT holding sessions_mutex_.
+    // Reason: check_all_timeouts holds MatchManager::mutex_ then calls
+    // broadcast_state → send_to_player → sessions_mutex_, so acquiring
+    // sessions_mutex_ → MatchManager::mutex_ here would create a
+    // lock-order inversion deadlock.
     match_mgr_->remove_player(player_id);
 }
 

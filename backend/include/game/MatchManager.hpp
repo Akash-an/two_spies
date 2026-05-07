@@ -36,12 +36,19 @@ public:
     /// Remove a player from their match (disconnect).
     void remove_player(const std::string& player_id);
 
+    /// Explicitly abort the match for a player and relinquish resources (code, etc.).
+    void abort_match(const std::string& player_id);
+
+    /// Gracefully leave a match (post-game lobby return or mid-game disconnect).
+    void leave_match(const std::string& player_id);
+
     /// Returns the session ID for a given player, or empty.
     std::string session_for_player(const std::string& player_id) const;
 
     /// Broadcast state for all active matches (triggers timeout checks).
     /// Called periodically by the WebSocket server.
     void check_all_timeouts();
+    void purge_expired_matches();
 
 private:
     MapDef default_map_;
