@@ -35,8 +35,32 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
   onToggleMute,
 }) => {
   const [input, setInput] = useState<string>(operativeCodename);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
 
   useEffect(() => setInput(operativeCodename), [operativeCodename]);
+
+  // Sync fullscreen state and handle orientation unlocking
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (!isFull) {
+        // Automatically unlock orientation when exiting fullscreen
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          console.log('[CodenameAuthorizationTerminal] Exited fullscreen, unlocking orientation');
+          orientation.unlock();
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const generateRandomName = (): string => {
     const adjectives = ['Silent', 'Shadow', 'Swift', 'Cunning', 'Bold', 'Agile', 'Keen', 'Stealth'];
@@ -68,7 +92,9 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         await document.documentElement.requestFullscreen();
         const orientation = screen.orientation as any;
         if (orientation && orientation.lock) {
-          await orientation.lock('landscape').catch(() => {});
+          await orientation.lock('landscape').catch((err: any) => {
+            console.warn('Orientation lock failed:', err);
+          });
         }
       } else {
         const orientation = screen.orientation as any;
@@ -136,10 +162,10 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
-            title="Toggle Tactical View"
+            title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
           >
             <span className="material-symbols-outlined">
-              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+              {isFullscreen ? 'screen_rotation' : 'fullscreen'}
             </span>
           </button>
           <button

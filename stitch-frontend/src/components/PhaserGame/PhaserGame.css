@@ -977,6 +977,46 @@
   transform: translateY(0);
 }
 
+.howto-about {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px dashed rgba(0, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.howto-about-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(193, 255, 254, 0.4);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.howto-about-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #00ffff;
+  text-decoration: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.howto-about-link:hover {
+  color: #fe9800;
+  text-shadow: 0 0 10px rgba(254, 152, 0, 0.4);
+  transform: translateX(4px);
+}
+
+.howto-about-link .material-symbols-outlined {
+  font-size: 18px;
+}
+
 /* Tooltip styles moved to global index.css */
 
 /* ── Responsive Adjustments ─── */

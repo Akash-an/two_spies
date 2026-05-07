@@ -58,6 +58,30 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+  // Sync fullscreen state and handle orientation unlocking
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (!isFull) {
+        // Automatically unlock orientation when exiting fullscreen
+        const orientation = screen.orientation as any;
+        if (orientation && orientation.unlock) {
+          console.log('[MissionDeploymentHub] Exited fullscreen, unlocking orientation');
+          orientation.unlock();
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   // Show modal when matchCode is received from backend
   useEffect(() => {
@@ -117,7 +141,9 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
         await document.documentElement.requestFullscreen();
         const orientation = screen.orientation as any;
         if (orientation && orientation.lock) {
-          await orientation.lock('landscape').catch(() => { });
+          await orientation.lock('landscape').catch((err: any) => {
+            console.warn('Orientation lock failed:', err);
+          });
         }
       } else {
         const orientation = screen.orientation as any;
@@ -169,10 +195,10 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
-            title="Toggle Tactical View"
+            title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
           >
             <span className="material-symbols-outlined">
-              {document.fullscreenElement ? 'screen_rotation' : 'fullscreen'}
+              {isFullscreen ? 'screen_rotation' : 'fullscreen'}
             </span>
           </button>
           <button
