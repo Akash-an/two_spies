@@ -91,6 +91,7 @@ void Match::reconnect_player(const std::string& player_id) {
         protocol::ServerMsgType::MATCH_START,
         session_id_,
         {{"side", to_string(side)},
+         {"code", code_},
          {"map", protocol::serialize_map(state_->graph().map_def())}}
     );
     send_to(player_id, start_msg);
@@ -175,6 +176,7 @@ void Match::start(unsigned int seed) {
             protocol::ServerMsgType::MATCH_START,
             session_id_,
             {{"side", "ALPHA"},
+             {"code", code_},
              {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
         std::cout << "[Match " << session_id_ << "] Sending MATCH_START to ALPHA (" 
@@ -186,6 +188,7 @@ void Match::start(unsigned int seed) {
             protocol::ServerMsgType::MATCH_START,
             session_id_,
             {{"side", "BETA"},
+             {"code", code_},
              {"map", protocol::serialize_map(state_->graph().map_def())}}
         );
         std::cout << "[Match " << session_id_ << "] Sending MATCH_START to BETA (" 
@@ -293,6 +296,7 @@ void Match::handle_action(const std::string& player_id, const std::string& actio
     turn_start_time_ = std::chrono::steady_clock::now();
 
     if (result.game_over) {
+        mark_finished();
         // Send GAME_OVER to both players
         auto go_msg = protocol::make_server_message(
             protocol::ServerMsgType::GAME_OVER,
@@ -349,6 +353,7 @@ void Match::handle_abort(const std::string& player_id) {
 
     PlayerSide side = side_of(player_id);
     state_->abort(side);
+    mark_finished();
 
     std::cout << "[Match " << session_id_ << "] Player " << player_id 
               << " (" << to_string(side) << ") aborted the match.\n";
@@ -554,6 +559,7 @@ void Match::handle_turn_timeout() {
         std::string reason = state_->player_name(expired_player) + " missed " + 
                              std::to_string(MAX_CONSECUTIVE_TIMEOUTS) + " turns in a row.";
         state_->forfeit(expired_player, reason);
+        mark_finished();
         
         std::cout << "[Match " << session_id_ << "] " << reason << " Ending game.\n";
         
@@ -619,6 +625,7 @@ void Match::check_disconnect_timeouts() {
 
         std::string reason = state_->player_name(forfeiter) + " disconnected for more than 1 minute.";
         state_->forfeit(forfeiter, reason);
+        mark_finished();
         
         std::cout << "[Match " << session_id_ << "] " << reason << " Ending game.\n";
         
@@ -632,6 +639,18 @@ void Match::check_disconnect_timeouts() {
         send_to(beta_player_id_, go_msg);
         broadcast_state();
     }
+}
+
+void Match::mark_finished() {
+    if (!finished_at_) {
+        finished_at_ = std::chrono::steady_clock::now();
+    }
+}
+
+bool Match::is_expired(std::chrono::seconds ttl) const {
+    if (!finished_at_) return false;
+    auto now = std::chrono::steady_clock::now();
+    return (now - *finished_at_) > ttl;
 }
 
 } // namespace two_spies::game

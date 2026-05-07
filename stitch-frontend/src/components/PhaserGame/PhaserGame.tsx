@@ -329,8 +329,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
     };
 
     const handleError = (msg: any) => {
-      addNotification(msg.payload?.message || 'Unknown error', 'error');
+      const errorMsg = msg.payload?.message || 'Unknown error';
+      addNotification(errorMsg, 'error');
       audioManager.play('error');
+      addEventBanner(errorMsg, 'error');
     };
 
     const handleOpponentDisconnected = (msg: any) => {

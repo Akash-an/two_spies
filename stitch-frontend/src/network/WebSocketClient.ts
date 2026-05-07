@@ -7,6 +7,11 @@ export interface ServerMessage {
 }
 
 export class WebSocketClient extends EventEmitter {
+  private reconnectAttempts = 0;
+  private readonly maxReconnectDelay = 30000;
+  private readonly baseReconnectDelay = 1000;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private explicitDisconnect = false;
   private ws: WebSocket | null = null;
   private url: string;
   public token: string;
@@ -29,12 +34,19 @@ export class WebSocketClient extends EventEmitter {
   }
 
   connect(): Promise<void> {
+    this.explicitDisconnect = false;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     return new Promise((resolve, reject) => {
       console.info('[WS] Attempting connection to', this.url);
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
         console.info('[WS] ✓ Connected to', this.url);
+        this.reconnectAttempts = 0;
         
         // Always authenticate immediately
         const name = localStorage.getItem('two_spies_name') || '';
@@ -47,6 +59,8 @@ export class WebSocketClient extends EventEmitter {
       this.ws.onerror = (e) => {
         console.error('[WS] ✗ Connection error:', e);
         this.emit('error', e);
+        // We don't reject here if we're trying to reconnect, but for the initial connect() we might.
+        // However, Promise.reject can only be called once.
         reject(e);
       };
 
@@ -64,8 +78,32 @@ export class WebSocketClient extends EventEmitter {
       this.ws.onclose = () => {
         console.info('[WS] Connection closed');
         this.emit('disconnected');
+        this.ws = null;
+
+        if (!this.explicitDisconnect) {
+          this.scheduleReconnect();
+        }
       };
     });
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimeout) return;
+
+    const delay = Math.min(
+      this.maxReconnectDelay,
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts)
+    );
+
+    console.info(`[WS] Scheduling reconnect attempt #${this.reconnectAttempts + 1} in ${delay}ms`);
+    
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      this.reconnectAttempts++;
+      this.connect().catch(() => {
+        // Error already handled in connect() via scheduleReconnect in onclose
+      });
+    }, delay);
   }
 
   send(type: string, payload: Record<string, unknown> = {}): void {
@@ -78,6 +116,11 @@ export class WebSocketClient extends EventEmitter {
   }
 
   disconnect(): void {
+    this.explicitDisconnect = true;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     this.ws?.close();
     this.ws = null;
   }

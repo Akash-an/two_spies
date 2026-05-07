@@ -19,6 +19,7 @@ function App() {
   const [playerName, setPlayerName] = useState<string>(localStorage.getItem('two_spies_name') || '');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
   const [matchCode, setMatchCode] = useState<string | null>(null);
   const [urlCode, setUrlCode] = useState<string | null>(null);
   const [matchSessionId, setMatchSessionId] = useState<string | null>(null);
@@ -37,6 +38,12 @@ function App() {
 
 
   const [isMuted, setIsMuted] = useState<boolean>(() => audioManager.isMuted());
+  const [isGameOver, setIsGameOver] = useState(false);
+  const isGameOverRef = useRef(false);
+
+  useEffect(() => {
+    isGameOverRef.current = isGameOver;
+  }, [isGameOver]);
 
   const handleToggleMute = () => {
     setIsMuted(audioManager.toggleMute());
@@ -104,8 +111,20 @@ function App() {
         client.on('connected', () => {
           console.log('[App] Connected to backend');
           setIsConnected(true);
+          setIsReconnecting(false);
           setLogs((p) => [...p, 'CONNECTION ESTABLISHED']);
           setIsLoading(false);
+        });
+
+        client.on('connected', () => {
+          setIsReconnecting(false);
+        });
+
+        client.on('disconnected', () => {
+          // Only show reconnecting if we weren't trying to leave
+          if (phaseRef.current === 'playing' && !isGameOverRef.current) {
+            setIsReconnecting(true);
+          }
         });
 
         client.on(ServerMessageType.AUTHENTICATED, (msg: any) => {
@@ -148,6 +167,14 @@ function App() {
           console.log('[App] Disconnected from backend');
           setIsConnected(false);
           setLogs((p) => [...p, 'CONNECTION LOST']);
+          // Only show reconnecting if we weren't trying to leave
+          if (phaseRef.current === 'playing') {
+            setIsReconnecting(true);
+          }
+        });
+        
+        client.on('connected', () => {
+          setIsReconnecting(false);
         });
 
         // Generic message listener to debug all messages
@@ -181,6 +208,12 @@ function App() {
           setLogs((p) => [...p, 'WAITING FOR OPPONENT...']);
         });
 
+        client.on(ServerMessageType.GAME_OVER, (msg: any) => {
+          console.log('[App] GAME_OVER received:', msg);
+          setIsGameOver(true);
+          setLogs((p) => [...p, `GAME OVER: ${msg.payload?.winner} wins`]);
+        });
+
         client.on(ServerMessageType.MATCH_START, (msg: any) => {
           console.log('[App] Match started - both players ready:', msg);
           
@@ -189,23 +222,31 @@ function App() {
 
           // If we have an active session ID already, it MUST match.
           // This prevents old MATCH_START messages from previous matches from leaking.
-          if (msgSessionId && currentId && msgSessionId !== currentId) {
+          if (msgSessionId && currentId && msgSessionId !== currentId && currentId !== '__clearing__') {
             console.log('[App] Ignoring MATCH_START for old/different session:', msgSessionId);
             return;
           }
 
           const side = (msg.payload as any)?.side as PlayerSide;
           const map = (msg.payload as any)?.map;
+          const code = (msg.payload as any)?.code;
+
           if (side) setPlayerSide(side);
           if (map) setInitialMap(map);
+          if (code) setMatchCode(code);
+
           setLogs((p) => [...p, `MATCH STARTED — You are ${side || 'assigned'}`]);
           setIsLoading(false);
+          setIsGameOver(false);
           
           if (msg.sessionId) {
             setMatchSessionId(msg.sessionId);
             matchSessionIdRef.current = msg.sessionId;
-            if (matchCode) {
-              window.history.pushState({}, '', `/match/${msg.sessionId}-${matchCode}`);
+            
+            // Sync URL using either the received code or existing state
+            const finalCode = code || matchCode;
+            if (finalCode) {
+              window.history.pushState({}, '', `/match/${msg.sessionId}-${finalCode}`);
             }
           }
 
@@ -223,8 +264,8 @@ function App() {
             const currentId = matchSessionIdRef.current;
             
             // 1. If we have a session ID, it MUST match.
-            if (currentId && msgSessionId !== currentId) {
-              console.log('[App] Ignoring MATCH_STATE for old/different session:', msgSessionId);
+            if (currentId === '__clearing__' || (currentId && msgSessionId !== currentId)) {
+              console.log('[App] Ignoring MATCH_STATE for stale/different session:', msgSessionId);
               return;
             }
 
@@ -258,23 +299,28 @@ function App() {
           console.error('[App] Server error:', msg);
           const errorMessage = (msg.payload as any)?.message || 'Unknown error';
           setLogs((p) => [...p, `SERVER ERROR: ${errorMessage}`]);
-          setJoinError(errorMessage);
+          
+          // Only show join errors in the hub if we aren't currently playing
+          if (phaseRef.current !== 'playing') {
+            setJoinError(errorMessage);
+          }
+          
           setIsLoading(false);
 
-          // Reset URL to root in case of error (e.g. invalid match ID or full room)
-          window.history.pushState({}, '', '/');
-          setUrlCode(null);
-          setMatchSessionId(null);
-          matchSessionIdRef.current = null;
-          hasAutoJoined.current = false;
+          // Determine if this error should terminate the current session
+          const isSessionFatal = errorMessage.toLowerCase().includes('not found') || 
+                                errorMessage.toLowerCase().includes('invalid session') ||
+                                errorMessage.toLowerCase().includes('session expired');
+          
+          const isReconnecting = phaseRef.current === 'reconnecting';
 
-          // Fallback phase if we were trying to auto-reconnect/join
-          setPhase((currentPhase) => {
-            if (currentPhase === 'reconnecting') {
-              return playerName ? 'deployment' : 'entering-name';
-            }
-            return currentPhase;
-          });
+          if (isSessionFatal || isReconnecting) {
+            console.warn('[App] Fatal session error, resetting state...');
+            
+            // Determine target phase (back to name entry if name is missing)
+            const targetPhase = playerName ? 'deployment' : 'entering-name';
+            resetMatchState(targetPhase);
+          }
         });
 
         await client.connect();
@@ -333,32 +379,37 @@ function App() {
   //   setLogs((p) => [...p, `DEPLOYING UNIT: ${unitId}`]);
   // };
 
+  const resetMatchState = (targetPhase: GamePhase = 'deployment', keepError = false) => {
+    setPhase(targetPhase);
+    setInitialMap(null);
+    setInitialState(null);
+    setMatchCode(null);
+    setMatchSessionId(null);
+    matchSessionIdRef.current = '__clearing__';
+    if (!keepError) setJoinError(null);
+    setUrlCode(null);
+    setPlayerSide(null);
+    setIsGameOver(false);
+    setIsLoading(false);
+    hasAutoJoined.current = false;
+    window.history.pushState({}, '', '/');
+  };
+
   const handleAbortMatch = () => {
     console.log('[App] Aborting match');
     if (netRef.current && netRef.current.isConnected()) {
       netRef.current.send(ClientMessageType.ABORT_MATCH, {});
     }
     
-    setIsLoading(false);
-    setPhase('deployment');
-    setInitialMap(null);
-    setInitialState(null);
-    setMatchCode(null);
-    setMatchSessionId(null);
-    if (matchSessionIdRef.current) {
-      matchSessionIdRef.current = null;
-    }
-    setUrlCode(null);
-    setPlayerSide(null);
-    hasAutoJoined.current = false;
     setLogs(['MISSION ABORTED', 'RETURNING TO HUB...']);
-    window.history.pushState({}, '', '/');
+    resetMatchState('deployment');
   };
 
   const handleInitiateOperation = () => {
     console.log('[App] Initiating operation...');
     setLogs((p) => [...p, 'INITIATING OPERATION...']);
     setIsLoading(true);
+    setJoinError(null);
     // Clear any stale match state so the modal triggers fresh when MATCH_CREATED arrives
     setMatchCode(null);
     setMatchSessionId(null);
@@ -453,14 +504,8 @@ function App() {
             localStorage.removeItem('two_spies_token');
             setPlayerName('');
             
-            setPhase('entering-name');
-            setInitialMap(null);
-            setInitialState(null);
-            setMatchCode(null);
-            setMatchSessionId(null);
-            matchSessionIdRef.current = null;
-            window.history.pushState({}, '', '/');
-            setLogs(['INITIALIZING LINK...', 'SCRUBBING METADATA...', 'BOUNCING SIGNAL: SIN - LDN - DC']);
+            setLogs(['IDENTITY WIPED', 'LINK TERMINATED']);
+            resetMatchState('entering-name');
           }}
           loading={isLoading}
           joinError={joinError}
@@ -484,14 +529,8 @@ function App() {
               if (netRef.current && netRef.current.isConnected()) {
                 netRef.current.send(ClientMessageType.LEAVE_MATCH, {});
               }
-              setPhase('deployment');
-              setMatchCode(null);
-              setMatchSessionId(null);
-              matchSessionIdRef.current = null;
-              setPlayerSide(null);
-              setInitialMap(null);
-              setInitialState(null);
-              window.history.pushState({}, '', '/');
+              setLogs(['MISSION COMPLETE', 'RETURNING TO HUB...']);
+              resetMatchState('deployment');
             }}
             onTerminateLink={handleAbortMatch}
             setShowHowToPlay={setShowHowToPlay}
@@ -506,7 +545,13 @@ function App() {
            <HowToPlayOverlay onClose={() => setShowHowToPlay(false)} />
          </div>
        )}
-     </div>
+        {isReconnecting && (
+          <div className="fixed top-0 left-0 w-full z-[1000] bg-orange-600/90 text-white py-2 text-center text-sm font-mono border-b border-orange-400 backdrop-blur-sm flex items-center justify-center gap-3 shadow-lg">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            SYSTEM OFFLINE — RE-ESTABLISHING LINK...
+          </div>
+        )}
+      </div>
   );
 }
 

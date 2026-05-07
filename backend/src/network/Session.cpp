@@ -261,7 +261,7 @@ void Session::on_message(const std::string& raw) {
         }
 
         case protocol::ClientMsgType::LEAVE_MATCH: {
-            server_->match_manager().remove_player(player_id_);
+            server_->match_manager().leave_match(player_id_);
             break;
         }
     }

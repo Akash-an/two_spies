@@ -104,7 +104,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
   const handleCopyInvite = () => {
     const url = `${window.location.origin}/match/${matchSessionId}-${matchCode}`;
     const cleanName = operativeName.replace(/^(OPERATIVE|AGENT)_/i, '');
-    const message = `⚡ [DIRECT CHALLENGE] ⚡\n\nAgent ${cleanName} has initiated a tactical standoff. The mission is live, and you're in their sights. Step into the shadows if you dare.\n\nJOIN THE MISSION: ${url}\n\n[ STATUS: NO ONE IS SAFE ]`;
+    const message = `⚡ [DIRECT CHALLENGE] ⚡\n\nAgent ${cleanName} has initiated a tactical standoff. Step into the shadows if you dare.\n\nJOIN THE MISSION: ${url} `;
     navigator.clipboard.writeText(message);
     setCopiedInvite(true);
     audioManager.play('ui_click');
@@ -117,7 +117,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
         await document.documentElement.requestFullscreen();
         const orientation = screen.orientation as any;
         if (orientation && orientation.lock) {
-          await orientation.lock('landscape').catch(() => {});
+          await orientation.lock('landscape').catch(() => { });
         }
       } else {
         const orientation = screen.orientation as any;
@@ -151,9 +151,9 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           <div className="h-4 w-[1px] bg-outline-variant mx-1 md:mx-2 hidden sm:block" />
           <h1 className="text-on-surface font-['Space_Grotesk'] font-bold tracking-widest uppercase text-sm md:text-lg">DEPLOYMENT HUB</h1>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="bg-primary-container/10 px-4 py-1 border border-primary/30">
-            <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter">STATUS: ACTIVE</span>
+        <div className="flex items-center gap-2 md:gap-6">
+          <div className="bg-primary-container/10 px-4 py-1 border border-primary/30 hidden sm:block">
+            <span className="text-[#00ffff] font-['Space_Grotesk'] font-bold text-xs tracking-tighter uppercase">STATUS: ACTIVE</span>
           </div>
           <button
             className="help-btn-header"
@@ -187,8 +187,16 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
         </div>
       </header>
 
+      {/* Mobile Sidebar Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity duration-300"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-16 h-[calc(100vh-64px)] ${mobileMenuOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} md:w-60 lg:w-72 md:translate-x-0 border-r border-[#00ffff]/10 bg-surface-container-low flex flex-col p-6 md:p-6 space-y-8 z-40 overflow-y-auto transition-all duration-300`}>
+      <aside className={`fixed left-0 top-16 h-[calc(100vh-64px)] ${mobileMenuOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} md:w-60 lg:w-72 md:translate-x-0 border-r border-[#00ffff]/10 bg-[#0c0e0f]/95 md:bg-surface-container-low flex flex-col p-6 space-y-8 z-40 overflow-y-auto transition-all duration-300`}>
         <div className="space-y-1">
           <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Agent</p>
           <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-xl">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
@@ -223,6 +231,27 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
         </div>
 
         <div className="relative z-10 min-h-full p-4 md:p-12 flex flex-col">
+          {/* Mobile Info & Terminate Bar */}
+          <div className="md:hidden flex flex-col gap-4 mb-6 p-4 bg-primary/5 border border-primary/10 rounded-lg">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Operative</p>
+                <h2 className="text-primary font-['Space_Grotesk'] font-bold tracking-tighter text-lg">{operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')}</h2>
+                <p className="text-on-surface-variant/60 font-['Inter'] text-[10px] uppercase">{sector}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-primary/40 text-[10px] font-['Space_Grotesk'] tracking-[0.2em] uppercase">Network</p>
+                <span className="text-[#00ffff] font-bold text-sm uppercase drop-shadow-[0_0_8px_rgba(0,255,255,0.6)]">{networkStatus}</span>
+              </div>
+            </div>
+            <button
+              onClick={onTerminateLink}
+              className="w-full py-3 border border-error/40 text-error hover:bg-error/10 active:bg-error/20 transition-all font-['Space_Grotesk'] font-bold text-xs tracking-[0.2em] uppercase rounded shadow-[inset_0_0_10px_rgba(255,0,0,0.05)]"
+            >
+              TERMINATE LINK
+            </button>
+          </div>
+
           {/* Global Join Error Banner */}
           {joinError && !showLinkModal && (
             <div className="max-w-6xl mx-auto w-full mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -234,7 +263,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
                     <span className="text-error font-['Space_Grotesk'] font-bold tracking-wider uppercase text-sm">{joinError}</span>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={onClearError}
                   className="text-error/40 hover:text-error transition-colors p-2"
                 >
@@ -333,31 +362,31 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 w-full z-50 border-t border-[#00ffff]/30 bg-[#0c0e0f]/90 backdrop-blur-md h-auto min-h-20 py-4 px-6 md:px-12 flex flex-col md:row justify-between items-center ml-0 md:ml-60 lg:ml-72 transition-all duration-300">
-        <div className="flex items-center gap-8">
-          <div className="flex flex-col">
+      <footer className="fixed bottom-0 left-0 w-full z-50 border-t border-[#00ffff]/30 bg-[#0c0e0f]/95 backdrop-blur-md h-auto min-h-20 py-4 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center ml-0 md:ml-60 lg:ml-72 transition-all duration-300 gap-4 md:gap-0">
+        <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-8 w-full md:w-auto">
+          <div className="flex flex-col items-center md:items-start">
             <span className="text-[10px] font-bold text-primary/40 uppercase tracking-[0.3em]">Status Monitor</span>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_rgba(0,255,255,1)]" />
-              <span className="text-primary font-['Space_Grotesk'] font-black text-sm tracking-widest uppercase">Agent {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')} - STATUS: READY</span>
+              <span className="text-primary font-['Space_Grotesk'] font-black text-xs sm:text-sm tracking-widest uppercase">Agent {operativeName.replace(/^(OPERATIVE|AGENT)_/i, '')} - READY</span>
             </div>
           </div>
-          <div className="h-10 w-[1px] bg-outline-variant/30" />
-          <div className="flex gap-4">
+          <div className="hidden sm:block h-10 w-[1px] bg-outline-variant/30" />
+          <div className="flex gap-6">
             <div className="flex flex-col items-center opacity-50">
-              <span className="text-primary text-xl">📡</span>
+              <span className="text-primary text-lg">📡</span>
               <span className="text-[8px] font-bold text-primary uppercase">SCANNING</span>
             </div>
             <div className="flex flex-col items-center opacity-50">
-              <span className="text-primary text-xl">🔐</span>
+              <span className="text-primary text-lg">🔐</span>
               <span className="text-[8px] font-bold text-primary uppercase">ENCRYPTED</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-primary/40">
-          <span className="text-[10px] font-['JetBrains_Mono']">LAT: {latitude}</span>
-          <span className="text-[10px] font-['JetBrains_Mono']">LNG: {longitude}</span>
+          <span className="text-[9px] sm:text-[10px] font-['JetBrains_Mono']">LAT: {latitude}</span>
+          <span className="text-[9px] sm:text-[10px] font-['JetBrains_Mono']">LNG: {longitude}</span>
         </div>
       </footer>
 
@@ -386,7 +415,7 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
             />
           </div>
           {/* Modal */}
-          <div className="relative z-10 bg-surface-container-high border-2 border-tertiary p-8 w-96 shadow-2xl rounded-lg"
+          <div className="relative z-10 bg-surface-container-high border-2 border-tertiary p-6 sm:p-8 w-[90vw] max-w-[384px] shadow-2xl rounded-lg"
           >
             <h2 className="text-2xl font-['Space_Grotesk'] font-black text-tertiary tracking-widest mb-6 uppercase">
               ENTER FREQUENCY
@@ -441,15 +470,14 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={handleCloseFrequencyModal}
           />
           {/* Modal with Radar */}
-          <div className="relative z-10 w-96 h-96 flex items-center justify-center">
+          <div className="relative z-10 w-full max-w-[384px] aspect-square flex items-center justify-center p-4">
             {/* Radar Background Circles */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="absolute w-96 h-96 rounded-full border border-primary/30" />
-              <div className="absolute w-80 h-80 rounded-full border border-primary/20" />
-              <div className="absolute w-64 h-64 rounded-full border border-primary/10" />
+              <div className="absolute w-[90vw] h-[90vw] max-w-[384px] max-h-[384px] rounded-full border border-primary/30" />
+              <div className="absolute w-[75vw] h-[75vw] max-w-[320px] max-h-[320px] rounded-full border border-primary/20" />
+              <div className="absolute w-[60vw] h-[60vw] max-w-[256px] max-h-[256px] rounded-full border border-primary/10" />
               {/* Radar Sweep Animation */}
               <div
                 className="absolute inset-0 rounded-full animate-[spin_4s_linear_infinite]"
@@ -460,14 +488,14 @@ const MissionDeploymentHub: React.FC<MissionDeploymentHubProps> = ({
             </div>
 
             {/* Frequency Display Card */}
-            <div className="relative z-10 bg-surface/90 backdrop-blur-xl border-2 border-primary p-12 w-80 flex flex-col items-center justify-center shadow-2xl rounded-lg"
+            <div className="relative z-10 bg-surface/90 backdrop-blur-xl border-2 border-primary p-8 sm:p-12 w-[85vw] max-w-[320px] flex flex-col items-center justify-center shadow-2xl rounded-lg"
             >
               <div className="text-center">
                 <h3 className="text-xs font-['Space_Grotesk'] font-bold text-primary/60 tracking-[0.3em] uppercase mb-6">
                   SECURE FREQUENCY
                 </h3>
                 <div className="my-4 h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto" />
-                <div className="text-8xl font-['Space_Grotesk'] font-black text-primary tracking-tighter drop-shadow-[0_0_15px_rgba(0,255,255,0.8)] mb-4">
+                <div className="text-6xl sm:text-8xl font-['Space_Grotesk'] font-black text-primary tracking-tighter drop-shadow-[0_0_15px_rgba(0,255,255,0.8)] mb-4">
                   {matchCode}
                 </div>
                 <div className="my-4 h-[2px] w-16 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto" />

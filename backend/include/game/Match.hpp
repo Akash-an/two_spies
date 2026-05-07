@@ -114,12 +114,21 @@ private:
     int alpha_consecutive_timeouts_ = 0;
     int beta_consecutive_timeouts_ = 0;
 
+    // Termination timestamp for GC
+    std::optional<std::chrono::steady_clock::time_point> finished_at_;
+
     PlayerSide side_of(const std::string& player_id) const;
     std::string player_id_of(PlayerSide side) const;
     void broadcast_state(bool skip_opponent = false);
     void send_to(const std::string& player_id, const std::string& msg);
     void send_error(const std::string& player_id, const std::string& error);
     void check_disconnect_timeouts();
+
+public:
+    const std::string& alpha_player_id() const { return alpha_player_id_; }
+    const std::string& beta_player_id() const { return beta_player_id_; }
+    bool is_expired(std::chrono::seconds ttl) const;
+    void mark_finished();
 };
 
 } // namespace two_spies::game
