@@ -30,22 +30,34 @@ body,
 
 .help-btn-header {
   background: transparent;
-  border: none;
+  border: 1px solid rgba(0, 255, 255, 0.15);
   color: #00ffff;
   opacity: 0.7;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
   transition: all 0.2s ease;
   z-index: 100;
 }
 
-.help-btn-header:hover {
+.help-btn-header .material-symbols-outlined {
+  font-size: 24px;
+}
+
+.help-btn-header:hover, .help-btn-header.active {
   opacity: 1;
+  background: rgba(0, 255, 255, 0.1);
+  border-color: rgba(0, 255, 255, 0.5);
   text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-  transform: scale(1.1);
+}
+
+.help-btn-header:hover {
+  transform: scale(1.05);
 }
 
 .action-tooltip {
@@ -87,3 +99,19 @@ body,
   pointer-events: auto;
 }
 
+.tactical-scrollbar::-webkit-scrollbar {
+  height: 2px;
+}
+
+.tactical-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 255, 255, 0.05);
+}
+
+.tactical-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.tactical-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.4);
+}

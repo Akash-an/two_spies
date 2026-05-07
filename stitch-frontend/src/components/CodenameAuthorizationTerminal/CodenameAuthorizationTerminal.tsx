@@ -141,7 +141,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         data-testid="terminal-header"
       >
         <div 
-          className="text-lg md:text-2xl font-black tracking-widest uppercase"
+          className="text-lg md:text-2xl font-black tracking-widest uppercase min-w-0 flex-shrink"
           style={{
             color: '#00ffff',
             textShadow: '0 0 8px rgba(0,255,255,0.5)',
@@ -151,7 +151,7 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
         >
           MISSION: NEON_PHANTOM
         </div>
-        <div className="flex gap-6 items-center">
+        <div className="flex gap-6 items-center flex-shrink-0">
           <div 
             className="tracking-widest text-xs"
             style={{ color: '#00ffff', fontFamily: 'Space Grotesk, sans-serif' }}
@@ -162,11 +162,22 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
           <button
             className="help-btn-header"
             onClick={toggleFullscreen}
+            onMouseEnter={() => setActionTooltip?.(isFullscreen ? 'RETURN TO PORTRAIT' : 'TACTICAL VIEW')}
+            onMouseLeave={() => setActionTooltip?.(null)}
             title={isFullscreen ? "Exit Tactical View" : "Enter Tactical View"}
           >
             <span className="material-symbols-outlined">
               {isFullscreen ? 'screen_rotation' : 'fullscreen'}
             </span>
+          </button>
+          <button
+            className="help-btn-header"
+            onClick={onOpenHowToPlay}
+            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY')}
+            onMouseLeave={() => setActionTooltip?.(null)}
+            title="How to Play"
+          >
+            <span className="material-symbols-outlined">help_outline</span>
           </button>
           <button
             className="help-btn-header"
@@ -178,15 +189,6 @@ const CodenameAuthorizationTerminal: React.FC<CodenameAuthorizationProps> = ({
             <span className="material-symbols-outlined">
               {isMuted ? 'volume_off' : 'volume_up'}
             </span>
-          </button>
-          <button
-            className="help-btn-header"
-            onClick={onOpenHowToPlay}
-            onMouseEnter={() => setActionTooltip?.('HOW TO PLAY: Open field manual and mission objectives.')}
-            onMouseLeave={() => setActionTooltip?.(null)}
-            title="How to Play"
-          >
-            <span className="material-symbols-outlined">help_outline</span>
           </button>
         </div>
       </header>
