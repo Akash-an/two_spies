@@ -188,6 +188,9 @@ json serialize_match_state(const std::string& session_id,
         json popup_obj;
         popup_obj["city"] = popup.city_id;
         popup_obj["amount"] = popup.amount;
+        if (popup.claimed_by) {
+            popup_obj["claimedBy"] = game::to_string(*popup.claimed_by);
+        }
         intel_popups_arr.push_back(popup_obj);
     }
     result["intelPopups"] = intel_popups_arr;
@@ -197,6 +200,9 @@ json serialize_match_state(const std::string& session_id,
     for (const auto& popup : state.action_popups()) {
         json popup_obj;
         popup_obj["city"] = popup.city_id;
+        if (popup.claimed_by) {
+            popup_obj["claimedBy"] = game::to_string(*popup.claimed_by);
+        }
         action_popups_arr.push_back(popup_obj);
     }
     result["actionPopups"] = action_popups_arr;

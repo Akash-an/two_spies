@@ -792,15 +792,13 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   circleClass += ' opponent';
                 }
 
-                // If no player/opponent presence, show city type/highlight
-                if (!isPlayer && !isOpp) {
-                  if (hasIntel) circleClass += ' intel-popup';
-                  else if (hasAction) circleClass += ' action-popup';
-                  else if (isMoveTarget) circleClass += ' selected';
-                  else if (isAdj) circleClass += ' adjacent-highlight';
-                  else if (isSel) circleClass += ' inspected';
-                  else circleClass += ' default';
-                }
+                // Show city type/highlight (even if player is present, popups should show)
+                if (hasIntel) circleClass += ' intel-popup';
+                else if (hasAction) circleClass += ' action-popup';
+                else if (isMoveTarget) circleClass += ' selected';
+                else if (isAdj) circleClass += ' adjacent-highlight';
+                else if (isSel) circleClass += ' inspected';
+                else circleClass += ' default';
 
                 // Add control status (additive)
                 const isMyControl = controller === mySideVal;
@@ -819,12 +817,45 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
                   {scheduledDisappear && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={radius + 2} className="scheduled-ring" />
                   )}
+
+                  {/* Intelligence Marker Icon */}
+                  {hasIntel && !isDis && (
+                    <g transform={`translate(${pos.x}, ${pos.y - radius - 15})`} className="marker-float">
+                      <circle r="10" fill="#0c0e0f" stroke="#fe9800" strokeWidth="1" />
+                      <text
+                        className="material-symbols-outlined"
+                        fill="#fe9800"
+                        fontSize="14"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                      >
+                        info
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Action Popup Marker Icon */}
+                  {hasAction && !isDis && (
+                    <g transform={`translate(${pos.x}, ${pos.y - radius - 15})`} className="marker-float">
+                      <circle r="10" fill="#0c0e0f" stroke="#00ffff" strokeWidth="1" />
+                      <text
+                        className="material-symbols-outlined"
+                        fill="#00ffff"
+                        fontSize="14"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                      >
+                        bolt
+                      </text>
+                    </g>
+                  )}
+
                   {/* Intel ripple animation */}
-                  {hasIntel && !isPlayer && !isOpp && !isDis && (
+                  {hasIntel && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#fe9800" className="intel-ripple" pointerEvents="none" />
                   )}
                   {/* Action popup ripple animation */}
-                  {hasAction && !isPlayer && !isOpp && !isDis && (
+                  {hasAction && !isDis && (
                     <circle cx={pos.x} cy={pos.y} r={radius} fill="none" stroke="#00ffff" className="intel-ripple" pointerEvents="none" />
                   )}
                   <circle cx={pos.x} cy={pos.y} r={radius} className={circleClass} />

@@ -14,12 +14,14 @@ struct IntelPopup {
     std::string city_id;    // city where Intel appeared
     int amount = 10;        // amount (fixed at 10)
     int turn_created;       // turn number when created
+    std::optional<PlayerSide> claimed_by; // side that has claimed this (delayed removal)
 };
 
 /// Represents an Action pickup spawned on the board.
 struct ActionPopup {
     std::string city_id;    // city where Action pickup appeared
     int turn_created;       // turn number when created
+    std::optional<PlayerSide> claimed_by; // side that has claimed this (delayed removal)
 };
 
 /// Action types the client can send.
