@@ -26,6 +26,7 @@ void test_timeout_not_triggered_before_timeout();
 void test_match_auto_end_turn();
 void test_powerup_no_stacking();
 static void test_forfeit();
+static void test_intel_pickup_delay();
 
 static MapDef test_map() {
     MapDef map;
@@ -1860,6 +1861,9 @@ int main() {
     std::cout << "\nRunning Forfeit Tests...\n";
     test_forfeit();
     
+    std::cout << "\nRunning Pickup Delay Tests...\n";
+    test_intel_pickup_delay();
+    
     if (g_soft_failures > 0) {
         std::cerr << "\n" << g_soft_failures
                   << " manual-rule expectation(s) FAILED (see [FAIL] above).\n";
@@ -1867,4 +1871,65 @@ int main() {
     }
     std::cout << "\nAll tests passed!\n";
     return 0;
+}
+
+static MapDef test_map_pickups() {
+    MapDef map;
+    map.cities = {
+        {"city1", "City 1", 0, 0},
+        {"city2", "City 2", 1, 1},
+        {"city3", "City 3", 2, 2}
+    };
+    map.edges = {
+        {"city1", "city2"},
+        {"city2", "city3"}
+    };
+    return map;
+}
+
+static void test_intel_pickup_delay() {
+    std::cout << "  test_intel_pickup_delay... ";
+    
+    GameState gs(test_map_pickups());
+    gs.set_starting_cities("city1", "city3");
+    
+    int actions = 0;
+    while (gs.intel_popups().empty() && actions < 100) {
+        gs.move(PlayerSide::ALPHA, "city2");
+        gs.move(PlayerSide::ALPHA, "city1");
+        gs.end_turn(PlayerSide::ALPHA);
+        gs.end_turn(PlayerSide::BETA);
+        actions += 2;
+    }
+    
+    assert(!gs.intel_popups().empty());
+    std::string popup_city = gs.intel_popups()[0].city_id;
+    
+    if (gs.current_turn() != PlayerSide::ALPHA) {
+        gs.end_turn(PlayerSide::BETA);
+    }
+    
+    if (gs.player(PlayerSide::ALPHA).current_city != popup_city) {
+        gs.move(PlayerSide::ALPHA, popup_city);
+    }
+    
+    gs.end_turn(PlayerSide::ALPHA);
+    
+    assert(gs.player(PlayerSide::ALPHA).claimed_intel_this_turn == true);
+    assert(!gs.intel_popups().empty());
+    assert(gs.intel_popups()[0].city_id == popup_city);
+    assert(gs.intel_popups()[0].claimed_by == PlayerSide::ALPHA);
+    
+    gs.move(PlayerSide::BETA, "city2");
+    assert(!gs.intel_popups().empty());
+    assert(gs.intel_popups()[0].city_id == popup_city);
+    
+    gs.end_turn(PlayerSide::BETA);
+    
+    assert(gs.current_turn() == PlayerSide::ALPHA);
+    assert(gs.intel_popups().empty());
+    assert(gs.player(PlayerSide::ALPHA).intel >= 12);
+    assert(gs.player(PlayerSide::ALPHA).has_cover == false);
+    
+    std::cout << "OK\n";
 }

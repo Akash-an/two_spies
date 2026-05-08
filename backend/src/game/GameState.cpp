@@ -991,6 +991,9 @@ void GameState::try_claim_intel(PlayerSide side) {
                           });
     
     if (it != intel_popups_.end()) {
+        // If already claimed by someone else, skip (should not happen in normal play as only one player per city)
+        if (it->claimed_by.has_value()) return;
+
         // Mark that Intel should be claimed
         p.claimed_intel_this_turn = true;
         p.intel_claimed_from_city = it->city_id;
@@ -998,8 +1001,8 @@ void GameState::try_claim_intel(PlayerSide side) {
         std::cerr << "[INTEL] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " will claim " << it->amount << " Intel at city " << it->city_id << "\n";
         
-        // Remove the pop-up
-        intel_popups_.erase(it);
+        // Mark the pop-up as claimed (removal delayed until start of their next turn)
+        it->claimed_by = side;
     }
 }
 
@@ -1025,6 +1028,15 @@ void GameState::apply_claimed_intel(PlayerSide side) {
                   << ". New Intel: " << p.intel << ". Cover blown."
                   << " Opponent now sees at: " << p.current_city << "\n";
         
+        // Remove the pop-up from the board now that it's applied
+        auto it = std::find_if(intel_popups_.begin(), intel_popups_.end(),
+                              [side](const IntelPopup& popup) {
+                                  return popup.claimed_by == side;
+                              });
+        if (it != intel_popups_.end()) {
+            intel_popups_.erase(it);
+        }
+
         // Reset flags
         p.claimed_intel_this_turn = false;
         p.intel_claimed_from_city = "";
@@ -1087,14 +1099,17 @@ void GameState::try_claim_action(PlayerSide side) {
                           });
     
     if (it != action_popups_.end()) {
+        // If already claimed by someone else, skip
+        if (it->claimed_by.has_value()) return;
+
         p.claimed_action_this_turn = true;
         p.action_claimed_from_city = it->city_id;
         
         std::cerr << "[ACTION] Player " << (side == PlayerSide::ALPHA ? "ALPHA" : "BETA") 
                   << " will claim Action pickup at city " << it->city_id << "\n";
         
-        // Remove the pop-up
-        action_popups_.erase(it);
+        // Mark the pop-up as claimed (removal delayed until start of their next turn)
+        it->claimed_by = side;
     }
 }
 
@@ -1116,6 +1131,15 @@ void GameState::apply_claimed_action(PlayerSide side) {
                   << " claimed Action pickup at " << p.action_claimed_from_city 
                   << ". Actions now: " << p.actions_remaining << ". Cover blown.\n";
         
+        // Remove the pop-up from the board now that it's applied
+        auto it = std::find_if(action_popups_.begin(), action_popups_.end(),
+                              [side](const ActionPopup& popup) {
+                                  return popup.claimed_by == side;
+                              });
+        if (it != action_popups_.end()) {
+            action_popups_.erase(it);
+        }
+
         // Reset flags
         p.claimed_action_this_turn = false;
         p.action_claimed_from_city = "";
